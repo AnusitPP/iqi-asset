@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "drive:connect": "node drive-connect.js",
     "dev": "node server.js",
     "start": "node server.js",
     "test": "node --test",

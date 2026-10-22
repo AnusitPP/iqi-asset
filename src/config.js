@@ -3,6 +3,7 @@ import path from 'node:path';
 export const config = {
   photoFolderId: process.env.GOOGLE_PHOTO_FOLDER_ID || '1C42KW3QDHJ2X4scDba0p11TV1xM4L8-z',
   driveOAuthFile: process.env.GOOGLE_DRIVE_OAUTH_FILE || '',
+  publicPhotoPreview: process.env.PUBLIC_PHOTO_PREVIEW === 'true',
   port: Number(process.env.PORT || 3000),
   host: process.env.HOST || '0.0.0.0',
   spreadsheetId:

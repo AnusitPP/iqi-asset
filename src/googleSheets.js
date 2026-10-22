@@ -152,7 +152,7 @@ export class GoogleSheets {
       ).data.values || []
     );
   }
-  async writeDashboardPhotos(row, links, date) {
+  async writeDashboardPhotos(row, links, date, previewId = null) {
     const values = await this.readDashboard(),
       headers = values[0] || [];
     const metadata = (
@@ -178,10 +178,12 @@ export class GoogleSheets {
         fields: 'userEnteredValue',
       },
     });
-    for (const [name, value] of [
+    const fields = [
       ['ลิงก์รูปครุภัณฑ์', links],
       ['วันที่อัปโหลดรูป', date],
-    ]) {
+    ];
+    if (previewId) fields.push(['รูปครุภัณฑ์', previewId]);
+    for (const [name, value] of fields) {
       let c = headers.indexOf(name);
       if (c < 0) {
         c = next++;
@@ -193,7 +195,22 @@ export class GoogleSheets {
           },
         });
       }
-      requests.push(cell(row - 1, c, value));
+      if (name === 'รูปครุภัณฑ์') {
+        const imageUrl = `https://drive.google.com/uc?export=view&id=${encodeURIComponent(value)}`;
+        requests.push({
+          updateCells: {
+            range: { sheetId: p.sheetId, startRowIndex: row - 1, endRowIndex: row, startColumnIndex: c, endColumnIndex: c + 1 },
+            rows: [{ values: [{ userEnteredValue: { formulaValue: `=IMAGE("${imageUrl}",1)` } }] }],
+            fields: 'userEnteredValue',
+          },
+        });
+        requests.push({
+          updateDimensionProperties: {
+            range: { sheetId: p.sheetId, dimension: 'ROWS', startIndex: row - 1, endIndex: row },
+            properties: { pixelSize: 140 }, fields: 'pixelSize',
+          },
+        });
+      } else requests.push(cell(row - 1, c, value));
     }
     if (next > p.gridProperties.columnCount)
       requests.unshift({

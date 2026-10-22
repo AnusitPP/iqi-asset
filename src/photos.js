@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import heicConvert from 'heic-convert';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
-import fs from 'node:fs';
+import { driveOAuth } from './driveAuth.js';
 import { dashboardData } from './dashboard.js';
 export const PHOTO_HEADER = 'ลิงก์รูปครุภัณฑ์';
 export const PHOTO_DATE_HEADER = 'วันที่อัปโหลดรูป';
@@ -49,11 +49,13 @@ export class PhotoStore {
   constructor(config) {
     this.folder = config.photoFolderId || '1C42KW3QDHJ2X4scDba0p11TV1xM4L8-z';
     this.userAuth = !!config.driveOAuthFile;
+    this.publicPhotoPreview = config.publicPhotoPreview === true;
     let auth;
+    this.oauthConnected = true;
     if (this.userAuth) {
-      const c = JSON.parse(fs.readFileSync(config.driveOAuthFile, 'utf8'));
-      auth = new google.auth.OAuth2(c.client_id, c.client_secret);
-      auth.setCredentials({ refresh_token: c.refresh_token });
+      const connection = driveOAuth(config.driveOAuthFile);
+      auth = connection.auth;
+      this.oauthConnected = connection.connected;
     } else
       auth = new google.auth.GoogleAuth({
         keyFile: config.keyFile,
@@ -63,6 +65,11 @@ export class PhotoStore {
   }
   async upload(buffer, name) {
     try {
+      if (!this.oauthConnected)
+        fail(
+          422,
+          'ยังไม่ได้อนุญาตบัญชี Google Drive กรุณารัน npm run drive:connect แล้วรีสตาร์ตแอป',
+        );
       const folder = (
         await this.drive.files.get({
           fileId: this.folder,
@@ -73,7 +80,9 @@ export class PhotoStore {
       if (!folder.capabilities?.canAddChildren)
         fail(
           422,
-          'แอปยังไม่มีสิทธิ์เพิ่มรูปในโฟลเดอร์ FM กรุณาแชร์โฟลเดอร์ให้บัญชี Service Account เป็น Editor',
+          this.userAuth
+            ? 'บัญชี Google ที่เชื่อมอยู่ยังเพิ่มรูปในโฟลเดอร์ FM ไม่ได้ กรุณาแชร์โฟลเดอร์ให้บัญชีนี้เป็น Editor หรือรัน npm run drive:connect เพื่อเปลี่ยนบัญชี'
+            : 'แอปยังไม่มีสิทธิ์เพิ่มรูปในโฟลเดอร์ FM กรุณาแชร์โฟลเดอร์ให้บัญชี Service Account เป็น Editor',
         );
       if (!folder.driveId && !this.userAuth)
         fail(
@@ -88,9 +97,29 @@ export class PhotoStore {
           fields: 'id,webViewLink',
         })
       ).data;
+      if (this.publicPhotoPreview) {
+        try {
+          await this.drive.permissions.create({
+            fileId: file.id,
+            supportsAllDrives: true,
+            requestBody: { type: 'anyone', role: 'reader' },
+            fields: 'id',
+          });
+        } catch (error) {
+          fail(
+            422,
+            `อัปโหลดรูปแล้ว แต่เปิดสิทธิ์ดูภาพสำหรับ Google Sheets ไม่สำเร็จ (อาจถูกนโยบายองค์กรจำกัด): ${file.id}`,
+          );
+        }
+      }
       return { id: file.id, url: `https://drive.google.com/file/d/${file.id}/view` };
     } catch (e) {
       if (e.status === 422) throw e;
+      if (/invalid_grant|invalid_client/i.test(e.message))
+        fail(
+          422,
+          'การอนุญาต Google Drive หมดอายุหรือถูกยกเลิก กรุณารัน npm run drive:connect แล้วรีสตาร์ตแอป',
+        );
       if (/disabled|has not been used/i.test(e.message))
         fail(
           422,
@@ -145,7 +174,12 @@ export class DashboardPhotos {
       timeStyle: 'medium',
     }).format(new Date());
     try {
-      await this.adapter.writeDashboardPhotos(row, [old, photo.url].filter(Boolean).join('\n'), at);
+      await this.adapter.writeDashboardPhotos(
+        row,
+        [old, photo.url].filter(Boolean).join('\n'),
+        at,
+        this.store.publicPhotoPreview ? photo.id : null,
+      );
     } catch {
       fail(
         409,
