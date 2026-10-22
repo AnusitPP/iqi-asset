@@ -1,20 +1,164 @@
 <!doctype html>
 <html lang="th">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f6f7f9"><title>IQI Asset Checker — ค้นหาครุภัณฑ์</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/dashboard.css"><script type="module" src="/app.js"></script></head>
-<body>
- <header class="topbar"><div class="topbar-inner"><a class="brand" href="/" aria-label="IQI Asset Checker หน้าหลัก"><span class="brand-mark">i<span>q</span>i.</span><span class="brand-name">Asset Checker<span>ระบบตรวจสอบครุภัณฑ์</span></span></a><span class="connection" id="connection"><span class="status-dot"></span><span id="connection-text">กำลังเชื่อมต่อ</span></span></div></header>
- <button type="button" id="logout-button" class="logout-button" hidden>ล็อกออก</button>
- <main class="container">
-  <nav class="workspace-tabs" aria-label="หน้าข้อมูล"><button class="workspace-tab active" id="search-tab" type="button" aria-pressed="true">ค้นหาครุภัณฑ์</button><button class="workspace-tab" id="dashboard-tab" type="button" aria-pressed="false">Dashboard</button></nav>
-  <section id="dashboard-panel" hidden aria-label="Dashboard ครุภัณฑ์ IQI"></section>
-  <section class="intro"><div class="eyebrow"><span class="tiny-line"></span> IQI WORKSPACE</div><h1>ครุภัณฑ์ที่ต้องการ<br class="mobile-break"> หาได้ในที่เดียว<span class="heading-dot">.</span></h1><p>ค้นหา ตรวจสอบข้อมูล และอัปเดตครุภัณฑ์ IQI<br class="mobile-break"> จาก Google Sheets ของคุณ</p></section>
-  <section class="search-card" aria-labelledby="search-label"><form id="search-form"><label id="search-label" for="query">ค้นหาข้อมูลครุภัณฑ์</label><div class="search-row"><div class="search-input-wrap"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7"/><path d="m16 16 4.5 4.5"/></svg><input id="query" name="q" type="search" placeholder="ชื่อคน อุปกรณ์ ทีม เลขครุภัณฑ์ หรือ S/N" maxlength="200" autocomplete="off" aria-describedby="search-hint"></div><button class="button primary" id="search-button" type="submit">ค้นหา <span data-icon="arrow" aria-hidden="true"></span></button></div><div class="search-meta"><p id="search-hint">ค้นหาทุกคอลัมน์ พิมพ์หลายคำได้ เช่น จอ IQI หรือชื่อคน</p><span class="key-hint">Enter <span data-icon="enter" aria-hidden="true"></span></span></div></form><div class="source-strip"><span>ค้นหาพร้อมกันใน</span><span class="source-chip"><i class="dot mint"></i>IQI</span><span class="source-chip"><i class="dot blue"></i>รายการทั้งหมด</span><span class="source-chip"><i class="dot amber"></i>all</span></div><div class="filter-row"><label for="pending-only"><input type="checkbox" id="pending-only">แสดงเฉพาะรายการรอค้นหา</label><a id="review-sheet-link" hidden target="_blank" rel="noopener noreferrer">เปิดชีตรอตรวจสอบ <span data-icon="arrow" aria-hidden="true"></span></a><a id="iqi-it-sheet-link" hidden target="_blank" rel="noopener noreferrer">เปิดชีต IT + IQI <span data-icon="arrow" aria-hidden="true"></span></a></div></section>
-  <div id="page-error" class="alert error" role="alert" hidden></div>
-  <section id="results" aria-live="polite" aria-busy="false"><div class="empty-start"><div class="empty-symbol"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="10" y="13" width="28" height="25" rx="5"/><path d="M18 13v-3a6 6 0 0 1 12 0v3M19 24h10M24 19v10"/></svg><span class="little-check" data-icon="check" aria-hidden="true"></span></div><h2>เริ่มต้นด้วยคำที่ต้องการค้นหา</h2><p>กรอกชื่อคน อุปกรณ์ หรือเลขที่ต้องการ แล้วเลือกดูข้อมูลจากแต่ละ Sheet<br>ข้อมูลครบทุกคอลัมน์ พร้อมแก้ไขรายการจาก IQI</p><span class="empty-tag">ค้นหาครั้งเดียว · ตรวจสอบได้ทั้ง 3 Sheet</span></div></section>
-  <footer><span>IQI Asset Checker</span><span>ข้อมูลจาก Google Sheets <span data-icon="arrow" aria-hidden="true"></span></span></footer>
- </main>
- <dialog id="detail-dialog" aria-labelledby="detail-title"><div class="detail-shell"><header class="detail-header"><div><div class="eyebrow" id="detail-source"></div><h2 id="detail-title">รายละเอียดครุภัณฑ์</h2></div><button type="button" class="icon-button" id="close-detail" aria-label="ปิดรายละเอียด" data-icon="close"></button></header><div class="detail-scroll" id="detail-scroll"><div id="detail-content"></div></div><div class="detail-actions" id="detail-actions"></div></div></dialog>
- <dialog id="auth-dialog" closedby="none" aria-labelledby="auth-title"><form id="auth-form" class="auth-form"><span class="auth-symbol" data-icon="lock" aria-hidden="true"></span><h2 id="auth-title">เข้าใช้งาน IQI Asset Checker</h2><p>กรอกรหัสผ่านเพื่อค้นหาและจัดการครุภัณฑ์</p><label for="auth-password">รหัสผ่าน</label><input id="auth-password" type="password" autocomplete="current-password" maxlength="256" required autofocus><div id="auth-error" class="alert error" role="alert" hidden></div><button type="submit" id="auth-submit" class="button primary">เข้าใช้งาน</button></form></dialog>
- <dialog id="inspection-dialog" aria-labelledby="inspection-title"><form id="inspection-form" class="auth-form"><h2 id="inspection-title">บันทึกผลตรวจ</h2><p id="inspection-asset"></p><label for="inspection-status">สถานะการตรวจสอบ</label><select id="inspection-status" required><option value="">เลือกสถานะ</option><option>ดี</option><option>ชำรุด</option><option>หาไม่เจอ</option></select><p id="inspection-date">วันที่จะลงอัตโนมัติเมื่อบันทึกผลตรวจ</p><div id="inspection-error" class="alert error" role="alert" hidden></div><button id="inspection-save" type="submit" class="button primary">บันทึกผลตรวจ</button><button id="inspection-close" type="button" class="button">ยกเลิก</button></form></dialog>
- <div id="toast" class="toast" role="status" hidden></div>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7f9" />
+    <title>IQI Asset Checker — ค้นหาครุภัณฑ์</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/dashboard.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/" aria-label="IQI Asset Checker หน้าหลัก"
+          ><span class="brand-mark">i<span>q</span>i.</span
+          ><span class="brand-name">Asset Checker<span>ระบบตรวจสอบครุภัณฑ์</span></span></a
+        ><span class="connection" id="connection"
+          ><span class="status-dot"></span><span id="connection-text">กำลังเชื่อมต่อ</span></span
+        >
+      </div>
+    </header>
+    <button type="button" id="logout-button" class="logout-button" hidden>ล็อกออก</button>
+    <main class="container">
+      <nav class="workspace-tabs" aria-label="หน้าข้อมูล">
+        <button class="workspace-tab active" id="search-tab" type="button" aria-pressed="true">
+          ค้นหาครุภัณฑ์</button
+        ><button class="workspace-tab" id="dashboard-tab" type="button" aria-pressed="false">
+          Dashboard
+        </button>
+      </nav>
+      <section id="dashboard-panel" hidden aria-label="Dashboard ครุภัณฑ์ IQI"></section>
+      <section class="intro">
+        <div class="eyebrow"><span class="tiny-line"></span> IQI WORKSPACE</div>
+        <h1>
+          ครุภัณฑ์ที่ต้องการ<br class="mobile-break" />
+          หาได้ในที่เดียว<span class="heading-dot">.</span>
+        </h1>
+        <p>
+          ค้นหา ตรวจสอบข้อมูล และอัปเดตครุภัณฑ์ IQI<br class="mobile-break" />
+          จาก Google Sheets ของคุณ
+        </p>
+      </section>
+      <section class="search-card" aria-labelledby="search-label">
+        <form id="search-form">
+          <label id="search-label" for="query">ค้นหาข้อมูลครุภัณฑ์</label>
+          <div class="search-row">
+            <div class="search-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="10.7" cy="10.7" r="6.7" />
+                <path d="m16 16 4.5 4.5" /></svg
+              ><input
+                id="query"
+                name="q"
+                type="search"
+                placeholder="ชื่อคน อุปกรณ์ ทีม เลขครุภัณฑ์ หรือ S/N"
+                maxlength="200"
+                autocomplete="off"
+                aria-describedby="search-hint"
+              />
+            </div>
+            <button class="button primary" id="search-button" type="submit">
+              ค้นหา <span data-icon="arrow" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="search-meta">
+            <p id="search-hint">ค้นหาทุกคอลัมน์ พิมพ์หลายคำได้ เช่น จอ IQI หรือชื่อคน</p>
+            <span class="key-hint">Enter <span data-icon="enter" aria-hidden="true"></span></span>
+          </div>
+        </form>
+        <div class="source-strip">
+          <span>ค้นหาพร้อมกันใน</span><span class="source-chip"><i class="dot mint"></i>IQI</span
+          ><span class="source-chip"><i class="dot blue"></i>รายการทั้งหมด</span
+          ><span class="source-chip"><i class="dot amber"></i>all</span>
+        </div>
+        <div class="filter-row">
+          <label for="pending-only"
+            ><input type="checkbox" id="pending-only" />แสดงเฉพาะรายการรอค้นหา</label
+          ><a id="review-sheet-link" hidden target="_blank" rel="noopener noreferrer"
+            >เปิดชีตรอตรวจสอบ <span data-icon="arrow" aria-hidden="true"></span></a
+          ><a id="iqi-it-sheet-link" hidden target="_blank" rel="noopener noreferrer"
+            >เปิดชีต IT + IQI <span data-icon="arrow" aria-hidden="true"></span
+          ></a>
+        </div>
+      </section>
+      <div id="page-error" class="alert error" role="alert" hidden></div>
+      <section id="results" aria-live="polite" aria-busy="false">
+        <div class="empty-start">
+          <div class="empty-symbol">
+            <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+              <rect x="10" y="13" width="28" height="25" rx="5" />
+              <path d="M18 13v-3a6 6 0 0 1 12 0v3M19 24h10M24 19v10" /></svg
+            ><span class="little-check" data-icon="check" aria-hidden="true"></span>
+          </div>
+          <h2>เริ่มต้นด้วยคำที่ต้องการค้นหา</h2>
+          <p>
+            กรอกชื่อคน อุปกรณ์ หรือเลขที่ต้องการ แล้วเลือกดูข้อมูลจากแต่ละ Sheet<br />ข้อมูลครบทุกคอลัมน์
+            พร้อมแก้ไขรายการจาก IQI
+          </p>
+          <span class="empty-tag">ค้นหาครั้งเดียว · ตรวจสอบได้ทั้ง 3 Sheet</span>
+        </div>
+      </section>
+      <footer>
+        <span>IQI Asset Checker</span
+        ><span>ข้อมูลจาก Google Sheets <span data-icon="arrow" aria-hidden="true"></span></span>
+      </footer>
+    </main>
+    <dialog id="detail-dialog" aria-labelledby="detail-title">
+      <div class="detail-shell">
+        <header class="detail-header">
+          <div>
+            <div class="eyebrow" id="detail-source"></div>
+            <h2 id="detail-title">รายละเอียดครุภัณฑ์</h2>
+          </div>
+          <button
+            type="button"
+            class="icon-button"
+            id="close-detail"
+            aria-label="ปิดรายละเอียด"
+            data-icon="close"
+          ></button>
+        </header>
+        <div class="detail-scroll" id="detail-scroll"><div id="detail-content"></div></div>
+        <div class="detail-actions" id="detail-actions"></div>
+      </div>
+    </dialog>
+    <dialog id="auth-dialog" closedby="none" aria-labelledby="auth-title">
+      <form id="auth-form" class="auth-form">
+        <span class="auth-symbol" data-icon="lock" aria-hidden="true"></span>
+        <h2 id="auth-title">เข้าใช้งาน IQI Asset Checker</h2>
+        <p>กรอกรหัสผ่านเพื่อค้นหาและจัดการครุภัณฑ์</p>
+        <label for="auth-password">รหัสผ่าน</label
+        ><input
+          id="auth-password"
+          type="password"
+          autocomplete="current-password"
+          maxlength="256"
+          required
+          autofocus
+        />
+        <div id="auth-error" class="alert error" role="alert" hidden></div>
+        <button type="submit" id="auth-submit" class="button primary">เข้าใช้งาน</button>
+      </form>
+    </dialog>
+    <dialog id="inspection-dialog" aria-labelledby="inspection-title">
+      <form id="inspection-form" class="auth-form">
+        <h2 id="inspection-title">บันทึกผลตรวจ</h2>
+        <p id="inspection-asset"></p>
+        <label for="inspection-status">สถานะการตรวจสอบ</label
+        ><select id="inspection-status" required>
+          <option value="">เลือกสถานะ</option>
+          <option>ดี</option>
+          <option>ชำรุด</option>
+          <option>หาไม่เจอ</option>
+        </select>
+        <p id="inspection-date">วันที่จะลงอัตโนมัติเมื่อบันทึกผลตรวจ</p>
+        <div id="inspection-error" class="alert error" role="alert" hidden></div>
+        <button id="inspection-save" type="submit" class="button primary">บันทึกผลตรวจ</button
+        ><button id="inspection-close" type="button" class="button">ยกเลิก</button>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>

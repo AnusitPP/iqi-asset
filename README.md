@@ -21,11 +21,11 @@ npm run dev
 
 ใช้ Spreadsheet ID `1IvDnE8yCqN232ZuaXgNSj-42Zm4k1IjDYFNgsXXWdHo` โดยแสดงกลุ่มผลลัพธ์ดังนี้:
 
-| กลุ่มในแอป | ชื่อแท็บจริงใน Google Sheets | สิทธิ์ |
-| --- | --- | --- |
-| IQI | IQI | อ่าน / แก้ทุก column |
-| รายการทั้งหมด | สำเนาของ รายการทั้งหมด | อ่านอย่างเดียว |
-| all | สำเนาของ ALL | อ่านอย่างเดียว |
+| กลุ่มในแอป    | ชื่อแท็บจริงใน Google Sheets | สิทธิ์               |
+| ------------- | ---------------------------- | -------------------- |
+| IQI           | IQI                          | อ่าน / แก้ทุก column |
+| รายการทั้งหมด | สำเนาของ รายการทั้งหมด       | อ่านอย่างเดียว       |
+| all           | สำเนาของ ALL                 | อ่านอย่างเดียว       |
 
 แก้ชื่อแท็บผ่าน `SHEET_IQI`, `SHEET_ALL_ITEMS`, `SHEET_ALL` ใน `.env` แล้ว restart ไม่ต้องเปลี่ยนชื่อแท็บจริง
 
@@ -112,6 +112,7 @@ node scripts/live-check.mjs --write-test
 UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan](https://www.figma.com/community/file/977500202909795677/dashboard): พื้นขาว, ตัวอักษรเข้ม, whitespace, มุมโค้ง และสีเป็นจุดเน้น ปรับ workflow เฉพาะครุภัณฑ์ ไม่มี sidebar/chart/statistics ฟอนต์ Noto Sans Thai ให้บริการจากเครื่อง ไม่เรียก external font CDN
 
 ### Dashboard Appscriptdata
+
 - ปุ่มดูข้อมูลมีส่วนเพิ่มรูป รองรับ JPEG/PNG/WebP/HEIC/HEIF ขนาดต้นฉบับไม่เกิน 25 MB สูงสุด 10 รูปต่อรายการ ภาพทั่วไปย่อบนอุปกรณ์ ส่วน HEIC แปลงที่เซิร์ฟเวอร์ก่อนส่ง Drive ทุกภาพเก็บเป็น JPEG ด้านยาวไม่เกิน 1600 px และลบ EXIF
 - รูปเก็บในโฟลเดอร์ FM (`GOOGLE_PHOTO_FOLDER_ID`) ลิงก์และวันเวลาบันทึกในคอลัมน์ใหม่ของแถวเดิมใน Appscriptdata ภาพตัวอย่างอ่านผ่าน API ที่ต้องล็อกอิน ไม่เปิดสิทธิ์รูปเป็นสาธารณะ
 - ต้องเปิด Google Drive API ในโปรเจกต์ก่อนใช้อัปโหลด หาก FM อยู่ใน My Drive ให้ตั้ง `GOOGLE_DRIVE_OAUTH_FILE` เป็นไฟล์ส่วนตัวใน credentials/ ที่มี client_id, client_secret, refresh_token ของบัญชีเจ้าของไดรฟ์ (สิทธิ์ drive.file สำหรับโฟลเดอร์ที่บัญชีนั้นอนุญาต หรือสิทธิ์ Drive ที่ได้รับอนุมัติแล้ว) Service Account ใช้อัปโหลดได้เฉพาะโฟลเดอร์ Shared Drive ที่ได้รับสิทธิ์เพิ่มไฟล์ การสร้างโฟลเดอร์ใน My Drive แล้วแชร์อย่างเดียวไม่เพิ่มโควตาให้ Service Account
