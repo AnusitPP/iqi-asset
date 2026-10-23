@@ -152,74 +152,32 @@ export class GoogleSheets {
       ).data.values || []
     );
   }
-  async writeDashboardPhotos(row, links, date, previewId = null) {
+  async writeDashboardPhotoSlots(row, urls, date) {
+    if (!Array.isArray(urls) || urls.length > 3) throw new Error('จำกัดไม่เกิน 3 รูป');
     const values = await this.readDashboard(),
       headers = values[0] || [];
-    const metadata = (
-      await this.api.spreadsheets.get({
-        spreadsheetId: this.config.spreadsheetId,
-        fields: 'sheets.properties',
-      })
-    ).data;
-    const p = metadata.sheets.find((s) => s.properties.title === 'Appscriptdata')?.properties;
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const p = data.sheets.find((s) => s.properties.title === 'Appscriptdata')?.properties;
     if (!p) throw new Error('ไม่พบ Appscriptdata');
-    let next = Math.max(...values.map((r) => r.length));
-    const requests = [];
-    const cell = (r, c, v) => ({
+    const names = ['รูป1', 'รูป2', 'รูป3', 'วันที่อัปโหลดรูป'];
+    if (names.some((h) => headers.filter((v) => v === h).length !== 1))
+      throw new Error('กรุณาตั้งคอลัมน์ รูป1 รูป2 รูป3 และวันที่อัปโหลดรูป ให้ครบและไม่ซ้ำ');
+    const requests = names.map((name, i) => ({
       updateCells: {
         range: {
           sheetId: p.sheetId,
-          startRowIndex: r,
-          endRowIndex: r + 1,
-          startColumnIndex: c,
-          endColumnIndex: c + 1,
+          startRowIndex: row - 1,
+          endRowIndex: row,
+          startColumnIndex: headers.indexOf(name),
+          endColumnIndex: headers.indexOf(name) + 1,
         },
-        rows: [{ values: [{ userEnteredValue: { stringValue: v } }] }],
+        rows: [{ values: [{ userEnteredValue: { stringValue: i < 3 ? urls[i] || '' : date } }] }],
         fields: 'userEnteredValue',
       },
-    });
-    const fields = [
-      ['ลิงก์รูปครุภัณฑ์', links],
-      ['วันที่อัปโหลดรูป', date],
-    ];
-    if (previewId) fields.push(['รูปครุภัณฑ์', previewId]);
-    for (const [name, value] of fields) {
-      let c = headers.indexOf(name);
-      if (c < 0) {
-        c = next++;
-        requests.push(cell(0, c, name), {
-          updateDimensionProperties: {
-            range: { sheetId: p.sheetId, dimension: 'COLUMNS', startIndex: c, endIndex: c + 1 },
-            properties: { pixelSize: 220 },
-            fields: 'pixelSize',
-          },
-        });
-      }
-      if (name === 'รูปครุภัณฑ์') {
-        const imageUrl = `https://drive.google.com/uc?export=view&id=${encodeURIComponent(value)}`;
-        requests.push({
-          updateCells: {
-            range: { sheetId: p.sheetId, startRowIndex: row - 1, endRowIndex: row, startColumnIndex: c, endColumnIndex: c + 1 },
-            rows: [{ values: [{ userEnteredValue: { formulaValue: `=IMAGE("${imageUrl}",1)` } }] }],
-            fields: 'userEnteredValue',
-          },
-        });
-        requests.push({
-          updateDimensionProperties: {
-            range: { sheetId: p.sheetId, dimension: 'ROWS', startIndex: row - 1, endIndex: row },
-            properties: { pixelSize: 140 }, fields: 'pixelSize',
-          },
-        });
-      } else requests.push(cell(row - 1, c, value));
-    }
-    if (next > p.gridProperties.columnCount)
-      requests.unshift({
-        appendDimension: {
-          sheetId: p.sheetId,
-          dimension: 'COLUMNS',
-          length: next - p.gridProperties.columnCount,
-        },
-      });
+    }));
     await this.api.spreadsheets.batchUpdate({
       spreadsheetId: this.config.spreadsheetId,
       requestBody: { requests },
@@ -278,6 +236,32 @@ export class GoogleSheets {
     await this.api.spreadsheets.batchUpdate({
       spreadsheetId: this.config.spreadsheetId,
       requestBody: { requests },
+    });
+  }
+  async writeDashboardDetails(row, changes) {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const sheet = data.sheets.find((s) => s.properties.title === 'Appscriptdata')?.properties;
+    if (!sheet) throw Object.assign(new Error('ไม่พบ Appscriptdata'), { status: 404 });
+    await this.api.spreadsheets.batchUpdate({
+      spreadsheetId: this.config.spreadsheetId,
+      requestBody: {
+        requests: changes.map(({ column, value }) => ({
+          updateCells: {
+            range: {
+              sheetId: sheet.sheetId,
+              startRowIndex: row - 1,
+              endRowIndex: row,
+              startColumnIndex: column,
+              endColumnIndex: column + 1,
+            },
+            rows: [{ values: [{ userEnteredValue: { stringValue: value } }] }],
+            fields: 'userEnteredValue',
+          },
+        })),
+      },
     });
   }
   async readReviewQueues() {

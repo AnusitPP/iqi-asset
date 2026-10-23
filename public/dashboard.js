@@ -1,6 +1,8 @@
+import { recordPhotos, MAX_PHOTOS, PHOTO_SLOTS, LEGACY_PHOTO_HEADERS } from './photoSlots.js';
 import { copyText } from './clipboard.js';
 import { icon } from './icons.js';
 import { resizeForUpload } from './photos.js';
+import { saveStatusDrafts } from './dashboardBulk.js';
 const node = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -19,6 +21,8 @@ const tone = (s) =>
     ชำรุด: 'damaged',
     หาไม่เจอ: 'lost',
     ยังไม่ตรวจ: 'todo',
+    อุปกรอื่นๆ: 'other',
+    กล้องวงจรปิด: 'cctv',
     ตรงกัน: 'good',
     ข้อมูลไม่ตรง: 'damaged',
   })[s] || 'todo';
@@ -41,7 +45,10 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
   const modal = node('dialog', 'dashboard-dialog');
   modal.setAttribute('aria-label', 'รายละเอียดรายการ Dashboard');
   document.body.append(modal);
+  let clearPhotoPreviews = () => {};
+  modal.addEventListener('close', () => clearPhotoPreviews());
   function details(record) {
+    clearPhotoPreviews();
     modal.replaceChildren();
     const head = node('div', 'dash-detail-head');
     head.append(
@@ -50,104 +57,204 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
     );
     modal.append(head, photoEditor(record));
     const fields = node('div', 'fields');
-    data.headers.forEach((h, i) => {
-      const field = node('div', 'field');
-      field.append(
-        node('div', 'field-label', h),
-        node('div', 'field-value', record.values[i] || '—'),
-      );
-      fields.append(field);
-    });
-    modal.append(fields);
-    if (!modal.open) modal.showModal();
-  }
-  function photoEditor(record) {
-    const section = node('section', 'dash-photo-section');
-    section.append(node('h3', '', 'รูปครุภัณฑ์'));
-    const urls = (record.values[data.headers.indexOf('ลิงก์รูปครุภัณฑ์')] || '').split('\n');
-    const gallery = node('div', 'dash-photo-gallery');
-    for (const url of urls) {
-      const id = url.match(/^https:\/\/drive\.google\.com\/file\/d\/([\w-]+)\/view$/)?.[1];
-      if (!id) continue;
-      const link = node('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      const img = node('img');
-      img.src = `/api/dashboard/${record.row}/photos/${id}`;
-      img.alt = `รูป ${record.asset}`;
-      img.loading = 'lazy';
-      img.addEventListener('error', () => {
-        img.hidden = true;
-        link.textContent = 'เปิดรูปใน Drive';
-      });
-      link.append(img);
-      gallery.append(link);
-    }
-    section.append(gallery);
-    const input = node('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
-    input.setAttribute('aria-label', `เลือกรูป ${record.asset}`);
-    const preview = node('img', 'dash-photo-preview');
-    preview.hidden = true;
-    let previewUrl = '';
+    let teamInput, notesInput;
     const message = node('p', 'dash-hint');
     message.setAttribute('role', 'status');
-    message.textContent =
-      'JPEG / PNG / WebP / HEIC · สูงสุด 25 MB · ย่อด้านยาวเหลือไม่เกิน 1,600 พิกเซล';
-    const upload = action('อัปโหลดรูป', 'button primary', async () => {
-      if (saving || !input.files?.[0]) return;
+    const changed = () =>
+      (teamInput && teamInput.value !== record.team) ||
+      (notesInput && notesInput.value !== record.editableNotes);
+    const saveDetails = action('บันทึกทีมและหมายเหตุ', 'button primary', async () => {
+      if (saving || !changed()) return;
+      const body = { revision: record.revision };
+      if (teamInput && teamInput.value !== record.team) body.team = teamInput.value;
+      if (notesInput && notesInput.value !== record.editableNotes) body.notes = notesInput.value;
       saving = true;
-      upload.disabled = true;
-      input.disabled = true;
+      saveDetails.disabled = true;
+      if (teamInput) teamInput.disabled = true;
+      if (notesInput) notesInput.disabled = true;
+      message.textContent = 'กำลังบันทึก…';
       const request = version;
       try {
-        message.textContent = 'กำลังย่อรูปและอัปโหลด…';
-        const blob = await resizeForUpload(input.files[0]);
-        const result = await api(`/api/dashboard/${record.row}/photos`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'X-Record-Revision': record.revision,
-          },
-          body: blob,
+        const result = await api(`/api/dashboard/${record.row}/details`, {
+          method: 'PUT',
+          body: JSON.stringify(body),
         });
         if (request !== version) return;
-        data = await api('/api/dashboard');
-        if (request !== version) return;
-        feedback = `เพิ่มรูป ${record.asset} แล้ว · ${result.at}`;
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        data.records = data.records.map((r) => (r.row === record.row ? result.record : r));
+        feedback = `บันทึกทีมและหมายเหตุของ ${record.asset} แล้ว`;
+        saving = false;
         render();
-        details(data.records.find((r) => r.row === record.row));
+        details(result.record);
       } catch (error) {
         if (request === version) message.textContent = error.message;
       } finally {
         saving = false;
+        if (teamInput) teamInput.disabled = false;
+        if (notesInput) notesInput.disabled = false;
+        saveDetails.disabled = !changed();
+      }
+    });
+    saveDetails.disabled = true;
+    data.headers.forEach((h, i) => {
+      if ([...PHOTO_SLOTS, ...LEGACY_PHOTO_HEADERS, 'รูปครุภัณฑ์'].includes(h)) return;
+      const field = node('div', 'field');
+      field.append(node('div', 'field-label', h));
+      if (h === 'ทีม') {
+        teamInput = node('select', 'dash-detail-input');
+        teamInput.setAttribute('aria-label', 'ทีม');
+        for (const team of ['', ...data.teams]) {
+          const option = node('option', '', team || 'ไม่ระบุทีม');
+          option.value = team;
+          teamInput.append(option);
+        }
+        teamInput.value = record.team;
+        teamInput.addEventListener('change', () => {
+          saveDetails.disabled = saving || !changed();
+        });
+        field.append(teamInput);
+      } else if (h === 'หมายเหตุ') {
+        notesInput = node('textarea', 'dash-detail-input');
+        notesInput.setAttribute('aria-label', 'หมายเหตุ');
+        notesInput.rows = 3;
+        notesInput.maxLength = 5000;
+        notesInput.value = record.editableNotes;
+        notesInput.addEventListener('input', () => {
+          saveDetails.disabled = saving || !changed();
+        });
+        field.append(notesInput);
+      } else field.append(node('div', 'field-value', record.values[i] || '—'));
+      fields.append(field);
+    });
+    modal.append(fields, saveDetails, message);
+    if (!modal.open) modal.showModal();
+  }
+  function photoEditor(record) {
+    const section = node('section', 'dash-photo-section');
+    const photos = recordPhotos(data.headers, record.values);
+    section.append(node('h3', '', 'รูปครุภัณฑ์ · ' + photos.length + '/' + MAX_PHOTOS));
+    const gallery = node('div', 'dash-photo-gallery');
+    for (const [index, photo] of photos.entries()) {
+      const link = node('a');
+      link.href = photo.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const img = node('img');
+      img.src = '/api/dashboard/' + record.row + '/photos/' + photo.id;
+      img.alt = 'รูป' + (index + 1) + ' ' + record.asset;
+      img.loading = 'lazy';
+      img.addEventListener('error', () => {
+        img.hidden = true;
+        link.textContent = 'เปิดรูป' + (index + 1) + 'ใน Drive';
+      });
+      link.append(img);
+      gallery.append(link);
+    }
+    if (photos.length) section.append(gallery);
+    const remaining = MAX_PHOTOS - photos.length;
+    if (remaining <= 0) {
+      section.append(node('p', 'dash-hint', 'ครบ 3 รูปแล้ว'));
+      return section;
+    }
+    const controls = node('div', 'dash-photo-controls');
+    const input = node('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+    input.setAttribute('aria-label', 'เลือกรูปครุภัณฑ์ ' + record.asset);
+    const previews = node('div', 'dash-photo-gallery');
+    let previewUrls = [];
+    clearPhotoPreviews = () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls = [];
+    };
+    const message = node('p', 'dash-hint');
+    message.setAttribute('role', 'status');
+    message.textContent = 'เลือกพร้อมกันได้อีก ' + remaining + ' รูป · ไม่เกิน 25 MB/รูป';
+    const upload = action('อัปโหลด', 'button primary', async () => {
+      const files = Array.from(input.files || []);
+      if (saving || !files.length) return;
+      if (files.length > remaining) {
+        message.textContent = 'เลือกได้อีก ' + remaining + ' รูปเท่านั้น';
+        return;
+      }
+      if (files.some((f) => f.size > 25 * 1024 * 1024)) {
+        message.textContent = 'รูปต้องมีขนาดไม่เกิน 25 MB';
+        return;
+      }
+      saving = true;
+      upload.disabled = true;
+      input.disabled = true;
+      const request = version;
+      let revision = record.revision,
+        completed = 0,
+        errorMessage = '';
+      try {
+        for (const file of files) {
+          message.textContent = 'กำลังอัปโหลด ' + (completed + 1) + '/' + files.length + '…';
+          const blob = await resizeForUpload(file);
+          if (request !== version) break;
+          const result = await api('/api/dashboard/' + record.row + '/photos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream', 'X-Record-Revision': revision },
+            body: blob,
+          });
+          completed++;
+          revision = result.revision;
+        }
+      } catch (error) {
+        errorMessage = error.message;
+      } finally {
+        saving = false;
         input.disabled = false;
-        upload.disabled = !input.files?.length;
+        upload.disabled = false;
+      }
+      if (request !== version) return;
+      const summary =
+        (completed ? 'เพิ่มแล้ว ' + completed + '/' + files.length + ' รูป' : '') +
+        (errorMessage ? ' · ' + errorMessage : '');
+      if (!completed) {
+        message.textContent = errorMessage;
+        return;
+      }
+      try {
+        data = await api('/api/dashboard');
+        if (request !== version) return;
+        feedback = summary;
+        render();
+        const fresh = data.records.find((r) => r.row === record.row);
+        if (fresh) {
+          details(fresh);
+          modal.querySelector('[role="status"]')?.append(node('span', '', ' · ' + summary));
+        }
+      } catch (error) {
+        message.textContent = summary + ' · โหลดข้อมูลล่าสุดไม่สำเร็จ: ' + error.message;
       }
     });
     upload.disabled = true;
     input.addEventListener('change', () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      preview.hidden = true;
-      upload.disabled = !input.files?.length;
-      if (input.files?.[0] && !/hei[cf]/i.test(input.files[0].name)) {
-        previewUrl = URL.createObjectURL(input.files[0]);
-        preview.src = previewUrl;
-        preview.hidden = false;
+      clearPhotoPreviews();
+      previews.replaceChildren();
+      const files = Array.from(input.files || []);
+      upload.disabled =
+        !files.length || files.length > remaining || files.some((f) => f.size > 25 * 1024 * 1024);
+      message.textContent =
+        files.length > remaining
+          ? 'เลือกได้อีก ' + remaining + ' รูปเท่านั้น'
+          : files.some((f) => f.size > 25 * 1024 * 1024)
+            ? 'รูปต้องมีขนาดไม่เกิน 25 MB'
+            : 'เลือกแล้ว ' + files.length + ' รูป · รวมได้สูงสุด 3 รูป';
+      for (const file of files.slice(0, remaining)) {
+        if (/hei[cf]/i.test(file.name)) continue;
+        const img = node('img');
+        const url = URL.createObjectURL(file);
+        previewUrls.push(url);
+        img.src = url;
+        img.alt = file.name;
+        previews.append(img);
       }
     });
-    preview.addEventListener('error', () => (preview.hidden = true));
-    modal.addEventListener(
-      'close',
-      () => {
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-      },
-      { once: true },
-    );
-    section.append(input, preview, upload, message);
+    controls.append(input, upload);
+    section.append(controls, previews, message);
     return section;
   }
   function show(which) {
@@ -233,7 +340,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       empty.value = '';
       select.append(empty);
     }
-    for (const status of ['ดี', 'ชำรุด', 'หาไม่เจอ', 'ยังไม่ตรวจ']) {
+    for (const status of ['ดี', 'ชำรุด', 'หาไม่เจอ', 'ยังไม่ตรวจ', 'อุปกรอื่นๆ', 'กล้องวงจรปิด']) {
       const option = node('option', '', status);
       option.value = status;
       select.append(option);
@@ -272,6 +379,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
           panel
             .querySelectorAll('.dash-save')
             .forEach((n) => (n.disabled = n.dataset.changed !== 'true'));
+          updateBulkButton();
         }
       }
     });
@@ -281,6 +389,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       save.dataset.changed = String(drafts.has(record.row));
       save.disabled = saving || !drafts.has(record.row);
       select.className = 'dash-status-select ' + tone(select.value);
+      updateBulkButton();
     };
     select.addEventListener('change', update);
     save.dataset.changed = String(drafts.has(record.row));
@@ -297,6 +406,61 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       message,
     );
     return wrap;
+  }
+  function updateBulkButton() {
+    const button = panel.querySelector('#dash-save-all');
+    if (!button) return;
+    button.disabled = saving || drafts.size === 0;
+    button.textContent = drafts.size ? `บันทึกทั้งหมด (${drafts.size})` : 'บันทึกทั้งหมด';
+    panel.querySelector('#dash-draft-count').textContent = drafts.size
+      ? `มี ${drafts.size} รายการที่แก้ไขยังไม่บันทึก · รวมรายการที่ซ่อนด้วยตัวกรอง`
+      : 'ไม่มีรายการที่แก้ไขค้างไว้';
+  }
+  async function saveAllStatuses() {
+    if (saving || !drafts.size) return;
+    const request = version;
+    saving = true;
+    panel.querySelectorAll('button,select,input').forEach((n) => (n.disabled = true));
+    const count = panel.querySelector('#dash-draft-count');
+    try {
+      const result = await saveStatusDrafts(
+        drafts,
+        (row, draft) =>
+          api(`/api/dashboard/${row}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: draft.status, revision: draft.revision }),
+          }),
+        {
+          isCurrent: () => request === version,
+          onProgress: (done, total) => {
+            count.textContent = `กำลังบันทึก ${done}/${total}…`;
+          },
+        },
+      );
+      if (request !== version) return;
+      for (const saved of result.saved) {
+        data.records = data.records.map((r) => (r.row === saved.row ? saved.result.record : r));
+      }
+      feedback = `บันทึกสำเร็จ ${result.saved.length} รายการ`;
+      if (result.failed.length)
+        feedback +=
+          ` · ไม่สำเร็จ ${result.failed.length} รายการ (เก็บค่าที่เลือกไว้): ` +
+          result.failed
+            .map(
+              (f) =>
+                `${data.records.find((r) => r.row === f.row)?.asset || `แถว ${f.row}`}: ${f.message}`,
+            )
+            .join(' · ');
+      try {
+        const fresh = await api('/api/dashboard');
+        if (request === version) data = fresh;
+      } catch (error) {
+        feedback += ` · โหลดข้อมูลล่าสุดไม่สำเร็จ: ${error.message}`;
+      }
+    } finally {
+      saving = false;
+      if (request === version) render();
+    }
   }
   function renderList() {
     const target = panel.querySelector('#dash-list');
@@ -371,6 +535,15 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       }),
     );
     panel.append(head);
+    const bulk = node('div', 'dash-bulk-bar');
+    const bulkMessage = node('span');
+    bulkMessage.id = 'dash-draft-count';
+    bulkMessage.setAttribute('role', 'status');
+    const bulkSave = action('บันทึกทั้งหมด', 'button primary', saveAllStatuses);
+    bulkSave.id = 'dash-save-all';
+    bulk.append(bulkMessage, bulkSave);
+    panel.append(bulk);
+    updateBulkButton();
     if (feedback) {
       const notice = node('p', 'dash-save-success', feedback);
       notice.setAttribute('role', 'status');
@@ -394,7 +567,11 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
         `ตรวจแล้ว ${data.completed.toLocaleString('th-TH')} / ${data.total.toLocaleString('th-TH')} รายการ`,
       ),
       bar,
-      node('p', 'dash-hint', 'นับตรวจแล้วจาก ดี + ชำรุด + หาไม่เจอ ตามผลตรวจ Apps Script เท่านั้น'),
+      node(
+        'p',
+        'dash-hint',
+        'นับตรวจแล้วจาก ดี + ชำรุด + หาไม่เจอ + อุปกรอื่นๆ + กล้องวงจรปิด ตามผลตรวจ Apps Script',
+      ),
     );
     panel.append(progress);
     panel.append(node('h2', 'dash-section-title', 'ผลตรวจ Apps Script'));
@@ -404,6 +581,8 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       'ชำรุด',
       'หาไม่เจอ',
       'ยังไม่ตรวจ',
+      'อุปกรอื่นๆ',
+      'กล้องวงจรปิด',
       ...(data.inspection['ไม่ระบุ'] ? ['ไม่ระบุ'] : []),
     ])
       stats.append(

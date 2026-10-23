@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { preparePhoto, DashboardPhotos, photoIds } from '../src/photos.js';
+import { preparePhoto, DashboardPhotos } from '../src/photos.js';
 import { dashboardData, DashboardEditor } from '../src/dashboard.js';
+import { GoogleSheets } from '../src/googleSheets.js';
 test('photos are resized, oriented, converted to JPEG and stripped of location metadata', async () => {
   const input = await sharp({
     create: { width: 2400, height: 1200, channels: 3, background: 'red' },
@@ -20,50 +21,91 @@ test('photos are resized, oriented, converted to JPEG and stripped of location m
   await assert.rejects(preparePhoto(Buffer.from('not an image')), /อ่านรูป/);
   await assert.rejects(preparePhoto(Buffer.alloc(26 * 1024 * 1024)), /25 MB/);
 });
-test('photo upload rejects stale identities, appends links and preserves inspection status', async () => {
+
+test('combined photo slots preserve legacy photos, deduplicate and reject a fourth before Drive upload', async () => {
+  const url = (id) => 'https://drive.google.com/file/d/' + id + '/view';
   const grid = [
     [
       'ผลตรวจ Apps Script',
       'สถานะการเทียบ',
       'เลขครุภัณฑ์ Apps Script',
-      'S/N Apps Script',
       'ลิงก์รูปครุภัณฑ์',
-      'วันที่อัปโหลดรูป',
+      'รูป1',
+      'รูป2',
+      'รูป3',
     ],
-    ['ดี', 'ตรงกัน', '001', 'SN-A', '', ''],
-    ['ชำรุด', 'ตรงกัน', '001', 'SN-B', '', ''],
+    ['ดี', 'ตรงกัน', '001', url('old'), url('old'), '', ''],
   ];
-  let uploads = 0;
   const adapter = {
     readDashboard: async () => structuredClone(grid),
-    writeDashboardPhotos: async (row, links, date) => {
-      grid[row - 1][4] = links;
-      grid[row - 1][5] = date;
+    writeDashboardPhotoSlots: async (row, urls) => {
+      grid[row - 1].splice(4, 3, ...urls);
     },
   };
+  let count = 0;
   const store = {
     upload: async () => {
-      uploads++;
-      return { id: 'test-photo', url: 'https://drive.google.com/file/d/test-photo/view' };
+      const id = 'new-' + ++count;
+      return { id, url: url(id) };
     },
     read: async (id) => id,
   };
   const service = new DashboardPhotos(adapter, store, new DashboardEditor(adapter));
-  const image = await sharp({ create: { width: 20, height: 10, channels: 3, background: 'red' } })
+  const image = await sharp({ create: { width: 10, height: 10, channels: 3, background: 'red' } })
     .png()
     .toBuffer();
+  const rev = () => dashboardData(grid).records[0].revision;
   await assert.rejects(service.upload(2, 'stale', image), /เปลี่ยน/);
-  assert.equal(uploads, 0);
-  const result = await service.upload(2, dashboardData(grid).records[0].revision, image);
-  assert.ok(result.at);
+  const stale = rev();
+  const first = await service.upload(2, rev(), image);
+  assert.ok(first.revision);
+  await assert.rejects(service.upload(2, stale, image), /เปลี่ยน/);
+  await service.upload(2, first.revision, image);
+  assert.deepEqual(grid[1].slice(4), [url('old'), url('new-1'), url('new-2')]);
+  assert.equal(grid[1][3], url('old'));
   assert.equal(grid[1][0], 'ดี');
-  assert.equal(grid[2][4], '');
-  assert.equal(await service.read(2, 'test-photo'), 'test-photo');
-  await assert.rejects(service.read(3, 'test-photo'), /ไม่พบ/);
+  await assert.rejects(service.upload(2, rev(), image), /3 รูป/);
+  assert.equal(count, 2);
+  assert.equal(await service.read(2, 'new-1'), 'new-1');
+  assert.equal(await service.read(2, 'old'), 'old');
+  await assert.rejects(service.read(2, 'unrelated'), /ไม่พบ/);
+});
+test('Sheets slots write URLs into exactly รูป1 รูป2 รูป3 without modifying archives', async () => {
+  const adapter = new GoogleSheets({ spreadsheetId: 'test' });
+  adapter.readDashboard = async () => [
+    ['ลิงก์รูปครุภัณฑ์', 'วันที่อัปโหลดรูป', 'รูปครุภัณฑ์', 'รูป1', 'รูป2', 'รูป3'],
+  ];
+  let requests;
+  adapter.api = {
+    spreadsheets: {
+      get: async () => ({
+        data: {
+          sheets: [
+            {
+              properties: {
+                title: 'Appscriptdata',
+                sheetId: 1,
+                gridProperties: { columnCount: 6 },
+              },
+            },
+          ],
+        },
+      }),
+      batchUpdate: async (body) => {
+        requests = body.requestBody.requests;
+      },
+    },
+  };
+  await adapter.writeDashboardPhotoSlots(2, ['a', 'b', 'c'], 'today');
+  const writes = requests.filter((r) => r.updateCells).map((r) => r.updateCells);
   assert.deepEqual(
-    photoIds(
-      'https://evil.example/file/d/xyz/view\nhttps://drive.google.com/file/d/test-photo/view',
-    ),
-    ['test-photo'],
+    writes.map((w) => w.range.startColumnIndex),
+    [3, 4, 5, 1],
   );
+  assert.deepEqual(
+    writes.map((w) => w.rows[0].values[0].userEnteredValue.stringValue),
+    ['a', 'b', 'c', 'today'],
+  );
+  assert.ok(writes.every((w) => w.range.startRowIndex === 1));
+  await assert.rejects(adapter.writeDashboardPhotoSlots(2, ['a', 'b', 'c', 'd'], 'today'), /3/);
 });

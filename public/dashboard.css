@@ -37,6 +37,22 @@
 .dash-heading > .button {
   white-space: nowrap;
 }
+.dash-bulk-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid #dce4df;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+}
 .dash-progress {
   background: #fff;
   border: 1px solid var(--line);
@@ -88,7 +104,7 @@
 }
 .dash-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 .dash-matches {
@@ -130,6 +146,36 @@
 }
 .dash-stat.todo {
   border-top: 3px solid #bec5cb;
+}
+.dash-stat.other {
+  border-top: 3px solid #38a5e5;
+  background: #eff8ff;
+}
+.dash-stat.other.selected {
+  outline-color: #2196d2;
+}
+.dash-stat.cctv {
+  border-top: 3px solid #9b65d4;
+  background: #f6efff;
+}
+.dash-stat.cctv.selected {
+  outline-color: #8b4bc1;
+}
+.dash-row.cctv {
+  background: #f6efff;
+}
+.dash-status-select.cctv {
+  background: #ebdcfa;
+  color: #6b3091;
+  border-color: #b98bde;
+}
+.dash-row.other {
+  background: #eff8ff;
+}
+.dash-status-select.other {
+  background: #d9efff;
+  color: #155f92;
+  border-color: #79bde7;
 }
 .dash-stat:hover {
   border-color: #718b7f;
@@ -383,10 +429,40 @@
 }
 
 .dash-photo-section {
-  padding: 16px;
+  padding: 10px 12px;
   border: 1px solid #e2e8e5;
   border-radius: 12px;
-  margin: 14px 0;
+  margin: 10px 0;
+}
+.dash-detail-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+.dash-photo-section h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.dash-photo-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dash-photo-controls input {
+  flex: 1;
+  min-width: 160px;
+  font-size: 12px;
+}
+.dash-photo-section .dash-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
 }
 .dash-photo-section input {
   display: block;
@@ -400,8 +476,8 @@
 }
 .dash-photo-gallery img,
 .dash-photo-preview {
-  width: 140px;
-  height: 110px;
+  width: 88px;
+  height: 72px;
   object-fit: contain;
   border-radius: 8px;
   background: #f4f6f5;
@@ -414,5 +490,7 @@
   display: none;
 }
 .dash-photo-section .button {
-  margin: 8px 0;
+  margin: 4px 0;
+  padding: 8px 12px;
+  font-size: 12px;
 }

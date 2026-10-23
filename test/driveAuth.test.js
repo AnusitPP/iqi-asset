@@ -6,6 +6,52 @@ import path from 'node:path';
 import { driveOAuth } from '../src/driveAuth.js';
 import { PhotoStore } from '../src/photos.js';
 
+test('asset folders reuse exact names within the configured root and share concurrent creation', async () => {
+  const store = new PhotoStore({ photoFolderId: 'root' });
+  let created = 0;
+  store.drive.files.list = async (request) => {
+    assert.match(request.q, /'root' in parents/);
+    assert.match(request.q, /trashed = false/);
+    return { data: { files: [] } };
+  };
+  store.drive.files.create = async (request) => {
+    created++;
+    assert.deepEqual(request.requestBody, {
+      name: 'IQ67-01-125',
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: ['root'],
+    });
+    return { data: { id: 'asset-folder' } };
+  };
+  assert.deepEqual(
+    await Promise.all([store.assetFolder('IQ67-01-125'), store.assetFolder('IQ67-01-125')]),
+    ['asset-folder', 'asset-folder'],
+  );
+  assert.equal(created, 1);
+  store.drive.files.list = async () => ({ data: { files: [{ id: 'existing' }] } });
+  assert.equal(await store.assetFolder('IQ67-01-125'), 'existing');
+  assert.equal(created, 1);
+  store.drive.files.list = async () => ({ data: { files: [{ id: 'a' }, { id: 'b' }] } });
+  await assert.rejects(store.assetFolder('IQ67-01-125'), /ซ้ำ/);
+});
+
+test('upload places image inside the asset folder without changing default sharing', async () => {
+  const store = new PhotoStore({ photoFolderId: 'root' });
+  store.userAuth = true;
+  store.drive.files.get = async () => ({ data: { capabilities: { canAddChildren: true } } });
+  store.assetFolder = async (asset) => {
+    assert.equal(asset, 'IQ67-01-125');
+    return 'asset-folder';
+  };
+  store.drive.files.create = async (request) => {
+    assert.deepEqual(request.requestBody.parents, ['asset-folder']);
+    return { data: { id: 'image' } };
+  };
+  store.drive.permissions.create = () => assert.fail('No new public permission');
+  const photo = await store.upload(Buffer.from('image'), 'test.jpg', 'IQ67-01-125');
+  assert.equal(photo.url, 'https://drive.google.com/file/d/image/view');
+});
+
 test('downloaded desktop client requires consent before upload; saved tokens authenticate', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drive-auth-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

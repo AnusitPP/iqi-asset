@@ -82,13 +82,25 @@ export function createApp(service, config) {
       next(e);
     }
   });
+  app.put('/api/dashboard/:row/details', async (req, res, next) => {
+    try {
+      res.json(await dashboardEditor.saveDetails(Number(req.params.row), req.body || {}));
+    } catch (e) {
+      next(e);
+    }
+  });
   app.post(
     '/api/dashboard/:row/photos',
     express.raw({ type: 'application/octet-stream', limit: '25mb' }),
     async (req, res, next) => {
       try {
         res.json(
-          await photos.upload(Number(req.params.row), req.get('X-Record-Revision'), req.body),
+          await photos.upload(
+            Number(req.params.row),
+            req.get('X-Record-Revision'),
+            req.body,
+            req.get('X-Photo-Type'),
+          ),
         );
       } catch (e) {
         next(e);
@@ -184,16 +196,14 @@ export function createApp(service, config) {
   app.use((req, res) => res.status(404).type('text').send('ไม่พบหน้านี้'));
   app.use((error, req, res, next) => {
     const status = Number(error.status || error.response?.status || 500);
-    res
-      .status(status >= 400 && status <= 599 ? status : 500)
-      .json({
-        error:
-          error.type === 'entity.too.large'
-            ? 'ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน 25 MB'
-            : error.type === 'entity.parse.failed'
-              ? 'รูปแบบ JSON ไม่ถูกต้อง'
-              : friendlyError(error),
-      });
+    res.status(status >= 400 && status <= 599 ? status : 500).json({
+      error:
+        error.type === 'entity.too.large'
+          ? 'ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน 25 MB'
+          : error.type === 'entity.parse.failed'
+            ? 'รูปแบบ JSON ไม่ถูกต้อง'
+            : friendlyError(error),
+    });
   });
   return app;
 }
