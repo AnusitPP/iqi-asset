@@ -25,14 +25,13 @@ try {
 } catch (error) {
   console.error('Google Sheets:', friendlyError(error));
 }
-const server = createApp(new Records(adapter, config), config).listen(
-  config.port,
-  config.host,
-  () => {
-    console.log(`Local: http://localhost:${config.port}`);
-    for (const ip of lanAddresses()) console.log(`Mobile / LAN: http://${ip}:${config.port}`);
-  },
-);
+const app = createApp(new Records(adapter, config), config);
+export default app;
+
+const server = app.listen(config.port, config.host, () => {
+  console.log(`Local: http://localhost:${config.port}`);
+  for (const ip of lanAddresses()) console.log(`Mobile / LAN: http://${ip}:${config.port}`);
+});
 server.on('error', (error) => {
   console.error(
     error.code === 'EADDRINUSE'
