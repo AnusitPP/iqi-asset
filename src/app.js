@@ -1,7 +1,6 @@
 import express from 'express';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHmac } from 'node:crypto';
 import os from 'node:os';
 import { lanAddresses } from './network.js';
 import { createAuth } from './auth.js';
@@ -23,7 +22,11 @@ export function friendlyError(error) {
 }
 export function createApp(service, config) {
   const app = express();
-  const csrf = randomBytes(32).toString('hex');
+  const csrf = config.appSecret
+    ? createHmac('sha256', config.appSecret).update('iqi:csrf').digest('hex')
+    : randomBytes(32).toString('hex');
+  const maxUploadBytes = config.maxUploadBytes || 25 * 1024 * 1024;
+  if (config.hosted) app.set('trust proxy', 1);
   const dashboardEditor = new DashboardEditor(service.adapter);
   const photos = new DashboardPhotos(service.adapter, new PhotoStore(config), dashboardEditor);
   const hosts = new Set([
@@ -33,6 +36,7 @@ export function createApp(service, config) {
     os.hostname().toLowerCase(),
     ...lanAddresses(),
     config.host,
+    ...(config.allowedHosts || []),
   ]);
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -67,7 +71,12 @@ export function createApp(service, config) {
     next();
   });
   app.use(express.json({ limit: '2mb' }));
+  app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
+  app.use('/api', async (req, res, next) => {
+    if (service.ready) await service.ready();
+    next();
+  });
   app.get('/api/dashboard', async (req, res, next) => {
     try {
       res.json(dashboardData(await service.adapter.readDashboard()));
@@ -91,7 +100,7 @@ export function createApp(service, config) {
   });
   app.post(
     '/api/dashboard/:row/photos',
-    express.raw({ type: 'application/octet-stream', limit: '25mb' }),
+    express.raw({ type: 'application/octet-stream', limit: maxUploadBytes }),
     async (req, res, next) => {
       try {
         res.json(
@@ -199,7 +208,7 @@ export function createApp(service, config) {
     res.status(status >= 400 && status <= 599 ? status : 500).json({
       error:
         error.type === 'entity.too.large'
-          ? 'ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน 25 MB'
+          ? `ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน ${maxUploadBytes / 1024 / 1024} MB`
           : error.type === 'entity.parse.failed'
             ? 'รูปแบบ JSON ไม่ถูกต้อง'
             : friendlyError(error),

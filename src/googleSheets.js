@@ -10,7 +10,7 @@ export class GoogleSheets {
   constructor(config) {
     this.config = config;
     const auth = new google.auth.GoogleAuth({
-      keyFile: config.keyFile,
+      ...(config.serviceAccount ? { credentials: config.serviceAccount } : { keyFile: config.keyFile }),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
     this.api = google.sheets({ version: 'v4', auth });

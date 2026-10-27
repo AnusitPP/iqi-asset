@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup:sheets": "node setup-sheets.js",
     "drive:connect": "node drive-connect.js",
     "dev": "node server.js",
     "start": "node server.js",

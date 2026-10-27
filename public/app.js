@@ -1,3 +1,4 @@
+import { setUploadLimit } from './photos.js';
 import { todayBangkok, inspectionNote, inspectionAge } from './dates.js';
 import { editedValues } from './formValues.js';
 import { debounce } from './debounce.js';
@@ -835,6 +836,8 @@ $('#logout-button').addEventListener('click', async () => {
 });
 async function initializeAuth() {
   try {
+    const { maxUploadBytes } = await api('/api/upload-config');
+    setUploadLimit(maxUploadBytes);
     const session = await api('/api/auth/session');
     csrf = session.csrf;
     if (session.authenticated) {

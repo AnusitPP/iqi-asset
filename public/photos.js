@@ -1,7 +1,16 @@
+let maxUploadBytes = 25 * 1024 * 1024;
+export function setUploadLimit(bytes) {
+  if (Number.isFinite(bytes) && bytes > 0) maxUploadBytes = bytes;
+}
+function checkUploadSize(file) {
+  if (file.size > maxUploadBytes)
+    throw new Error(`รูปที่ส่งต้องไม่เกิน ${maxUploadBytes / 1024 / 1024} MB กรุณาย่อหรือแปลงเป็น JPEG ก่อน`);
+  return file;
+}
 export async function resizeForUpload(file) {
   if (file.size > 25 * 1024 * 1024) throw new Error('เลือกภาพขนาดไม่เกิน 25 MB');
   // HEIC is decoded on the server when the phone cannot decode it locally.
-  if (/\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type)) return file;
+  if (/\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type)) return checkUploadSize(file);
   let bitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -17,13 +26,13 @@ export async function resizeForUpload(file) {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return await new Promise((resolve, reject) =>
+    return checkUploadSize(await new Promise((resolve, reject) =>
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error('ย่อรูปไม่สำเร็จ'))),
         'image/jpeg',
         0.82,
       ),
-    );
+    ));
   } finally {
     bitmap.close();
   }

@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import { google } from 'googleapis';
 
 export function driveCredentials(file) {
-  const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const raw = typeof file === 'object' && file !== null
+    ? file : JSON.parse(fs.readFileSync(file, 'utf8'));
   const client = raw.installed || raw.web || raw;
   if (!client.client_id || !client.client_secret)
     throw new Error('ไฟล์ OAuth ต้องมี client_id และ client_secret จาก Google Cloud');

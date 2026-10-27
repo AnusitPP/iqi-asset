@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { writeLocked } from './state.js';
 import heicConvert from 'heic-convert';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
@@ -50,17 +51,17 @@ export async function preparePhoto(input) {
 export class PhotoStore {
   constructor(config) {
     this.folder = config.photoFolderId || '1C42KW3QDHJ2X4scDba0p11TV1xM4L8-z';
-    this.userAuth = !!config.driveOAuthFile;
+    this.userAuth = !!(config.driveOAuthCredentials || config.driveOAuthFile);
     this.publicPhotoPreview = config.publicPhotoPreview === true;
     let auth;
     this.oauthConnected = true;
     if (this.userAuth) {
-      const connection = driveOAuth(config.driveOAuthFile);
+      const connection = driveOAuth(config.driveOAuthCredentials || config.driveOAuthFile);
       auth = connection.auth;
       this.oauthConnected = connection.connected;
     } else
       auth = new google.auth.GoogleAuth({
-        keyFile: config.keyFile,
+        ...(config.serviceAccount ? { credentials: config.serviceAccount } : { keyFile: config.keyFile }),
         scopes: ['https://www.googleapis.com/auth/drive'],
       });
     this.drive = google.drive({ version: 'v3', auth, timeout: 20000 });
@@ -182,7 +183,7 @@ export class DashboardPhotos {
     this.editor = editor;
   }
   upload(row, revision, input, type) {
-    const work = this.editor.queue.then(() => this.perform(row, revision, input, type));
+    const work = this.editor.queue.then(() => writeLocked(this.adapter, () => this.perform(row, revision, input, type)));
     this.editor.queue = work.catch(() => {});
     return work;
   }

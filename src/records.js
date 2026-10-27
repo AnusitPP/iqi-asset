@@ -1,4 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+import { signToken, readToken } from './tokens.js';
+import { writeLocked } from './state.js';
 import { findRecords, inspectionDate, todayBangkok } from './searchService.js';
 import { validateDropdownChanges } from './dropdowns.js';
 import { recordSummary } from './recordSummary.js';
@@ -17,30 +19,21 @@ export class Records {
   constructor(adapter, config) {
     this.adapter = adapter;
     this.config = config;
-    this.snapshots = new Map();
+    this.tokenSecret = config.appSecret || randomBytes(32).toString('hex');
     this.queue = Promise.resolve();
   }
   allowed(sheet) {
     if (!this.config.sheets.includes(sheet)) fail(403, 'ไม่อนุญาตให้อ่าน Sheet นี้');
   }
   revisionFor(table, record) {
-    const now = Date.now();
-    if (!this.lastPrune || now - this.lastPrune > 60000) {
-      for (const [id, snapshot] of this.snapshots)
-        if (snapshot.expires < now) this.snapshots.delete(id);
-      this.lastPrune = now;
-    }
-    if (this.snapshots.size >= (this.snapshotLimit || 2000))
-      this.snapshots.delete(this.snapshots.keys().next().value);
-    const revision = randomUUID();
-    this.snapshots.set(revision, {
+    return signToken({
       sheet: table.sheet,
       row: record.row,
       hash: fingerprint(table, record),
-      expires: now + 30 * 60 * 1000,
-    });
-    return revision;
+      expires: Date.now() + 30 * 60 * 1000,
+    }, this.tokenSecret);
   }
+
   async search(query, { pendingOnly = false } = {}) {
     if (typeof query !== 'string' || (!query.trim() && !pendingOnly) || query.length > 200)
       fail(400, 'กรุณาระบุคำค้นไม่เกิน 200 ตัวอักษร');
@@ -63,12 +56,6 @@ export class Records {
         .map(([key]) => key),
     );
     const destinations = new Map(queued.entries.map((e) => [e.key, e.queueSheet || 'รอตรวจสอบ']));
-    // Keep every token from the current IQI result, including sheets larger than
-    // the normal rolling snapshot budget, plus room for opened detail panels.
-    this.snapshotLimit = Math.max(
-      2000,
-      tables.reduce((total, t) => total + t.records.length, 0) + 100,
-    );
     const groups = tables.map((table, i) => {
       let { records, matchType } = query.trim()
         ? findRecords(table, query)
@@ -156,27 +143,27 @@ export class Records {
     };
   }
   save(row, body) {
-    const work = this.queue.then(() => this.performSave(row, body));
+    const work = this.queue.then(() => writeLocked(this.adapter, () => this.performSave(row, body)));
     this.queue = work.catch(() => {});
     return work;
   }
   setPending(row, body) {
     if (this.adapter.setReviewSelection)
       return this.setReviewPending(this.config.sheets[0], row, body);
-    const work = this.queue.then(() => this.performSave(row, body, { pending: body.pending }));
+    const work = this.queue.then(() => writeLocked(this.adapter, () => this.performSave(row, body, { pending: body.pending })));
     this.queue = work.catch(() => {});
     return work;
   }
   setReviewPending(sheet, row, body) {
-    const work = this.queue.then(() => this.performReviewPending(sheet, row, body));
+    const work = this.queue.then(() => writeLocked(this.adapter, () => this.performReviewPending(sheet, row, body)));
     this.queue = work.catch(() => {});
     return work;
   }
   reviewInspection(sheet, row, body, write = false) {
-    const work = this.queue.then(async () => {
+    const work = this.queue.then(() => writeLocked(this.adapter, async () => {
       this.allowed(sheet);
       this.validateRow(row);
-      const snapshot = this.snapshots.get(body.revision);
+      const snapshot = readToken(body.revision, this.tokenSecret);
       if (
         !snapshot ||
         snapshot.sheet !== sheet ||
@@ -193,7 +180,7 @@ export class Records {
       return this.adapter.reviewInspection
         ? this.adapter.reviewInspection(table, record, write ? body : undefined)
         : this.adapter.reviewQueue.inspection(table, record, write ? body : undefined);
-    });
+    }));
     this.queue = work.catch(() => {});
     return work;
   }
@@ -202,7 +189,7 @@ export class Records {
     this.validateRow(row);
     if (body.sheet !== undefined && body.sheet !== sheet) fail(403, 'แหล่งข้อมูลไม่ตรงกัน');
     if (typeof body.pending !== 'boolean') fail(400, 'รูปแบบสถานะไม่ถูกต้อง');
-    const snapshot = this.snapshots.get(body.revision);
+    const snapshot = readToken(body.revision, this.tokenSecret);
     if (
       !snapshot ||
       snapshot.sheet !== sheet ||
@@ -218,7 +205,6 @@ export class Records {
     if (table.records.filter((r) => reviewKey(table, r) === key).length !== 1)
       fail(409, 'มีแถวที่เหมือนกันทุกช่อง จึงยังยืนยันรายการไม่ได้ กรุณาตรวจสอบแถวซ้ำในชีต');
     const result = await this.adapter.setReviewSelection(table, record, body.pending);
-    this.snapshots.delete(body.revision);
     const [freshTable] = await this.adapter.read([sheet]);
     const fresh = freshTable.records.find((r) => r.row === row);
     if (!fresh || reviewKey(freshTable, fresh) !== key)
@@ -245,7 +231,7 @@ export class Records {
       fail(403, 'อนุญาตให้แก้ไขเฉพาะ IQI เท่านั้น');
     if (statusUpdate && typeof statusUpdate.pending !== 'boolean')
       fail(400, 'รูปแบบสถานะการค้นหาไม่ถูกต้อง');
-    const snapshot = this.snapshots.get(body.revision);
+    const snapshot = readToken(body.revision, this.tokenSecret);
     if (
       !snapshot ||
       snapshot.sheet !== this.config.sheets[0] ||
@@ -291,7 +277,6 @@ export class Records {
     if (this.adapter.writeIQIAndReview)
       await this.adapter.writeIQIAndReview(table, record, changes);
     else await this.adapter.writeIQI(row, changes);
-    this.snapshots.delete(body.revision);
     // Always read the authoritative row back; never return submitted values as a saved record.
     const [freshTable] = await this.adapter.read([this.config.sheets[0]]);
     const fresh = freshTable.records.find((r) => r.row === row);

@@ -1,3 +1,4 @@
+import { writeLocked } from './state.js';
 import { createHash } from 'node:crypto';
 const revision = (headers, row) =>
   createHash('sha256')
@@ -13,12 +14,12 @@ export class DashboardEditor {
     this.queue = Promise.resolve();
   }
   save(row, body) {
-    const work = this.queue.then(() => this.performSave(row, body));
+    const work = this.queue.then(() => writeLocked(this.adapter, () => this.performSave(row, body)));
     this.queue = work.catch(() => {});
     return work;
   }
   saveDetails(row, body) {
-    const work = this.queue.then(() => this.performDetails(row, body));
+    const work = this.queue.then(() => writeLocked(this.adapter, () => this.performDetails(row, body)));
     this.queue = work.catch(() => {});
     return work;
   }
