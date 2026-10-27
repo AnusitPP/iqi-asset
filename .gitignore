@@ -13,3 +13,4 @@ scripts/
 node_modules/
 *.log
 test-results/
+.vercel/

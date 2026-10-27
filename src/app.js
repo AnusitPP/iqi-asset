@@ -1,3 +1,4 @@
+import { safeMessage, logError } from './errors.js';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { randomBytes, createHmac } from 'node:crypto';
@@ -6,20 +7,7 @@ import { lanAddresses } from './network.js';
 import { createAuth } from './auth.js';
 import { dashboardData, DashboardEditor } from './dashboard.js';
 import { DashboardPhotos, PhotoStore } from './photos.js';
-export function friendlyError(error) {
-  const message = String(error.message || '');
-  if (/Office file|not supported for this document/i.test(message))
-    return 'ไฟล์นี้ยังเป็น Excel / Office กรุณาเลือก File → Save as Google Sheets แล้วตั้งค่า Spreadsheet ID ใหม่ใน .env';
-  if (error.code === 'ENOENT')
-    return 'ไม่พบไฟล์ Service Account กรุณาตรวจ GOOGLE_SERVICE_ACCOUNT_FILE ใน .env';
-  if (error.status === 403)
-    return 'ไม่มีสิทธิ์เข้าถึงข้อมูล กรุณาแชร์ไฟล์ให้ Service Account เป็น Editor และเปิดใช้งาน Google Sheets API';
-  if (error.status === 404) return 'ไม่พบ Spreadsheet กรุณาตรวจ ID และสิทธิ์ Service Account';
-  if (error.status === 429) return 'Google Sheets มีคำขอมากเกินไป กรุณารอสักครู่แล้วลองใหม่';
-  if (error.status && error.status < 500 && !/invalid_grant|private.key|credential/i.test(message))
-    return message;
-  return 'เชื่อมต่อ Google Sheets ไม่สำเร็จ กรุณาตรวจเครือข่ายและการตั้งค่า แล้วลองใหม่';
-}
+export { safeMessage as friendlyError } from './errors.js';
 export function createApp(service, config) {
   const app = express();
   const csrf = config.appSecret
@@ -204,6 +192,8 @@ export function createApp(service, config) {
   );
   app.use((req, res) => res.status(404).type('text').send('ไม่พบหน้านี้'));
   app.use((error, req, res, next) => {
+    logError(error, `API ${req.method}`);
+    if (res.headersSent) return next(error);
     const status = Number(error.status || error.response?.status || 500);
     res.status(status >= 400 && status <= 599 ? status : 500).json({
       error:
@@ -211,7 +201,7 @@ export function createApp(service, config) {
           ? `ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน ${maxUploadBytes / 1024 / 1024} MB`
           : error.type === 'entity.parse.failed'
             ? 'รูปแบบ JSON ไม่ถูกต้อง'
-            : friendlyError(error),
+            : safeMessage(error),
     });
   });
   return app;

@@ -1,1 +1,19 @@
-export { app as default } from '../src/runtime.js';
+import express from 'express';
+import { logError, safeMessage } from '../src/errors.js';
+
+const app = express();
+app.disable('x-powered-by');
+app.use(async (req, res, next) => {
+  let runtime;
+  try {
+    runtime = await import('../src/runtime.js');
+  } catch (error) {
+    logError(error, 'startup');
+    return res
+      .status(503)
+      .set('Cache-Control', 'no-store')
+      .json({ error: safeMessage(error) });
+  }
+  return runtime.app(req, res, next);
+});
+export default app;

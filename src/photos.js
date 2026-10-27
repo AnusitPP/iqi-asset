@@ -51,7 +51,7 @@ export async function preparePhoto(input) {
 export class PhotoStore {
   constructor(config) {
     this.folder = config.photoFolderId || '1C42KW3QDHJ2X4scDba0p11TV1xM4L8-z';
-    this.userAuth = Boolean(config.driveOAuthFile || process.env.GOOGLE_DRIVE_OAUTH_JSON);
+    this.userAuth = Boolean(config.driveOAuthCredentials || config.driveOAuthFile);
     this.publicPhotoPreview = config.publicPhotoPreview === true;
     let auth;
     this.oauthConnected = true;
@@ -146,7 +146,7 @@ export class PhotoStore {
             requestBody: { type: 'anyone', role: 'reader' },
             fields: 'id',
           });
-        } catch (error) {
+        } catch {
           fail(
             422,
             `อัปโหลดรูปแล้ว แต่เปิดสิทธิ์ดูภาพสำหรับ Google Sheets ไม่สำเร็จ (อาจถูกนโยบายองค์กรจำกัด): ${file.id}`,

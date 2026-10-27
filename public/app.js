@@ -1,3 +1,4 @@
+import { readApiResponse } from './apiResponse.js';
 import { setUploadLimit } from './photos.js';
 import { todayBangkok, inspectionNote, inspectionAge } from './dates.js';
 import { editedValues } from './formValues.js';
@@ -62,10 +63,8 @@ async function api(url, options = {}) {
     ...options,
     headers: { 'Content-Type': 'application/json', 'X-IQI-Request': csrf, ...options.headers },
   });
-  const data = await response.json();
   if (response.status === 401 && !url.startsWith('/api/auth/')) showLogin();
-  if (!response.ok) throw new Error(data.error || 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่');
-  return data;
+  return readApiResponse(response);
 }
 async function connect() {
   try {
@@ -847,7 +846,8 @@ async function initializeAuth() {
     } else showLogin();
   } catch (error) {
     showLogin();
-    $('#auth-error').textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาโหลดหน้าเว็บใหม่';
+    $('#auth-error').textContent =
+      error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาโหลดหน้าเว็บใหม่';
     $('#auth-error').hidden = false;
   }
 }

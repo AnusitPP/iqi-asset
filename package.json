@@ -8,7 +8,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check public/app.js",
+    "check": "node --check server.js && node --check api/index.js && node --check public/app.js",
     "lint": "eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "format": "prettier --write ."

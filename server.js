@@ -1,5 +1,5 @@
 import { config } from './src/config.js';
-import { friendlyError } from './src/app.js';
+import { logError } from './src/errors.js';
 import { lanAddresses } from './src/network.js';
 import { reviewKey } from './src/reviewQueue.js';
 
@@ -34,7 +34,7 @@ try {
       .join(', '),
   );
 } catch (error) {
-  console.error('Google Sheets:', friendlyError(error));
+  logError(error, 'local startup');
 }
 
 export default app;
@@ -48,6 +48,7 @@ const server = app.listen(config.port, config.host, () => {
 });
 
 server.on('error', (error) => {
+  logError(error, 'listener');
   console.error(
     error.code === 'EADDRINUSE'
       ? `พอร์ต ${config.port} ถูกใช้งานอยู่ กรุณาปิดโปรแกรมที่ใช้พอร์ตนี้หรือแก้ PORT ใน .env`

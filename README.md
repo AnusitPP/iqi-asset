@@ -122,3 +122,7 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 - แต่ละรายการมี dropdown ผลตรวจและปุ่มบันทึกข้างกัน ปุ่มเปิดเมื่อเปลี่ยนสถานะ บันทึกลง Appscriptdata พร้อมวันเวลาไทยในคอลัมน์ อัปเดตสถานะล่าสุด และโหลดความคืบหน้าใหม่
 - โหลดข้อมูลล่าสุดอ่านชีตใหม่ การบันทึกจาก Dashboard ไม่เปลี่ยนผลตรวจในระบบ Apps Script ต้นทาง
 - ผลตรวจบน Dashboard อ้างอิงข้อมูลที่บันทึกใน Appscriptdata การเปลี่ยนผลตรวจใน Apps Script ต้องนำมาอัปเดตชีตก่อน
+
+## Vercel deployment
+
+See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, Redis session storage, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.
