@@ -5,11 +5,7 @@ import { createApp } from './app.js';
 import { StateStore } from './state.js';
 import { runtimeReadiness } from './readiness.js';
 
-export const state = new StateStore({
-  url: config.redisUrl,
-  token: config.redisToken,
-  prefix: config.statePrefix,
-});
+export const state = new StateStore();
 export const adapter = new GoogleSheets(config);
 adapter.state = state;
 const service = new Records(adapter, config);

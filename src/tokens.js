@@ -11,9 +11,18 @@ export function readToken(token, secret) {
   if (!body || !signature || extra !== undefined) return null;
   const expected = createHmac('sha256', secret).update(body).digest();
   const actual = Buffer.from(signature, 'base64url');
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+  if (
+    actual.toString('base64url') !== signature ||
+    actual.length !== expected.length ||
+    !timingSafeEqual(actual, expected)
+  )
+    return null;
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-    return payload && Number.isFinite(payload.expires) && payload.expires > Date.now() ? payload : null;
-  } catch { return null; }
+    return payload && Number.isFinite(payload.expires) && payload.expires > Date.now()
+      ? payload
+      : null;
+  } catch {
+    return null;
+  }
 }

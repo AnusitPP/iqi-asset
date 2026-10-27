@@ -13,8 +13,6 @@ const env = {
   VERCEL: '1',
   APP_PASSWORD: 'fake-password',
   APP_SECRET: 's'.repeat(64),
-  UPSTASH_REDIS_REST_URL: 'https://redis.example',
-  UPSTASH_REDIS_REST_TOKEN: 'fake-token',
   GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify(serviceAccount),
   GOOGLE_DRIVE_OAUTH_JSON: JSON.stringify({
     installed: { client_id: 'id', client_secret: 'secret' },
@@ -51,13 +49,7 @@ test('local config retains file fallback and hosted config rejects missing or ma
   assert.equal(local.serviceAccount, undefined);
   assert.match(local.keyFile, /credentials\/test.json$/);
   assert.equal(local.driveOAuthFile, './credentials/oauth.json');
-  for (const key of [
-    'APP_PASSWORD',
-    'APP_SECRET',
-    'UPSTASH_REDIS_REST_URL',
-    'UPSTASH_REDIS_REST_TOKEN',
-    'GOOGLE_SERVICE_ACCOUNT_JSON',
-  ]) {
+  for (const key of ['APP_PASSWORD', 'APP_SECRET', 'GOOGLE_SERVICE_ACCOUNT_JSON']) {
     assert.throws(() => loadConfig({ ...env, [key]: '' }), { code: 'APP_CONFIGURATION' });
   }
   for (const key of ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_DRIVE_OAUTH_JSON']) {
@@ -124,19 +116,14 @@ test('Google diagnostics preserve status and frames without logging credentials 
   assert.match(safeMessage(error), /credentials/);
 });
 
-test('Redis network or non-JSON errors fail closed with a safe service-unavailable response', async () => {
-  for (const fetcher of [
-    async () => {
-      throw new Error('fake-token');
-    },
-    async () => new Response('fake-token', { status: 500 }),
-  ]) {
-    const state = new StateStore({ url: 'https://redis.example', token: 'fake-token', fetcher });
-    await assert.rejects(
-      state.get('session:test'),
-      (error) => error.status === 503 && !error.message.includes('fake-token'),
-    );
-  }
+test('local state expires values without any network access', async (t) => {
+  const state = new StateStore();
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  await state.set('attempt:test', { count: 1 }, 1000);
+  assert.deepEqual(await state.get('attempt:test'), { count: 1 });
+  now += 1001;
+  assert.equal(await state.get('attempt:test'), undefined);
 });
 
 test('Vercel entry imports without credentials and returns controlled JSON on startup errors', () => {
@@ -212,7 +199,7 @@ test('local server still starts and serves frontend/auth with mocked Google setu
   assert.match(output, /LOCAL_STARTUP_OK/);
 });
 
-test('configured Vercel entry serves auth and upload settings without touching Google or Redis before login', () => {
+test('configured Vercel entry serves auth and upload settings without external session storage', () => {
   const entry = new URL('../api/index.js', import.meta.url).href;
   const script = `
     import app from ${JSON.stringify(entry)};

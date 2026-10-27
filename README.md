@@ -125,4 +125,4 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 
 ## Vercel deployment
 
-See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, Redis session storage, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.
+See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, signed-cookie sessions, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.

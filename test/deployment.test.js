@@ -11,34 +11,8 @@ import { REVIEW_HEADERS, REVIEW_DATE_HEADER, INSPECTION_HEADER } from '../src/re
 import { driveOAuth } from '../src/driveAuth.js';
 import { resizeForUpload, setUploadLimit } from '../public/photos.js';
 
-// Exercise the REST protocol with independent clients sharing one Redis backend.
-function redisClients() {
-  const entries = new Map();
-  const fetcher = async (url, options) => {
-    assert.equal(options.headers.Authorization, 'Bearer test-token');
-    const [cmd, key, value, ...args] = JSON.parse(options.body);
-    for (const [id, entry] of entries) if (entry.expires <= Date.now()) entries.delete(id);
-    let result;
-    if (cmd === 'GET') result = entries.get(key)?.value ?? null;
-    else if (cmd === 'DEL') result = Number(entries.delete(key));
-    else if (cmd === 'SET') {
-      if (args.includes('NX') && entries.has(key)) result = null;
-      else {
-        entries.set(key, { value, expires: Date.now() + Number(args[args.indexOf('PX') + 1]) });
-        result = 'OK';
-      }
-    } else if (cmd === 'EVAL') {
-      const [lockKey, owner] = args;
-      result = entries.get(lockKey)?.value === owner ? Number(entries.delete(lockKey)) : 0;
-    } else assert.fail(`Unexpected command: ${cmd}`);
-    return Response.json({ result });
-  };
-  const make = () => new StateStore({ url: 'https://redis.example', token: 'test-token', fetcher });
-  return [make(), make()];
-}
-
-test('separate instances share HTTPS login, CSRF, rate limits and logout', async (t) => {
-  const states = redisClients();
+test('signed sessions work across instances while rate limits and revocations remain local', async (t) => {
+  const states = [new StateStore(), new StateStore()];
   const config = {
     hosted: true,
     host: '0.0.0.0',
@@ -112,9 +86,17 @@ test('separate instances share HTTPS login, CSRF, rate limits and logout', async
     403,
   );
   assert.equal((await request(0, '/api/auth/logout', { method: 'POST', headers })).status, 200);
+  assert.equal((await request(0, '/api/status', { headers })).status, 401);
+  // A copied cookie is not globally revoked without shared storage.
+  assert.equal((await request(1, '/api/status', { headers })).status, 200);
+  assert.equal((await request(1, '/api/status')).status, 401);
+  const copied = headers.Cookie;
+  headers.Cookie = copied.slice(0, -1) + (copied.endsWith('A') ? 'B' : 'A');
   assert.equal((await request(1, '/api/status', { headers })).status, 401);
-  for (let i = 0; i < 5; i++) assert.equal((await login(i % 2, 'wrong')).status, 401);
-  assert.equal((await login(1, 'secret')).status, 429);
+  headers.Cookie = copied;
+  for (let i = 0; i < 5; i++) assert.equal((await login(0, 'wrong')).status, 401);
+  assert.equal((await login(0, 'secret')).status, 429);
+  assert.equal((await login(1, 'secret')).status, 200);
 });
 
 test('signed revisions save across instances and reject tampering, expiry and stale rows', async () => {
@@ -123,7 +105,7 @@ test('signed revisions save across instances and reject tampering, expiry and st
     ['asset-1', 'original'],
   ];
   const config = { sheets: ['IQI'], appSecret: 's'.repeat(64) };
-  const states = redisClients();
+  const states = [new StateStore(), new StateStore()];
   const adapters = states.map((state) => ({
     state,
     config: { ...config, spreadsheetId: 'test' },
@@ -149,9 +131,9 @@ test('signed revisions save across instances and reject tampering, expiry and st
   assert.equal(table.sheet, 'IQI');
 });
 
-test('distributed write lock serializes independent clients and releases after failure', async () => {
-  const states = redisClients();
-  const adapters = states.map((state) => ({ state, config: { spreadsheetId: 'same-sheet' } }));
+test('local write lock serializes work in one instance and releases after failure', async () => {
+  const state = new StateStore();
+  const adapters = [0, 1].map(() => ({ state, config: { spreadsheetId: 'same-sheet' } }));
   const order = [];
   let release, entered;
   const gate = new Promise((resolve) => {

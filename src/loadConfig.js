@@ -7,12 +7,8 @@ import {
 
 export function loadConfig(env = process.env) {
   const hosted = env.VERCEL === '1';
-  const redisUrl = env.UPSTASH_REDIS_REST_URL || '';
-  const redisToken = env.UPSTASH_REDIS_REST_TOKEN || '';
-  if (!!redisUrl !== !!redisToken)
-    throw configurationError('ต้องตั้งค่า Redis URL และ token ให้ครบ');
-  if (hosted && (!env.APP_PASSWORD || !env.APP_SECRET || !redisUrl))
-    throw configurationError('Vercel ต้องตั้ง APP_PASSWORD, APP_SECRET และ Upstash Redis');
+  if (hosted && (!env.APP_PASSWORD || !env.APP_SECRET))
+    throw configurationError('Vercel ต้องตั้ง APP_PASSWORD และ APP_SECRET');
   if (hosted && !env.GOOGLE_SERVICE_ACCOUNT_JSON)
     throw configurationError('Vercel ต้องตั้ง GOOGLE_SERVICE_ACCOUNT_JSON');
   if (env.APP_SECRET && env.APP_SECRET.length < 32)
@@ -20,9 +16,6 @@ export function loadConfig(env = process.env) {
   const config = {
     hosted,
     appSecret: env.APP_SECRET,
-    redisUrl,
-    redisToken,
-    statePrefix: env.STATE_PREFIX || `iqi:${env.VERCEL_ENV || 'local'}`,
     allowedHosts: [
       env.VERCEL_URL,
       env.VERCEL_PROJECT_PRODUCTION_URL,

@@ -8,14 +8,14 @@ The existing `api/index.js` exports an Express app without a listener. It loads 
 - Invalid credential JSON could throw during module import and become `FUNCTION_INVOCATION_FAILED`. Parsing now reports the variable name without its contents, and the entry point catches runtime import failures.
 - The frontend called `response.json()` on every response, including Vercel text/HTML failures. It now checks Content-Type and HTTP status and reports non-JSON or malformed JSON errors.
 - Runtime readiness loads existing queue metadata without running migrations. Missing schema returns 422 with the setup command; migrations remain a separate explicit command.
-- Hosted requests use configured hostnames, one platform proxy hop, secure cookies, shared Redis sessions/rate limits and a stable secret for CSRF and signed revisions. Local requests do not trust forwarded headers.
+- Hosted requests use configured hostnames, one platform proxy hop, secure cookies, signed-cookie sessions and a stable secret for CSRF and signed revisions. Local requests do not trust forwarded headers.
 - Logs include safe messages, status and stack frames rather than Google request objects, response bodies, credential values or authorization headers.
 
 ## Local environment
 
 Copy `.env.example` to `.env` if you have not already configured it. Keep your existing private values. Use `GOOGLE_SERVICE_ACCOUNT_FILE` and, for a My Drive folder, `GOOGLE_DRIVE_OAUTH_FILE`. Configure `APP_PASSWORD`, `GOOGLE_SPREADSHEET_ID`, `GOOGLE_PHOTO_FOLDER_ID`, the three `SHEET_*` names and the existing `IQI_DATE_*` settings. `PORT` and `HOST` default to 3000 and 0.0.0.0.
 
-Leave the JSON and Redis variables empty to retain local file credentials and expiring in-memory sessions. `APP_SECRET` is optional locally but required on Vercel. Do not set `VERCEL=1` in local `.env`.
+Leave the JSON variables empty to retain local file credentials. Signed session cookies expire after eight hours. `APP_SECRET` is optional locally but required on Vercel. Do not set `VERCEL=1` in local `.env`.
 
 ```sh
 npm ci
@@ -40,8 +40,6 @@ This command may add the existing required status/review columns and tabs, apply
 | `APP_PASSWORD`                              | Your application password; no production fallback                   |
 | `APP_SECRET`                                | Random secret of at least 32 characters, identical across instances |
 | `GOOGLE_SERVICE_ACCOUNT_JSON`               | Complete Service Account JSON with `client_email` and `private_key` |
-| `UPSTASH_REDIS_REST_URL`                    | Upstash database REST URL                                           |
-| `UPSTASH_REDIS_REST_TOKEN`                  | Upstash read/write REST token                                       |
 | `GOOGLE_SPREADSHEET_ID`                     | Target Google spreadsheet ID                                        |
 | `SHEET_IQI`, `SHEET_ALL_ITEMS`, `SHEET_ALL` | Exact existing sheet names                                          |
 
@@ -51,7 +49,9 @@ Also configure `GOOGLE_PHOTO_FOLDER_ID`, `IQI_DATE_HEADER`, `IQI_DATE_MODE` as l
 
 `PUBLIC_PHOTO_PREVIEW` defaults to false. Setting true retains the existing explicit behavior of granting anyone-with-link read permission to newly uploaded photos. It is not required for authenticated in-app previews.
 
-`STATE_PREFIX` is optional. Sessions and write locks share this namespace. Instances that write the same spreadsheet must share the Redis database and namespace; use a separate spreadsheet for Preview environments. Redis failures fail closed, never silently fall back to memory in a hosted runtime.
+No external session database is required. Login cookies are signed with a key derived from `APP_SECRET` and `APP_PASSWORD`, so every instance can verify them. Changing either value invalidates existing login cookies after redeployment. Keep these values consistent across instances.
+
+Rate limits, revoked-session IDs and write queues are kept only in each instance's memory. Logout clears the browser cookie and revokes it on the instance handling logout; a previously copied cookie can still be accepted on another instance until its eight-hour expiry. Process restarts clear local revocations and rate limits. Write queues do not coordinate simultaneous writes between instances. Existing fresh-row/revision checks remain, but do not make Sheets writes atomic. These are deliberate limitations while shared storage is disabled.
 
 Generate a secret locally without modifying cloud credentials:
 
@@ -72,22 +72,22 @@ Store complete JSON as the environment variable value, not a path, and do not su
 
 ## Verification and limits
 
-Automated tests cover configuration parsing, file fallback, JSON credential initialization, import/startup failures, frontend non-JSON errors, two independent instances sharing mocked Redis, login/logout/rate limits, signed revisions, distributed write locks, queue metadata readiness and HEIC size rejection. They do not establish that your actual Redis database or Google credentials are valid.
+Automated tests cover configuration parsing, file fallback, JSON credential initialization, import/startup failures, frontend non-JSON errors, signed-cookie login across two independent instances, local logout/rate limits, signed revisions, local write queues, queue metadata readiness and HEIC size rejection. They do not establish that your actual Google credentials are valid.
 
-The Vercel function allows 120 seconds. Redis write-lock leases are 300 seconds and can remain until expiry after an interrupted invocation. Google Sheets edits made outside this application are not protected by the app's lock; existing before/after validation remains in place, but Sheets does not provide atomic compare-and-set updates.
+The Vercel function allows 120 seconds. Writes from other instances or external Google Sheets editors are not protected by a shared lock; existing before/after validation remains in place, but Sheets does not provide atomic compare-and-set updates.
 
 Hosted upload bodies are limited by the app to 4 MiB to stay below Vercel's 4.5 MB request limit. JPEG/PNG/WebP are resized before sending. HEIC/HEIF that cannot be decoded locally are sent as originals and must fit the hosted limit; larger files must be converted or reduced first. Local uploads retain the 25 MiB original limit. Extremely large search/dashboard responses can also reach the platform response limit; pagination or a different storage/query architecture would then be needed.
 
-No production deployment, live Redis check, live Google write, credential rotation, commit or push is performed by these changes.
+No production deployment, live Google write, credential rotation, commit or push is performed by these changes.
 
-References: [Vercel Node runtime](https://vercel.com/docs/functions/runtimes/node-js), [request headers](https://vercel.com/docs/headers/request-headers), [function limits](https://vercel.com/docs/functions/limitations), [Upstash REST API](https://upstash.com/docs/redis/features/restapi).
+References: [Vercel Node runtime](https://vercel.com/docs/functions/runtimes/node-js), [request headers](https://vercel.com/docs/headers/request-headers), [function limits](https://vercel.com/docs/functions/limitations).
 
 ## Files changed in this fix
 
 - Deployment/startup: `api/index.js`, `server.js`, `setup-sheets.js`, `vercel.json`, `src/runtime.js`, `src/readiness.js`.
 - Configuration/credentials: `src/config.js`, `src/loadConfig.js`, `src/credentials.js`, `src/driveAuth.js`, `src/photos.js`, `.env.example`.
-- API/errors/shared state: `src/app.js`, `src/errors.js`, `src/state.js`.
+- API/errors/local state: `src/app.js`, `src/errors.js`, `src/state.js`.
 - Frontend: `public/app.js`, `public/apiResponse.js`.
 - Verification/docs: `test/configuration.test.js`, `test/deployment.test.js`, `package.json`, `.gitignore`, `README.md`, `docs/vercel-deployment.md`.
 
-Final verification: 148 tests passed; syntax checked across 60 JavaScript files; ESLint reported 0 errors and 13 warnings. Actual cloud authentication and deployment still require verification with your configured services. The private `.env` and credential JSON contents were not modified.
+Verification covers configuration parsing, signed-session expiration/tampering, local startup, the Vercel entry point, frontend errors and Google integration through mocks. Actual Google authentication and deployment still require verification with configured services. The private `.env` and credential JSON contents were not modified.
