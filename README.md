@@ -13,7 +13,7 @@ npm run dev
 
 เปิด http://localhost:3000 แล้วกรอกรหัสใน popup (ค่าปัจจุบันตามที่ตั้งให้: `1234`) หยุดเซิร์ฟเวอร์ด้วย Ctrl+C หรือใช้ `npm start` เพื่อเปิดอีกครั้ง เปลี่ยนรหัสได้ที่ `APP_PASSWORD` ใน `.env` แล้ว restart
 
-วาง Service Account ที่ `credentials/service-account.json` และแชร์ Google Spreadsheet ให้บัญชีนั้นเป็น Editor พร้อมเปิด Google Sheets API ใน Google Cloud ตัว credential และ `.env` ถูก ignore และไม่ได้อยู่ใน public/
+วาง Service Account ที่ `credentials/service-account.json` และแชร์ Google Spreadsheet ให้บัญชีนั้นเป็น Editor พร้อมเปิด Google Sheets API ใน Google Cloud ตัว credential และ `.env` ถูก ignore และไม่ได้อยู่ใน frontend/public/
 
 ไฟล์ต้องเป็น **Google Sheets จริง** ถ้าเป็น Excel ให้เปิดแล้วเลือก File → Save as Google Sheets จากนั้นนำ ID ใหม่มาใส่ `.env` เซิร์ฟเวอร์จะแสดงข้อผิดพลาดที่อ่านได้ถ้าเชื่อมไม่ได้ และหน้าเว็บกดค้นหาเพื่อลองใหม่ได้
 
@@ -87,7 +87,7 @@ IQI จะอัปเดต `สถานะการค้นหา` เป็
 
 ## การบันทึกและความปลอดภัย
 
-- เสิร์ฟเฉพาะ `public/` ไม่มี route ส่ง credential / `.env` และใช้ textContent แสดงข้อมูล Sheet
+- เสิร์ฟเฉพาะ `frontend/public/` ไม่มี route ส่ง credential / `.env` และใช้ textContent แสดงข้อมูล Sheet
 - Backend จำกัดต้นฉบับที่อ่านได้ 3 แท็บ และแก้ไขข้อมูลต้นฉบับได้เฉพาะ IQI เท่านั้น ปุ่มหัวใจเขียนสำเนาไปแท็บรอตรวจสอบที่กำหนดไว้โดยเฉพาะ
 - มี CSRF token, ตรวจ Origin และ Host และไม่เปิด CORS ข้ามเว็บไซต์
 - API อ่าน/ค้นหา/บันทึกตรวจ session ฝั่ง backend ทุกครั้ง Cookie เป็น HttpOnly / SameSite=Strict รหัสไม่ถูกส่งไปเก็บใน JavaScript ของ frontend
@@ -126,3 +126,7 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 ## Vercel deployment
 
 See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, signed-cookie sessions, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.
+
+## File structure
+
+Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/project-structure.md). Run all npm commands from the project root; `npm run build` prepares `frontend/dist/` for Vercel.

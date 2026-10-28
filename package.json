@@ -3,15 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "setup:sheets": "node setup-sheets.js",
-    "drive:connect": "node drive-connect.js",
-    "dev": "node server.js",
-    "start": "node server.js",
+    "setup:sheets": "node backend/scripts/setup-sheets.js",
+    "drive:connect": "node backend/scripts/drive-connect.js",
+    "dev": "node backend/server.js",
+    "start": "node backend/server.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check api/index.js && node --check public/app.js",
+    "check": "node --check backend/server.js && node --check api/index.js && node --check frontend/public/js/app.js",
     "lint": "eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build": "node backend/scripts/build-frontend.js"
   },
   "engines": {
     "node": ">=20"

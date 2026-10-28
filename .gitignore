@@ -7,10 +7,13 @@ credentials/
 .env.*
 !.env.example
 # Local inventory exports, migration scripts and screenshots are not application source.
-scripts/
+/scripts/
 /*-proof.png
 *.zip
 node_modules/
 *.log
 test-results/
 .vercel/
+
+# Generated frontend deployment assets
+frontend/dist/

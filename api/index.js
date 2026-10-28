@@ -1,12 +1,12 @@
 import express from 'express';
-import { logError, safeMessage } from '../src/errors.js';
+import { logError, safeMessage } from '../backend/src/utils/errors.js';
 
 const app = express();
 app.disable('x-powered-by');
 app.use(async (req, res, next) => {
   let runtime;
   try {
-    runtime = await import('../src/runtime.js');
+    runtime = await import('../backend/src/runtime.js');
   } catch (error) {
     logError(error, 'startup');
     return res
