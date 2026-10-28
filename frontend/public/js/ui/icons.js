@@ -1,4 +1,6 @@
 const paths = {
+  refresh: 'M10 2l4 4-4 4M14 6H11a8 8 0 0 0-7 12M14 22l-4-4 4-4M10 18h3a8 8 0 0 0 7-12',
+  logout: 'M9 4H4v16h5M13 8l4 4-4 4M9 12h12',
   arrow: 'M7 17 17 7M7 7h10v10',
   enter: 'M20 5v8a3 3 0 0 1-3 3H4m5-5-5 5 5 5',
   check: 'm5 12 4 4L19 6',

@@ -1,3 +1,4 @@
+import { initializeLoanSearch } from './features/loans/loanSearch.js';
 import { readApiResponse } from './utils/apiResponse.js';
 import { setUploadLimit } from './features/photos/photos.js';
 import { todayBangkok, inspectionNote, inspectionAge } from './utils/dates.js';
@@ -800,8 +801,7 @@ $('#auth-form').addEventListener('submit', async (event) => {
     authDialog.close();
     $('#logout-button').hidden = false;
     if (await connect()) {
-      const query = $('#query').value.trim();
-      if (query || $('#pending-only').checked) await search(query);
+      dashboard.show();
     }
   } catch (error) {
     $('#auth-error').textContent = error.message;
@@ -842,7 +842,7 @@ async function initializeAuth() {
     if (session.authenticated) {
       authenticated = true;
       $('#logout-button').hidden = false;
-      await connect();
+      if (await connect()) dashboard.show();
     } else showLogin();
   } catch (error) {
     showLogin();
@@ -852,3 +852,77 @@ async function initializeAuth() {
   }
 }
 initializeAuth();
+
+const workspaceNavigation = $('#workspace-navigation');
+const workspaceMenuButton = $('#workspace-menu-button');
+const workspaceDesktop = window.matchMedia('(min-width: 1024px)');
+let workspaceCloseTimer;
+function closeWorkspaceMenu() {
+  if (workspaceDesktop.matches || !workspaceNavigation.open || workspaceCloseTimer) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    workspaceNavigation.close();
+    return;
+  }
+  workspaceNavigation.classList.add('is-closing');
+  workspaceCloseTimer = window.setTimeout(() => {
+    workspaceCloseTimer = undefined;
+    workspaceNavigation.classList.remove('is-closing');
+    workspaceNavigation.close();
+  }, 180);
+}
+function syncWorkspaceLayout() {
+  window.clearTimeout(workspaceCloseTimer);
+  workspaceCloseTimer = undefined;
+  workspaceNavigation.classList.remove('is-closing');
+  workspaceNavigation.close();
+  workspaceNavigation.setAttribute('role', workspaceDesktop.matches ? 'navigation' : 'dialog');
+  // Desktop navigation is part of the page and must not take focus on entry.
+  if (workspaceDesktop.matches) workspaceNavigation.setAttribute('open', '');
+}
+syncWorkspaceLayout();
+workspaceDesktop.addEventListener('change', syncWorkspaceLayout);
+workspaceMenuButton.addEventListener('click', () => {
+  workspaceNavigation.showModal();
+  workspaceMenuButton.setAttribute('aria-expanded', 'true');
+});
+$('#workspace-menu-close').addEventListener('click', closeWorkspaceMenu);
+workspaceNavigation.addEventListener('click', (event) => {
+  const bounds = workspaceNavigation.getBoundingClientRect();
+  if (
+    !workspaceDesktop.matches &&
+    (event.target.closest('.workspace-tab') ||
+      (event.target === workspaceNavigation &&
+        (event.clientX < bounds.left ||
+          event.clientX > bounds.right ||
+          event.clientY < bounds.top ||
+          event.clientY > bounds.bottom)))
+  ) {
+    closeWorkspaceMenu();
+  }
+});
+workspaceNavigation.addEventListener('close', () => {
+  workspaceMenuButton.setAttribute('aria-expanded', 'false');
+  if (!workspaceDesktop.matches) workspaceMenuButton.focus();
+});
+
+workspaceNavigation.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeWorkspaceMenu();
+});
+
+$('#loan-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const start = $('#loan-start');
+  const due = $('#loan-due');
+  due.setCustomValidity(due.value < start.value ? 'กำหนดคืนต้องไม่ก่อนวันที่ยืม' : '');
+  if (!due.reportValidity()) return;
+  $('#loan-feedback').textContent = 'ตัวอย่างเท่านั้น — ยังไม่ได้สร้างหรือบันทึกคำขอยืม';
+});
+$('#loan-due').addEventListener('input', () => $('#loan-due').setCustomValidity(''));
+$('#loan-start').addEventListener('input', () => $('#loan-due').setCustomValidity(''));
+$('#loan-form').addEventListener('reset', () => {
+  $('#loan-due').setCustomValidity('');
+  $('#loan-feedback').textContent = '';
+});
+
+initializeLoanSearch(api);

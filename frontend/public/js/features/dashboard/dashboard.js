@@ -30,14 +30,17 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
   const panel = document.querySelector('#dashboard-panel'),
     searchTab = document.querySelector('#search-tab'),
     dashboardTab = document.querySelector('#dashboard-tab');
+  const loadingSkeleton = panel.querySelector('.dash-skeleton').cloneNode(true);
   let data = null,
     version = 0,
     busy = false,
     inspection = '',
     comparison = '',
+    team = '',
     query = '',
     active = false;
   const drafts = new Map();
+  let filtersOpen = false;
   let saving = false,
     feedback = '';
   const searchSections = () =>
@@ -260,14 +263,18 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
   function show(which) {
     active = which === 'dashboard';
     panel.hidden = !active;
+    document.querySelector('#loans-panel').hidden = which !== 'loans';
+    const loansTab = document.querySelector('#loans-tab');
+    loansTab.classList.toggle('active', which === 'loans');
+    loansTab.setAttribute('aria-pressed', String(which === 'loans'));
     searchSections().forEach((n) => {
-      if (n.id !== 'page-error' || active) n.hidden = active;
+      if (n.id !== 'page-error' || which !== 'search') n.hidden = which !== 'search';
     });
-    searchTab.classList.toggle('active', !active);
+    searchTab.classList.toggle('active', which === 'search');
     dashboardTab.classList.toggle('active', active);
-    searchTab.setAttribute('aria-pressed', String(!active));
+    searchTab.setAttribute('aria-pressed', String(which === 'search'));
     dashboardTab.setAttribute('aria-pressed', String(active));
-    if (active && !data) load();
+    if (active && !data && isAuthenticated()) load();
   }
   async function load() {
     if (busy) return;
@@ -277,7 +284,8 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
     }
     busy = true;
     const request = ++version;
-    panel.replaceChildren(node('p', 'loading', 'กำลังโหลดข้อมูล Appscriptdata…'));
+    panel.setAttribute('aria-busy', 'true');
+    panel.replaceChildren(loadingSkeleton.cloneNode(true));
     try {
       const result = await api('/api/dashboard');
       if (request !== version) return;
@@ -290,17 +298,16 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
         action('ลองโหลดอีกครั้ง', 'button primary', load),
       );
     } finally {
-      if (request === version) busy = false;
+      if (request === version) {
+        busy = false;
+        panel.setAttribute('aria-busy', 'false');
+      }
     }
   }
-  function stat(label, count, kind, selected, fn) {
+  function stat(label, count, _kind, selected, fn) {
     const b = action('', 'dash-stat ' + tone(label) + (selected ? ' selected' : ''), fn);
     b.setAttribute('aria-pressed', String(selected));
-    b.append(
-      node('span', 'dash-stat-label', label),
-      node('strong', '', String(count)),
-      node('span', 'dash-stat-caption', kind),
-    );
+    b.append(node('span', 'dash-stat-label', label), node('strong', '', String(count)));
     return b;
   }
   function copyValue(value, label) {
@@ -410,6 +417,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
   function updateBulkButton() {
     const button = panel.querySelector('#dash-save-all');
     if (!button) return;
+    button.closest('.dash-bulk-bar').hidden = drafts.size === 0 && !saving;
     button.disabled = saving || drafts.size === 0;
     button.textContent = drafts.size ? `บันทึกทั้งหมด (${drafts.size})` : 'บันทึกทั้งหมด';
     panel.querySelector('#dash-draft-count').textContent = drafts.size
@@ -470,6 +478,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       (r) =>
         (!inspection || r.inspection === inspection) &&
         (!comparison || r.comparison === comparison) &&
+        (!team || (r.team || '').trim() === team) &&
         (!normalized || r.values.some((v) => v.toLocaleLowerCase().includes(normalized))),
     );
     panel.querySelector('#dash-count').textContent =
@@ -488,7 +497,40 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       'การเทียบกับชีต',
       'ผู้ถือครอง / ทีม',
       'รายละเอียด',
-    ].forEach((x) => head.append(node('th', '', x)));
+    ].forEach((x) => {
+      const th = node('th', '', x);
+      th.scope = 'col';
+      if (x === 'ผู้ถือครอง / ทีม') {
+        th.replaceChildren();
+        const select = node('select', 'dash-team-filter');
+        select.setAttribute('aria-label', 'กรองตามทีม');
+        const all = node(
+          'option',
+          '',
+          window.matchMedia('(max-width: 760px)').matches
+            ? 'เลือกทีมที่จะแสดง · ทุกทีม'
+            : 'ผู้ถือครอง / ทีม · ทุกทีม',
+        );
+        all.value = '';
+        select.append(all);
+        const teams = [
+          ...new Set(data.records.map((r) => (r.team || '').trim()).filter(Boolean)),
+        ].sort((a, b) => a.localeCompare(b, 'th'));
+        for (const name of teams) {
+          const option = node('option', '', name);
+          option.value = name;
+          select.append(option);
+        }
+        select.value = team;
+        select.addEventListener('change', () => {
+          team = select.value;
+          renderList();
+          panel.querySelector('.dash-team-filter')?.focus();
+        });
+        th.append(select);
+      }
+      head.append(th);
+    });
     thead.append(head);
     table.append(thead);
     const body = node('tbody');
@@ -521,19 +563,16 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
     panel.replaceChildren();
     const head = node('div', 'dash-heading');
     const title = node('div');
-    title.append(
-      node('div', 'eyebrow', 'IQI · APPSCRIPTDATA'),
-      node('h1', '', 'Dashboard ครุภัณฑ์'),
-      node('p', '', 'ผลตรวจจาก Apps Script และการเทียบข้อมูลกับ Google Sheets'),
-    );
-    head.append(
-      title,
-      action('โหลดข้อมูลล่าสุด', 'button secondary', () => {
-        drafts.clear();
-        feedback = '';
-        load();
-      }),
-    );
+    title.append(node('h1', '', 'Dashboard'));
+    const refresh = action('', 'button secondary dash-refresh', () => {
+      drafts.clear();
+      feedback = '';
+      load();
+    });
+    refresh.append(icon('refresh'));
+    refresh.setAttribute('aria-label', 'โหลดข้อมูลล่าสุด');
+    refresh.title = 'โหลดข้อมูลล่าสุด';
+    head.append(title, refresh);
     panel.append(head);
     const bulk = node('div', 'dash-bulk-bar');
     const bulkMessage = node('span');
@@ -567,14 +606,17 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
         `ตรวจแล้ว ${data.completed.toLocaleString('th-TH')} / ${data.total.toLocaleString('th-TH')} รายการ`,
       ),
       bar,
-      node(
-        'p',
-        'dash-hint',
-        'นับตรวจแล้วจาก ดี + ชำรุด + หาไม่เจอ + อุปกรอื่นๆ + กล้องวงจรปิด ตามผลตรวจ Apps Script',
-      ),
     );
     panel.append(progress);
-    panel.append(node('h2', 'dash-section-title', 'ผลตรวจ Apps Script'));
+    const filters = node('details', 'dash-filters');
+    filters.open = filtersOpen;
+    const filterSummary = node('summary', '', 'ตัวกรองสถานะและการเทียบข้อมูล');
+    filters.append(filterSummary);
+    filters.addEventListener('toggle', () => {
+      filtersOpen = filters.open;
+    });
+    panel.append(filters);
+    filters.append(node('h2', 'dash-section-title', 'ผลตรวจ Apps Script (พัสดุ)'));
     const stats = node('div', 'dash-stats');
     for (const s of [
       'ดี',
@@ -591,8 +633,10 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
           render();
         }),
       );
-    panel.append(stats);
-    panel.append(node('h2', 'dash-section-title', 'ข้อมูล Apps Script เทียบกับ Google Sheets'));
+    filters.append(stats);
+    filters.append(
+      node('h2', 'dash-section-title', 'ข้อมูล Apps Script (พัสดุ) เทียบกับ Google Sheets (IQI)'),
+    );
     const matches = node('div', 'dash-matches');
     Object.entries(data.comparison).forEach(([s, count]) =>
       matches.append(
@@ -602,7 +646,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
         }),
       ),
     );
-    panel.append(
+    filters.append(
       matches,
       node(
         'p',
@@ -625,6 +669,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       action('ล้างตัวกรอง', 'button secondary', () => {
         inspection = '';
         comparison = '';
+        team = '';
         query = '';
         render();
       }),
@@ -655,9 +700,12 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
     );
     renderList();
   }
+  document.querySelector('#loans-tab').addEventListener('click', () => show('loans'));
   searchTab.addEventListener('click', () => show('search'));
   dashboardTab.addEventListener('click', () => show('dashboard'));
+  show('dashboard');
   return {
+    show: () => show('dashboard'),
     clear() {
       version++;
       busy = false;
@@ -667,11 +715,13 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
       data = null;
       inspection = '';
       comparison = '';
+      team = '';
       query = '';
-      panel.replaceChildren();
+      panel.setAttribute('aria-busy', 'true');
+      panel.replaceChildren(loadingSkeleton.cloneNode(true));
       modal.close();
       modal.replaceChildren();
-      show('search');
+      show('dashboard');
     },
   };
 }
