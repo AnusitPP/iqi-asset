@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Loans, LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/services/loans.js';
+import { Loans, LOAN_HEADERS, RETURN_HEADERS } from '../helpers/lending.js';
 const make = () => {
   const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
   const adapter = {
@@ -49,4 +49,60 @@ test('original return form accepts external asset without staff/condition and aw
   assert.equal(grids.returns[1][13], '');
   await service.returnForm(b);
   assert.equal(grids.returns.length, 2);
+});
+
+import { catalogCategory } from '../../shared/features/catalog/search.js';
+test('catalog selections use authoritative sheet identity and reject missing records', async () => {
+  const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
+  const service = new Loans({
+    readLoanSheets: async () => structuredClone(grids),
+    readReadyToBorrow: async () => [
+      ['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์'],
+      ['A1', 'SN1', 'จอมอนิเตอร์ Samsung'],
+    ],
+    appendLoanRows: async (k, r) => grids[k].push(...r),
+  });
+  const selected = {
+    ...form,
+    identifier: 'tampered',
+    category: catalogCategory('จอมอนิเตอร์'),
+    selectedAsset: { asset: 'A1', serial: 'SN1' },
+  };
+  await service.borrowForm(selected);
+  assert.equal(grids.loans[1][7], 'A1');
+  assert.equal(grids.loans[1][8], 'SN1');
+  assert.equal(grids.loans[1][9], 'จอมอนิเตอร์ Samsung');
+  await assert.rejects(() => service.borrowForm({ ...selected, requestId: 'another-request' }), {
+    status: 409,
+  });
+  await assert.rejects(
+    () =>
+      service.returnForm({
+        ...selected,
+        requestId: 'bad-return-001',
+        date: '2026-10-29',
+        selectedAsset: { asset: 'missing', serial: '' },
+      }),
+    { status: 409 },
+  );
+  await service.returnForm({ ...selected, requestId: 'valid-return-001', date: '2026-10-29' });
+  assert.equal(grids.returns[1][8], 'A1');
+  assert.equal(grids.returns[1][9], 'SN1');
+  assert.equal(grids.returns[1][14], 'รอรับคืน');
+});
+
+test('form submissions share one ledger lock and reject hosted writes', async () => {
+  const { service, grids } = make();
+  const request = { ...form, identifier: 'A1' };
+  const outcomes = await Promise.allSettled([
+    service.borrowForm(request),
+    service.borrowForm({ ...request, requestId: 'concurrent-form-02' }),
+  ]);
+  assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(outcomes.find((result) => result.status === 'rejected').reason.status, 409);
+  assert.equal(grids.loans.length, 2);
+  assert.throws(() => new Loans({}, { hosted: true }).borrowForm(form), { status: 503 });
+  await assert.rejects(() => service.borrowForm({ ...request, purpose: 'changed' }), {
+    status: 409,
+  });
 });

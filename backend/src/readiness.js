@@ -1,5 +1,5 @@
-import { INSPECTION_HEADER, REVIEW_DATE_HEADER } from './services/review/reviewQueue.js';
-import { SEARCH_STATUS_HEADER } from './constants/searchStatus.js';
+import { INSPECTION_HEADER, REVIEW_DATE_HEADER } from './features/review/queue.js';
+import { SEARCH_STATUS_HEADER } from '../../shared/features/records/searchStatus.js';
 
 const setupRequired = () =>
   Object.assign(new Error('กรุณารัน npm run setup:sheets ก่อน deploy'), { status: 422 });

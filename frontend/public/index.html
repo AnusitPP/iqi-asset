@@ -71,11 +71,29 @@
           </h2>
           <div id="loan-terms" class="loan-hint"></div>
           <label for="loan-category">ประเภทของครุภัณฑ์ หรือวัสดุ *</label
-          ><select id="loan-category" required></select>
+          ><input
+            id="loan-category"
+            required
+            autocomplete="off"
+            placeholder="ค้นหาชื่ออุปกรณ์ เลขครุภัณฑ์ หรือ S/N"
+            aria-controls="loan-catalog-results"
+            aria-expanded="false"
+          />
+          <div
+            id="loan-catalog-results"
+            class="loan-asset-results"
+            role="group"
+            aria-label="ผลค้นหาจากชีตพร้อมยืม"
+            hidden
+          ></div>
+          <p id="loan-catalog-message" class="loan-hint" role="status">ค้นหาจากชีตพร้อมยืม</p>
           <label for="loan-identifier">เลขครุภัณฑ์, Serial Number (S/N), Service Tag *</label>
-          <p class="loan-hint" id="loan-identifier-help">กรณีไม่มีให้ใส่ -</p>
+          <p class="loan-hint" id="loan-identifier-help">
+            เติมอัตโนมัติเมื่อเลือกอุปกรณ์จากผลค้นหา
+          </p>
           <input
             id="loan-identifier"
+            readonly
             required
             maxlength="500"
             aria-describedby="loan-identifier-help"
@@ -114,11 +132,29 @@
           </h2>
           <div id="return-terms" class="loan-hint"></div>
           <label for="return-category">ประเภทของครุภัณฑ์ หรือวัสดุ *</label
-          ><select id="return-category" required></select>
+          ><input
+            id="return-category"
+            required
+            autocomplete="off"
+            placeholder="ค้นหาชื่ออุปกรณ์ เลขครุภัณฑ์ หรือ S/N"
+            aria-controls="return-catalog-results"
+            aria-expanded="false"
+          />
+          <div
+            id="return-catalog-results"
+            class="loan-asset-results"
+            role="group"
+            aria-label="ผลค้นหาจากชีตพร้อมยืม"
+            hidden
+          ></div>
+          <p id="return-catalog-message" class="loan-hint" role="status">ค้นหาจากชีตพร้อมยืม</p>
           <label for="return-identifier">เลขครุภัณฑ์, Serial Number (S/N), Service Tag *</label>
-          <p class="loan-hint" id="return-identifier-help">กรณีไม่มีให้ใส่ -</p>
+          <p class="loan-hint" id="return-identifier-help">
+            เติมอัตโนมัติเมื่อเลือกอุปกรณ์จากผลค้นหา
+          </p>
           <input
             id="return-identifier"
+            readonly
             required
             maxlength="500"
             aria-describedby="return-identifier-help"

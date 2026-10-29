@@ -1,17 +1,28 @@
-import { safeMessage, logError } from '../utils/errors.js';
+import { configureRequestSecurity } from '../core/http/security.js';
+import { registerCatalogRoutes } from '../features/catalog/routes.js';
+import { registerLoansRoutes } from '../features/loans/routes.js';
+import { registerReturnsRoutes } from '../features/returns/routes.js';
+import { registerDashboardRoutes } from '../features/dashboard/routes.js';
+import { registerPhotosRoutes } from '../features/photos/routes.js';
+import { registerRecordsRoutes } from '../features/records/routes.js';
+import { registerReviewRoutes } from '../features/review/routes.js';
+import { safeMessage, logError } from '../core/errors/errors.js';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { randomBytes, createHmac } from 'node:crypto';
-import os from 'node:os';
-import { lanAddresses } from '../utils/network.js';
-import { createAuth } from './auth.js';
-import { dashboardData, DashboardEditor } from '../services/dashboard.js';
-import { Loans } from '../services/loans.js';
-import { DashboardPhotos, PhotoStore } from '../services/photos.js';
-export { safeMessage as friendlyError } from '../utils/errors.js';
+import { createAuth } from '../features/auth/middleware.js';
+import { DashboardEditor } from '../features/dashboard/editor.js';
+import { LendingLedger } from '../core/lending/ledger.js';
+import { LoanRequestService } from '../features/loans/service.js';
+import { ReturnRequestService } from '../features/returns/service.js';
+import { PhotoStore } from '../integrations/google/photoStorage.js';
+import { DashboardPhotos } from '../features/photos/service.js';
+export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
-  const loans = new Loans(service.adapter, config);
+  const lendingLedger = new LendingLedger(service.adapter, config);
+  const loanRequests = new LoanRequestService(lendingLedger);
+  const returnRequests = new ReturnRequestService(lendingLedger);
   const csrf = config.appSecret
     ? createHmac('sha256', config.appSecret).update('iqi:csrf').digest('hex')
     : randomBytes(32).toString('hex');
@@ -19,129 +30,18 @@ export function createApp(service, config) {
   if (config.hosted) app.set('trust proxy', 1);
   const dashboardEditor = new DashboardEditor(service.adapter);
   const photos = new DashboardPhotos(service.adapter, new PhotoStore(config), dashboardEditor);
-  const hosts = new Set([
-    'localhost',
-    '127.0.0.1',
-    '[::1]',
-    os.hostname().toLowerCase(),
-    ...lanAddresses(),
-    config.host,
-    ...(config.allowedHosts || []),
-  ]);
-  app.disable('x-powered-by');
-  app.use((req, res, next) => {
-    try {
-      const host = new URL(`http://${req.get('host')}`).hostname.toLowerCase();
-      if (!hosts.has(host))
-        return res
-          .status(403)
-          .json({ error: 'ไม่อนุญาต hostname นี้ กรุณาเปิดผ่าน localhost หรือ IP ของเครื่อง' });
-      next();
-    } catch {
-      res.status(400).json({ error: 'Host ไม่ถูกต้อง' });
-    }
-  });
-  app.use((req, res, next) => {
-    res.set({
-      'X-Content-Type-Options': 'nosniff',
-      'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy':
-        "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-    });
-    next();
-  });
-  app.use('/api', (req, res, next) => {
-    res.set('Cache-Control', 'no-store');
-    if (req.method !== 'GET') {
-      if (req.get('X-IQI-Request') !== csrf)
-        return res.status(403).json({ error: 'คำขอไม่ถูกต้อง กรุณาโหลดหน้าเว็บใหม่' });
-      if (req.get('origin') && req.get('origin') !== `${req.protocol}://${req.get('host')}`)
-        return res.status(403).json({ error: 'ไม่อนุญาตคำขอจากเว็บไซต์อื่น' });
-    }
-    next();
-  });
-  app.use(express.json({ limit: '2mb' }));
+  configureRequestSecurity(app, config, csrf);
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
   app.use('/api', async (req, res, next) => {
     if (service.ready) await service.ready();
     next();
   });
-  app.get('/api/ready-to-borrow', async (req, res, next) => {
-    try {
-      res.json(await loans.available());
-    } catch (error) {
-      next(error);
-    }
-  });
-  app.get('/api/loans', async (req, res, next) => {
-    try {
-      res.json(await loans.outstanding());
-    } catch (error) {
-      next(error);
-    }
-  });
-  app.post('/api/loans', async (req, res, next) => {
-    try {
-      res.json(await loans.borrowForm(req.body || {}));
-    } catch (error) {
-      next(error);
-    }
-  });
-  app.post('/api/returns', async (req, res, next) => {
-    try {
-      res.json(await loans.returnForm(req.body || {}));
-    } catch (error) {
-      next(error);
-    }
-  });
-  app.get('/api/dashboard', async (req, res, next) => {
-    try {
-      res.json(dashboardData(await service.adapter.readDashboard()));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.put('/api/dashboard/:row/status', async (req, res, next) => {
-    try {
-      res.json(await dashboardEditor.save(Number(req.params.row), req.body || {}));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.put('/api/dashboard/:row/details', async (req, res, next) => {
-    try {
-      res.json(await dashboardEditor.saveDetails(Number(req.params.row), req.body || {}));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.post(
-    '/api/dashboard/:row/photos',
-    express.raw({ type: 'application/octet-stream', limit: maxUploadBytes }),
-    async (req, res, next) => {
-      try {
-        res.json(
-          await photos.upload(
-            Number(req.params.row),
-            req.get('X-Record-Revision'),
-            req.body,
-            req.get('X-Photo-Type'),
-          ),
-        );
-      } catch (e) {
-        next(e);
-      }
-    },
-  );
-  app.get('/api/dashboard/:row/photos/:id', async (req, res, next) => {
-    try {
-      const bytes = await photos.read(Number(req.params.row), req.params.id);
-      res.type('image/jpeg').send(Buffer.from(bytes));
-    } catch (e) {
-      next(e);
-    }
-  });
+  registerCatalogRoutes(app, { service });
+  registerLoansRoutes(app, { lendingLedger, loanRequests });
+  registerReturnsRoutes(app, { returnRequests });
+  registerDashboardRoutes(app, { dashboardEditor, service });
+  registerPhotosRoutes(app, { photos, maxUploadBytes });
   app.get('/api/status', async (req, res, next) => {
     try {
       await service.adapter.initialize();
@@ -156,61 +56,8 @@ export function createApp(service, config) {
       next(e);
     }
   });
-  app.get('/api/search', async (req, res, next) => {
-    try {
-      if (req.query.pendingOnly !== undefined && !['0', '1'].includes(req.query.pendingOnly))
-        return res.status(400).json({ error: 'ตัวกรองไม่ถูกต้อง' });
-      res.json(
-        await service.search(req.query.q ?? '', { pendingOnly: req.query.pendingOnly === '1' }),
-      );
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.get('/api/record', async (req, res, next) => {
-    try {
-      res.json(await service.detail(req.query.sheet, Number(req.query.row)));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.put('/api/iqi/:row', async (req, res, next) => {
-    try {
-      res.json(await service.save(Number(req.params.row), req.body || {}));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.put('/api/iqi/:row/search-status', async (req, res, next) => {
-    try {
-      res.json(await service.setPending(Number(req.params.row), req.body || {}));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.put('/api/review-selection', async (req, res, next) => {
-    try {
-      const body = req.body || {};
-      res.json(await service.setReviewPending(body.sheet, Number(body.row), body));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.get('/api/review-inspection', async (req, res, next) => {
-    try {
-      res.json(await service.reviewInspection(req.query.sheet, Number(req.query.row), req.query));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.put('/api/review-inspection', async (req, res, next) => {
-    try {
-      const body = req.body || {};
-      res.json(await service.reviewInspection(body.sheet, Number(body.row), body, true));
-    } catch (e) {
-      next(e);
-    }
-  });
+  registerRecordsRoutes(app, { service });
+  registerReviewRoutes(app, { service });
   app.use('/api', (req, res) =>
     res.status(404).json({ error: 'ไม่พบ API นี้ — บันทึกได้เฉพาะ IQI' }),
   );

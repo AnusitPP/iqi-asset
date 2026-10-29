@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
-import { Records } from '../../backend/src/services/records.js';
-import { parseSheet } from '../../backend/src/services/searchService.js';
+import { Records } from '../../backend/src/features/records/service.js';
+import { parseSheet } from '../../backend/src/features/records/search.js';
 test('HTTP API protects secrets, rejects writes outside IQI, and reports failures', async () => {
   const config = { sheets: ['IQI', 'รายการทั้งหมด', 'all'], host: '0.0.0.0' };
   let writeCount = 0,

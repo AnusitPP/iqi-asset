@@ -3,7 +3,7 @@ import {
   configurationError,
   parseCredentialJSON,
   readCredentialFile,
-} from '../../config/credentials.js';
+} from '../../core/config/credentials.js';
 
 export function driveCredentials(source) {
   const raw =

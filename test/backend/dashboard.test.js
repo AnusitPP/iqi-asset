@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 test('Apps Script other-equipment status saves and counts as inspected', async () => {
   const { dashboardData, DashboardEditor } =
-    await import('../../backend/src/services/dashboard.js');
+    await import('../../backend/src/features/dashboard/editor.js');
   const grid = [
     ['ผลตรวจ Apps Script', 'สถานะการเทียบ', 'เลขครุภัณฑ์ Apps Script', 'อัปเดตสถานะล่าสุด'],
     ['ยังไม่ตรวจ', 'ตรงกัน', '001', ''],
@@ -28,7 +28,7 @@ test('Apps Script other-equipment status saves and counts as inspected', async (
 
 test('Apps Script CCTV status saves and counts as inspected', async () => {
   const { dashboardData, DashboardEditor } =
-    await import('../../backend/src/services/dashboard.js');
+    await import('../../backend/src/features/dashboard/editor.js');
   const grid = [
     ['ผลตรวจ Apps Script', 'สถานะการเทียบ', 'เลขครุภัณฑ์ Apps Script', 'อัปเดตสถานะล่าสุด'],
     ['ยังไม่ตรวจ', 'ตรงกัน', '001', ''],
@@ -53,7 +53,7 @@ test('Apps Script CCTV status saves and counts as inspected', async () => {
 
 test('team edits validate choices and revisions and preserve inspection and photos', async () => {
   const { dashboardData, DashboardEditor } =
-    await import('../../backend/src/services/dashboard.js');
+    await import('../../backend/src/features/dashboard/editor.js');
   const grid = [
     [
       'ผลตรวจ Apps Script',
@@ -109,7 +109,7 @@ test('team edits validate choices and revisions and preserve inspection and phot
 });
 test('dashboard status saves verify the row revision, stamp only changes and protect duplicate asset identities', async () => {
   const { dashboardData, DashboardEditor } =
-    await import('../../backend/src/services/dashboard.js');
+    await import('../../backend/src/features/dashboard/editor.js');
   const grid = [
     [
       'ผลตรวจ Apps Script',
@@ -154,7 +154,7 @@ test('dashboard status saves verify the row revision, stamp only changes and pro
   assert.equal(writes, 1);
 });
 test('dashboard progress counts inspection results, preserves duplicate assets and separates lookup failures', async () => {
-  const { dashboardData } = await import('../../backend/src/services/dashboard.js');
+  const { dashboardData } = await import('../../backend/src/features/dashboard/editor.js');
   const data = dashboardData([
     [
       'ลำดับ',
@@ -189,7 +189,7 @@ test('dashboard progress counts inspection results, preserves duplicate assets a
   assert.equal(data.records[4].inspection, 'ไม่ระบุ');
 });
 test('dashboard refuses missing inspection column instead of interpreting matching status as an inspection', async () => {
-  const { dashboardData } = await import('../../backend/src/services/dashboard.js');
+  const { dashboardData } = await import('../../backend/src/features/dashboard/editor.js');
   assert.throws(
     () =>
       dashboardData([

@@ -1,10 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  inspectionNote,
-  todayBangkok,
-  inspectionAge,
-} from '../../frontend/public/js/utils/dates.js';
+import { inspectionNote, todayBangkok, inspectionAge } from '../../shared/core/extensions/dates.js';
 test('today shortcut preserves other note text and only replaces inspection date', () => {
   assert.equal(
     inspectionNote('ซ่อมเมื่อ 1/1/2568\nวันที่ตรวจสอบ 14/5/2569; ใช้งานได้', '20/10/2569'),

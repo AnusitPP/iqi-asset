@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { google } from 'googleapis';
-import { config } from '../src/config/config.js';
+import { config } from '../src/core/config/config.js';
 import { driveCredentials } from '../src/integrations/google/driveAuth.js';
 
 async function connect() {

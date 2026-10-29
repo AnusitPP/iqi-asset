@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { recordSummary } from '../../backend/src/services/recordSummary.js';
+import { recordSummary } from '../../backend/src/features/records/summary.js';
 test('summary keeps all four identity fields and extracts only inspection dates', () => {
   const headers = ['ชื่อ - นามสกุล', 'ชื่อย่อ', 'ชื่อเล่น', 'ทีม', 'หมายเหตุ', 'วันที่ซื้อ'];
   const values = [

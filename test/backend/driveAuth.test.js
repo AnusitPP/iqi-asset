@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
-import { PhotoStore } from '../../backend/src/services/photos.js';
+import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
 
 test('asset folders reuse exact names within the configured root and share concurrent creation', async () => {
   const store = new PhotoStore({ photoFolderId: 'root' });

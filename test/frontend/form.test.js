@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editedValues } from '../../frontend/public/js/utils/formValues.js';
+import { editedValues } from '../../frontend/public/js/features/recordDetails/formValues.js';
 test('unchanged multiline displayed values keep original CRLF so formulas are not overwritten', () => {
   const original = ['Formula result\r\nsecond line', 'old note', 'unchanged\rvalue'];
   const baseline = ['Formula result\nsecond line', 'old note', 'unchanged\nvalue'];

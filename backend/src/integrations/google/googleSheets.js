@@ -1,10 +1,14 @@
+import { LENDING_STATUS } from '../../../../shared/features/lending/status.js';
 import { google } from 'googleapis';
-import { parseSheet, columnName } from '../../services/searchService.js';
-import { readDropdowns } from '../../services/dropdowns.js';
-import { SEARCH_STATUS_HEADER, PENDING_STATUS } from '../../constants/searchStatus.js';
-import { ReviewQueue } from '../../services/review/reviewQueue.js';
-import { ReviewQueues, IQI_IT_SHEET } from '../../services/review/reviewQueues.js';
-import { DASHBOARD_DATE_HEADER } from '../../services/dashboard.js';
+import { parseSheet, columnName } from '../../features/records/search.js';
+import { readDropdowns } from '../../features/records/dropdowns.js';
+import {
+  SEARCH_STATUS_HEADER,
+  PENDING_STATUS,
+} from '../../../../shared/features/records/searchStatus.js';
+import { ReviewQueue } from '../../features/review/queue.js';
+import { ReviewQueues, IQI_IT_SHEET } from '../../features/review/queues.js';
+import { DASHBOARD_DATE_HEADER } from '../../features/dashboard/editor.js';
 const quote = (name) => `'${name.replaceAll("'", "''")}'`;
 export class GoogleSheets {
   constructor(config) {
@@ -183,13 +187,13 @@ export class GoogleSheets {
       const loanSheet = data.sheets.find((s) => s.properties.title === 'รายการยืมครุภัณฑ์')
         ?.properties.sheetId;
       const grid = (await this.readLoanSheets()).loans;
-      for (const row of rows.filter((r) => r[14] === 'รับคืนแล้ว')) {
+      for (const row of rows.filter((r) => r[14] === LENDING_STATUS.RETURN_RECEIVED)) {
         const index = grid.findIndex((r) => r[1] === row[2]);
         if (index < 1 || loanSheet === undefined) throw new Error('ไม่พบรายการยืมสำหรับรับคืน');
         statusUpdates.push({
           updateCells: {
             start: { sheetId: loanSheet, rowIndex: index, columnIndex: 14 },
-            rows: [{ values: [{ userEnteredValue: { stringValue: 'คืนแล้ว' } }] }],
+            rows: [{ values: [{ userEnteredValue: { stringValue: LENDING_STATUS.RETURNED } }] }],
             fields: 'userEnteredValue',
           },
         });

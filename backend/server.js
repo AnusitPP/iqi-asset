@@ -1,7 +1,7 @@
-import { config } from './src/config/config.js';
-import { logError } from './src/utils/errors.js';
-import { lanAddresses } from './src/utils/network.js';
-import { reviewKey } from './src/services/review/reviewQueue.js';
+import { config } from './src/core/config/config.js';
+import { logError } from './src/core/errors/errors.js';
+import { lanAddresses } from './src/core/network/addresses.js';
+import { reviewKey } from './src/features/review/queue.js';
 
 import { adapter, app } from './src/runtime.js';
 

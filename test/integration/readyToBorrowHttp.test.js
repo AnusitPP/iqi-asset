@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/services/loans.js';
+import { LOAN_HEADERS, RETURN_HEADERS } from '../helpers/lending.js';
 import { createApp } from '../../backend/src/http/app.js';
 
 test('loan search API requires login and reads only ready-to-borrow sheet', async (t) => {

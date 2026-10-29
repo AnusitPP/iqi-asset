@@ -2,21 +2,21 @@ import { test } from 'node:test';
 import { request as httpRequest } from 'node:http';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
-import { StateStore, writeLocked } from '../../backend/src/utils/state.js';
-import { Records } from '../../backend/src/services/records.js';
-import { parseSheet } from '../../backend/src/services/searchService.js';
-import { signToken } from '../../backend/src/utils/tokens.js';
+import { StateStore, writeLocked } from '../../backend/src/core/state/stateStore.js';
+import { Records } from '../../backend/src/features/records/service.js';
+import { parseSheet } from '../../backend/src/features/records/search.js';
+import { signToken } from '../../backend/src/core/security/tokens.js';
 import { runtimeReadiness } from '../../backend/src/readiness.js';
 import {
   REVIEW_HEADERS,
   REVIEW_DATE_HEADER,
   INSPECTION_HEADER,
-} from '../../backend/src/services/review/reviewQueue.js';
+} from '../../backend/src/features/review/queue.js';
 import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
 import {
   resizeForUpload,
   setUploadLimit,
-} from '../../frontend/public/js/features/photos/photos.js';
+} from '../../frontend/public/js/features/photos/prepareUpload.js';
 
 test('signed sessions work across instances while rate limits and revocations remain local', async (t) => {
   const states = [new StateStore(), new StateStore()];

@@ -1,5 +1,5 @@
 import express from 'express';
-import { logError, safeMessage } from '../backend/src/utils/errors.js';
+import { logError, safeMessage } from '../backend/src/core/errors/errors.js';
 
 const app = express();
 app.disable('x-powered-by');

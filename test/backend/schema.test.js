@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
-import { parseSheet } from '../../backend/src/services/searchService.js';
+import { parseSheet } from '../../backend/src/features/records/search.js';
 test('adds exactly one IQI status header after occupied columns, never touches other sheets, and is idempotent', async () => {
   const rows = [
     ['เลขครุภัณฑ์', 'รายการ', ''],

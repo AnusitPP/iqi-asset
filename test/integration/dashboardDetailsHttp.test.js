@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
-import { dashboardData } from '../../backend/src/services/dashboard.js';
+import { dashboardData } from '../../backend/src/features/dashboard/editor.js';
 
 test('authenticated details API saves existing team and new notes without changing other cells', async (t) => {
   const grid = [

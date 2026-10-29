@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { preparePhoto, DashboardPhotos } from '../../backend/src/services/photos.js';
-import { dashboardData, DashboardEditor } from '../../backend/src/services/dashboard.js';
+import { preparePhoto } from '../../backend/src/features/photos/prepareUpload.js';
+import { DashboardPhotos } from '../../backend/src/features/photos/service.js';
+import { dashboardData, DashboardEditor } from '../../backend/src/features/dashboard/editor.js';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
 test('photos are resized, oriented, converted to JPEG and stripped of location metadata', async () => {
   const input = await sharp({

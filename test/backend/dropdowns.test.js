@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readDropdowns, validateDropdownChanges } from '../../backend/src/services/dropdowns.js';
+import {
+  readDropdowns,
+  validateDropdownChanges,
+} from '../../backend/src/features/records/dropdowns.js';
 test('reads row-specific list rules and preserves exact option casing', async () => {
   const cells = [
     {

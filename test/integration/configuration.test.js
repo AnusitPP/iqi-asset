@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { loadConfig } from '../../backend/src/config/loadConfig.js';
+import { loadConfig } from '../../backend/src/core/config/loadConfig.js';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
-import { PhotoStore } from '../../backend/src/services/photos.js';
-import { safeMessage, logError } from '../../backend/src/utils/errors.js';
-import { readApiResponse } from '../../frontend/public/js/utils/apiResponse.js';
-import { StateStore } from '../../backend/src/utils/state.js';
+import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
+import { safeMessage, logError } from '../../backend/src/core/errors/errors.js';
+import { readApiResponse } from '../../frontend/public/js/core/http/response.js';
+import { StateStore } from '../../backend/src/core/state/stateStore.js';
 
 const serviceAccount = { client_email: 'test@example.invalid', private_key: 'test-key' };
 const env = {
@@ -47,7 +47,7 @@ test('local config retains file fallback and hosted config rejects missing or ma
     GOOGLE_DRIVE_OAUTH_FILE: './credentials/oauth.json',
   });
   assert.equal(local.serviceAccount, undefined);
-  assert.match(local.keyFile, /credentials\/test.json$/);
+  assert.match(local.keyFile, /credentials[\\/]test.json$/);
   assert.equal(local.driveOAuthFile, './credentials/oauth.json');
   for (const key of ['APP_PASSWORD', 'APP_SECRET', 'GOOGLE_SERVICE_ACCOUNT_JSON']) {
     assert.throws(() => loadConfig({ ...env, [key]: '' }), { code: 'APP_CONFIGURATION' });
@@ -170,7 +170,7 @@ test('local server still starts and serves frontend/auth with mocked Google setu
     if (!server.listening) await new Promise(resolve => server.once('listening', resolve));
     const base = 'http://127.0.0.1:' + server.address().port;
     try {
-      for (const path of ['/', '/js/app.js', '/styles/style.css', '/styles/dashboard.css', '/assets/fonts/thai.woff2', '/shared/labels.js', '/shared/photoSlots.js', '/js/features/dashboard/dashboard.js', '/api/auth/session']) {
+      for (const path of ['/', '/js/app.js', '/styles/style.css', '/styles/dashboard.css', '/assets/fonts/thai.woff2', '/shared/core/formatters/labels.js', '/shared/features/photos/slots.js', '/js/features/dashboard/dashboard.js', '/api/auth/session']) {
         const response = await fetch(base + path);
         if (!response.ok) throw new Error('Local route failed: ' + path);
       }

@@ -4,9 +4,9 @@ import {
   reviewDestination,
   ReviewQueues,
   IQI_IT_SHEET,
-} from '../../backend/src/services/review/reviewQueues.js';
-import { reviewKey, REVIEW_SHEET } from '../../backend/src/services/review/reviewQueue.js';
-import { parseSheet } from '../../backend/src/services/searchService.js';
+} from '../../backend/src/features/review/queues.js';
+import { reviewKey, REVIEW_SHEET } from '../../backend/src/features/review/queue.js';
+import { parseSheet } from '../../backend/src/features/records/search.js';
 test('only team IQI with owner IT or truly blank routes to IQI + IT', () => {
   for (const [team, owner, wanted] of [
     ['IQI', 'IT', IQI_IT_SHEET],

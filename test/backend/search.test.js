@@ -6,7 +6,7 @@ import {
   findRecords,
   inspectionDate,
   todayBangkok,
-} from '../../backend/src/services/searchService.js';
+} from '../../backend/src/features/records/search.js';
 test('normalization preserves exact digits and normalizes spaces and dashes', () => {
   assert.equal(normalizeAsset('  STeP61 – 207—007  '), 'step61-207-007');
   assert.notEqual(normalizeAsset('207-008'), normalizeAsset('207-007'));

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Records } from '../../backend/src/services/records.js';
-import { parseSheet } from '../../backend/src/services/searchService.js';
+import { Records } from '../../backend/src/features/records/service.js';
+import { parseSheet } from '../../backend/src/features/records/search.js';
 function setup() {
   const rows = [
     ['เลขครุภัณฑ์', 'รายการ', 'สถานะการค้นหา'],

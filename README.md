@@ -2,6 +2,10 @@
 
 เว็บ local สำหรับค้นเลขครุภัณฑ์พร้อมกัน 3 Sheet และแก้ไข **IQI เท่านั้น** ใช้ Node.js 20+, Express และ Google Sheets API ไม่มี database และไม่ต้อง deploy
 
+## โครงสร้างโค้ด
+
+ดู [คู่มือโครงสร้างและจุดเริ่มต้นแต่ละฟีเจอร์](docs/architecture.md) — แยก backend/frontend เป็น `core` กับ `features` และใช้ฟังก์ชันวันที่ร่วมกันจาก `shared/core/extensions/dates.js`
+
 ## เปิดใช้งาน
 
 ```powershell

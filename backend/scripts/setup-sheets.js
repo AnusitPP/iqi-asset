@@ -1,7 +1,7 @@
-import { config } from '../src/config/config.js';
+import { config } from '../src/core/config/config.js';
 import { GoogleSheets } from '../src/integrations/google/googleSheets.js';
-import { reviewKey } from '../src/services/review/reviewQueue.js';
-import { logError } from '../src/utils/errors.js';
+import { reviewKey } from '../src/features/review/queue.js';
+import { logError } from '../src/core/errors/errors.js';
 
 async function setup() {
   const adapter = new GoogleSheets(config);

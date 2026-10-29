@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { displayFieldValue } from '../../shared/labels.js';
+import { displayFieldValue } from '../../shared/core/formatters/labels.js';
 test('team labels hide number prefixes while other fields and original values remain intact', () => {
   const original = '15.IQI';
   assert.equal(displayFieldValue('ทีม', original), 'IQI');

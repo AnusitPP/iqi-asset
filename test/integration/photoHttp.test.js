@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { createApp } from '../../backend/src/http/app.js';
-import { PhotoStore } from '../../backend/src/services/photos.js';
-import { dashboardData } from '../../backend/src/services/dashboard.js';
+import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
+import { dashboardData } from '../../backend/src/features/dashboard/editor.js';
 
 test('HTTP sequential multi-photo upload fills three slots and rejects overflow without uploading', async (t) => {
   const grid = [

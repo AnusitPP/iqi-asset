@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readyToBorrowData } from '../../backend/src/services/readyToBorrow.js';
+import { readyToBorrowData } from '../../shared/features/catalog/parser.js';
 
 test('ready-to-borrow reads named columns and skips blank asset rows', () => {
   assert.deepEqual(

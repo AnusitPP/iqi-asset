@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
-import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/services/loans.js';
+import { LOAN_HEADERS, RETURN_HEADERS } from '../helpers/lending.js';
 test('form endpoints save dropdown fields and pending return without staff or active loan', async (t) => {
   const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
   const adapter = {

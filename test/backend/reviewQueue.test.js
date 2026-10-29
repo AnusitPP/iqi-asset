@@ -5,8 +5,8 @@ import {
   reviewKey,
   REVIEW_HEADERS,
   reviewTimestamp,
-} from '../../backend/src/services/review/reviewQueue.js';
-import { parseSheet } from '../../backend/src/services/searchService.js';
+} from '../../backend/src/features/review/queue.js';
+import { parseSheet } from '../../backend/src/features/records/search.js';
 test('edit timestamp uses Bangkok wall time independently of host timezone', () => {
   assert.equal(
     reviewTimestamp(new Date('2026-10-19T17:00:00Z')),
