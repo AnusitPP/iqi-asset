@@ -1177,6 +1177,7 @@ body:has(.dashboard-dialog[open]) {
   margin: 16px 0 6px;
 }
 .loan-form input,
+.loan-form select,
 .loan-form textarea {
   width: 100%;
   min-width: 0;
@@ -1191,6 +1192,7 @@ body:has(.dashboard-dialog[open]) {
   resize: vertical;
 }
 .loan-form input:focus-visible,
+.loan-form select:focus-visible,
 .loan-form textarea:focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 2px;

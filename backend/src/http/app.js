@@ -6,10 +6,12 @@ import os from 'node:os';
 import { lanAddresses } from '../utils/network.js';
 import { createAuth } from './auth.js';
 import { dashboardData, DashboardEditor } from '../services/dashboard.js';
+import { Loans } from '../services/loans.js';
 import { DashboardPhotos, PhotoStore } from '../services/photos.js';
 export { safeMessage as friendlyError } from '../utils/errors.js';
 export function createApp(service, config) {
   const app = express();
+  const loans = new Loans(service.adapter, config);
   const csrf = config.appSecret
     ? createHmac('sha256', config.appSecret).update('iqi:csrf').digest('hex')
     : randomBytes(32).toString('hex');
@@ -64,6 +66,34 @@ export function createApp(service, config) {
   app.use('/api', async (req, res, next) => {
     if (service.ready) await service.ready();
     next();
+  });
+  app.get('/api/ready-to-borrow', async (req, res, next) => {
+    try {
+      res.json(await loans.available());
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.get('/api/loans', async (req, res, next) => {
+    try {
+      res.json(await loans.outstanding());
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post('/api/loans', async (req, res, next) => {
+    try {
+      res.json(await loans.borrowForm(req.body || {}));
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post('/api/returns', async (req, res, next) => {
+    try {
+      res.json(await loans.returnForm(req.body || {}));
+    } catch (error) {
+      next(error);
+    }
   });
   app.get('/api/dashboard', async (req, res, next) => {
     try {

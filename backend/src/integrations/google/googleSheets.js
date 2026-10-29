@@ -154,6 +154,65 @@ export class GoogleSheets {
       ).data.values || []
     );
   }
+  async readReadyToBorrow() {
+    const { data } = await this.api.spreadsheets.values.get({
+      spreadsheetId: this.config.spreadsheetId,
+      range: "'พร้อมยืม'!A:E",
+      valueRenderOption: 'FORMATTED_VALUE',
+    });
+    return data.values || [];
+  }
+  async readLoanSheets() {
+    const { data } = await this.api.spreadsheets.values.batchGet({
+      spreadsheetId: this.config.spreadsheetId,
+      ranges: ["'รายการยืมครุภัณฑ์'!A:S", "'รายการคืนครุภัณฑ์'!A:S"],
+      valueRenderOption: 'FORMATTED_VALUE',
+    });
+    return { loans: data.valueRanges[0].values || [], returns: data.valueRanges[1].values || [] };
+  }
+  async appendLoanRows(kind, rows) {
+    const title = kind === 'loans' ? 'รายการยืมครุภัณฑ์' : 'รายการคืนครุภัณฑ์';
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const sheetId = data.sheets.find((s) => s.properties.title === title)?.properties.sheetId;
+    if (sheetId === undefined) throw new Error('ไม่พบชีต ' + title);
+    const statusUpdates = [];
+    if (kind === 'returns') {
+      const loanSheet = data.sheets.find((s) => s.properties.title === 'รายการยืมครุภัณฑ์')
+        ?.properties.sheetId;
+      const grid = (await this.readLoanSheets()).loans;
+      for (const row of rows.filter((r) => r[14] === 'รับคืนแล้ว')) {
+        const index = grid.findIndex((r) => r[1] === row[2]);
+        if (index < 1 || loanSheet === undefined) throw new Error('ไม่พบรายการยืมสำหรับรับคืน');
+        statusUpdates.push({
+          updateCells: {
+            start: { sheetId: loanSheet, rowIndex: index, columnIndex: 14 },
+            rows: [{ values: [{ userEnteredValue: { stringValue: 'คืนแล้ว' } }] }],
+            fields: 'userEnteredValue',
+          },
+        });
+      }
+    }
+    await this.api.spreadsheets.batchUpdate({
+      spreadsheetId: this.config.spreadsheetId,
+      requestBody: {
+        requests: [
+          ...statusUpdates,
+          {
+            appendCells: {
+              sheetId,
+              rows: rows.map((row) => ({
+                values: row.map((value) => ({ userEnteredValue: { stringValue: String(value) } })),
+              })),
+              fields: 'userEnteredValue',
+            },
+          },
+        ],
+      },
+    });
+  }
   async writeDashboardPhotoSlots(row, urls, date) {
     if (!Array.isArray(urls) || urls.length > 3) throw new Error('จำกัดไม่เกิน 3 รูป');
     const values = await this.readDashboard(),

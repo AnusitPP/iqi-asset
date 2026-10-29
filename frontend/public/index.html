@@ -40,7 +40,10 @@
           ค้นหาครุภัณฑ์
         </button>
         <button class="workspace-tab" id="loans-tab" type="button" aria-pressed="false">
-          ยืม–คืนครุภัณฑ์
+          ยืมครุภัณฑ์
+        </button>
+        <button class="workspace-tab" id="returns-tab" type="button" aria-pressed="false">
+          คืนครุภัณฑ์
         </button>
       </nav>
       <div class="workspace-nav-footer">
@@ -58,76 +61,77 @@
     </dialog>
     <main class="container">
       <section id="loans-panel" hidden aria-labelledby="loans-title">
-        <div class="dash-heading">
-          <h1 id="loans-title">ยืม–คืนครุภัณฑ์</h1>
-          <span class="loan-preview">Mockup</span>
-        </div>
-        <h2 class="loan-subtitle">สร้างคำขอยืม</h2>
+        <div class="dash-heading"><h1 id="loans-title">ยืมครุภัณฑ์</h1></div>
         <form id="loan-form" class="loan-form">
-          <p class="loan-hint">ตัวอย่างหน้าฟอร์ม ยังไม่เชื่อมข้อมูลหรือบันทึกคำขอจริง</p>
-          <label for="loan-borrower">ผู้ยืม <span aria-hidden="true">*</span></label>
+          <label for="loan-borrower">ชื่อ - สกุล *</label
+          ><input id="loan-borrower" required maxlength="200" /> <label for="loan-team">ทีม *</label
+          ><select id="loan-team" required></select>
+          <h2 class="loan-subtitle">
+            ส่วนที่ 1 : ยืมครุภัณฑ์คอมพิวเตอร์ หรือยืมวัสดุด้านเทคโนโลยีสารสนเทศ
+          </h2>
+          <div id="loan-terms" class="loan-hint"></div>
+          <label for="loan-category">ประเภทของครุภัณฑ์ หรือวัสดุ *</label
+          ><select id="loan-category" required></select>
+          <label for="loan-identifier">เลขครุภัณฑ์, Serial Number (S/N), Service Tag *</label>
+          <p class="loan-hint" id="loan-identifier-help">กรณีไม่มีให้ใส่ -</p>
           <input
-            id="loan-borrower"
-            name="borrower"
-            placeholder="พิมพ์ชื่อผู้ยืม"
+            id="loan-identifier"
             required
-            maxlength="200"
+            maxlength="500"
+            aria-describedby="loan-identifier-help"
           />
-          <label for="loan-assets">ครุภัณฑ์ <span aria-hidden="true">*</span></label>
-          <div class="loan-asset-row">
-            <input
-              id="loan-assets"
-              name="assets"
-              autocomplete="off"
-              aria-controls="loan-asset-results"
-              aria-expanded="false"
-              placeholder="ค้นหาเลขครุภัณฑ์ / ชื่อ"
-              required
-              maxlength="500"
-            /><button
-              type="button"
-              class="button secondary"
-              disabled
-              title="ยังไม่เปิดใช้ใน mockup"
-            >
-              สแกน QR
-            </button>
-          </div>
-          <div
-            id="loan-asset-results"
-            class="loan-asset-results"
-            role="group"
-            aria-label="ผลค้นหาครุภัณฑ์"
-            hidden
-          ></div>
-          <div id="loan-selected-assets" class="loan-selected-assets"></div>
-          <p id="loan-search-message" class="loan-hint" role="status">
-            ค้นหาเลขครุภัณฑ์ ชื่อ หรือ S/N จาก Appscriptdata · เลือกได้สูงสุด 5 รายการ
-          </p>
+          <label for="loan-purpose">เหตุผล หรือวัตถุประสงค์ *</label
+          ><textarea id="loan-purpose" required maxlength="500"></textarea>
           <div class="loan-dates">
             <div>
-              <label for="loan-start">วันที่ยืม *</label
-              ><input id="loan-start" type="date" name="start" required />
+              <label for="loan-start">วันที่ต้องการยืม *</label
+              ><input id="loan-start" type="date" required />
             </div>
             <div>
-              <label for="loan-due">กำหนดคืน *</label
-              ><input id="loan-due" type="date" name="due" required />
+              <label for="loan-due">กำหนดวันส่งคืน *</label
+              ><input id="loan-due" type="date" required aria-describedby="loan-date-help" />
             </div>
           </div>
-          <label for="loan-purpose">วัตถุประสงค์</label
-          ><input
-            id="loan-purpose"
-            name="purpose"
-            placeholder="เช่น ใช้งานประชุม"
-            maxlength="500"
-          />
-          <label for="loan-notes">หมายเหตุ (ไม่บังคับ)</label
-          ><textarea id="loan-notes" name="notes" rows="3" maxlength="2000"></textarea>
+          <p class="loan-hint" id="loan-date-help">สามารถยืมได้ไม่เกิน 7 วันตามปฏิทิน</p>
+          <label for="loan-notes">หมายเหตุ (ถ้ามี)</label
+          ><textarea id="loan-notes" maxlength="2000"></textarea>
           <div class="loan-actions">
-            <button class="button primary" type="submit">สร้างคำขอยืม</button
-            ><button class="button secondary" type="reset">ล้างฟอร์ม</button>
+            <button type="submit" class="button primary">ส่ง</button
+            ><button type="reset" class="button secondary">ล้างแบบฟอร์ม</button>
           </div>
-          <p id="loan-feedback" class="loan-hint" role="status"></p>
+          <p id="loan-feedback" role="status" class="loan-hint"></p>
+        </form>
+      </section>
+      <section id="returns-panel" hidden aria-labelledby="returns-title">
+        <div class="dash-heading"><h1 id="returns-title">คืนครุภัณฑ์</h1></div>
+        <form id="return-form" class="loan-form">
+          <label for="return-borrower">ชื่อ - สกุล *</label
+          ><input id="return-borrower" required maxlength="200" />
+          <label for="return-team">ทีม *</label
+          ><select id="return-team" required></select>
+          <h2 class="loan-subtitle">
+            ส่วนที่ 5 : คืนครุภัณฑ์คอมพิวเตอร์ หรือคืนวัสดุด้านเทคโนโลยีสารสนเทศ
+          </h2>
+          <div id="return-terms" class="loan-hint"></div>
+          <label for="return-category">ประเภทของครุภัณฑ์ หรือวัสดุ *</label
+          ><select id="return-category" required></select>
+          <label for="return-identifier">เลขครุภัณฑ์, Serial Number (S/N), Service Tag *</label>
+          <p class="loan-hint" id="return-identifier-help">กรณีไม่มีให้ใส่ -</p>
+          <input
+            id="return-identifier"
+            required
+            maxlength="500"
+            aria-describedby="return-identifier-help"
+          />
+          <label for="return-date">วันที่ส่งคืน *</label
+          ><input id="return-date" type="date" required /><label for="return-notes"
+            >หมายเหตุ (ถ้ามี)</label
+          ><textarea id="return-notes" maxlength="2000"></textarea>
+          <div class="loan-actions">
+            <button type="submit" class="button primary">ส่ง</button
+            ><button type="reset" class="button secondary">ล้างแบบฟอร์ม</button>
+          </div>
+          <p id="return-feedback" role="status" class="loan-hint"></p>
         </form>
       </section>
       <section id="dashboard-panel" aria-label="Dashboard ครุภัณฑ์ IQI" aria-busy="true">

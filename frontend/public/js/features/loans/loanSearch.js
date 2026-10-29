@@ -29,16 +29,17 @@ export function initializeLoanSearch(api) {
     input.required = choices.size === 0;
     input.setCustomValidity('');
     message.textContent = 'เลือกแล้ว ' + choices.size + '/5 รายการ';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   };
   async function search() {
     const request = ++generation;
     const query = input.value.trim().toLocaleLowerCase();
     close();
     if (!query) return;
-    message.textContent = 'กำลังค้นหาใน Appscriptdata…';
+    message.textContent = 'กำลังค้นหารายการพร้อมยืม…';
     try {
-      if (!records) {
-        pending ||= api('/api/dashboard')
+      {
+        pending ||= api('/api/ready-to-borrow')
           .then((data) => data.records)
           .finally(() => {
             pending = null;
@@ -58,7 +59,7 @@ export function initializeLoanSearch(api) {
       results.replaceChildren();
       message.textContent = matches.length
         ? 'พบ ' + matches.length + ' รายการ'
-        : 'ไม่พบรายการใน Appscriptdata';
+        : 'ไม่พบรายการในแท็บพร้อมยืม';
       for (const record of matches.slice(0, 20)) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -135,4 +136,8 @@ export function initializeLoanSearch(api) {
     close();
     renderSelected();
   });
+  return {
+    items: () => [...choices.values()].map(({ asset, serial }) => ({ asset, serial })),
+    clear: () => document.querySelector('#loan-form').reset(),
+  };
 }

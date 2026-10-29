@@ -1,4 +1,4 @@
-import { initializeLoanSearch } from './features/loans/loanSearch.js';
+import { initializeLoans } from './features/loans/loans.js';
 import { readApiResponse } from './utils/apiResponse.js';
 import { setUploadLimit } from './features/photos/photos.js';
 import { todayBangkok, inspectionNote, inspectionAge } from './utils/dates.js';
@@ -48,6 +48,7 @@ const dashboard = initializeDashboard({
 function showLogin() {
   authenticated = false;
   dashboard.clear();
+  loansUI.clear();
   delayedSearch.cancel();
   invalidateSearch();
   $('#logout-button').hidden = true;
@@ -910,19 +911,4 @@ workspaceNavigation.addEventListener('cancel', (event) => {
   closeWorkspaceMenu();
 });
 
-$('#loan-form').addEventListener('submit', (event) => {
-  event.preventDefault();
-  const start = $('#loan-start');
-  const due = $('#loan-due');
-  due.setCustomValidity(due.value < start.value ? 'กำหนดคืนต้องไม่ก่อนวันที่ยืม' : '');
-  if (!due.reportValidity()) return;
-  $('#loan-feedback').textContent = 'ตัวอย่างเท่านั้น — ยังไม่ได้สร้างหรือบันทึกคำขอยืม';
-});
-$('#loan-due').addEventListener('input', () => $('#loan-due').setCustomValidity(''));
-$('#loan-start').addEventListener('input', () => $('#loan-due').setCustomValidity(''));
-$('#loan-form').addEventListener('reset', () => {
-  $('#loan-due').setCustomValidity('');
-  $('#loan-feedback').textContent = '';
-});
-
-initializeLoanSearch(api);
+const loansUI = initializeLoans(api);

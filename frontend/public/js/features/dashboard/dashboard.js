@@ -264,6 +264,10 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
     active = which === 'dashboard';
     panel.hidden = !active;
     document.querySelector('#loans-panel').hidden = which !== 'loans';
+    document.querySelector('#returns-panel').hidden = which !== 'returns';
+    const returnsTab = document.querySelector('#returns-tab');
+    returnsTab.classList.toggle('active', which === 'returns');
+    returnsTab.setAttribute('aria-pressed', String(which === 'returns'));
     const loansTab = document.querySelector('#loans-tab');
     loansTab.classList.toggle('active', which === 'loans');
     loansTab.setAttribute('aria-pressed', String(which === 'loans'));
@@ -701,6 +705,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
     renderList();
   }
   document.querySelector('#loans-tab').addEventListener('click', () => show('loans'));
+  document.querySelector('#returns-tab').addEventListener('click', () => show('returns'));
   searchTab.addEventListener('click', () => show('search'));
   dashboardTab.addEventListener('click', () => show('dashboard'));
   show('dashboard');
