@@ -293,3 +293,33 @@ describe('forms and photos', () => {
     expect(onRefresh).toHaveBeenCalledOnce();
   });
 });
+
+it('debounces typing to the latest query and does not repeat a manually submitted search', async () => {
+  mocks.request.mockResolvedValue({
+    query: '007',
+    pendingOnly: false,
+    groups: [
+      {
+        sheet: 'IQI',
+        label: 'IQI',
+        editable: true,
+        count: 1,
+        matchType: 'partial',
+        records: [record],
+      },
+    ],
+  });
+  renderWithAppProviders(<AssetsPage />);
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText('ค้นหาข้อมูลครุภัณฑ์'), '007');
+  expect(mocks.request).not.toHaveBeenCalled();
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledTimes(1));
+  expect(mocks.request.mock.calls[0]?.[0]).toBe('/api/search?q=007&pendingOnly=0');
+  await user.clear(screen.getByLabelText('ค้นหาข้อมูลครุภัณฑ์'));
+  await user.type(screen.getByLabelText('ค้นหาข้อมูลครุภัณฑ์'), '008');
+  await user.click(screen.getByRole('button', { name: 'ค้นหา' }));
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledTimes(2));
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  expect(mocks.request).toHaveBeenCalledTimes(2);
+  expect(mocks.request.mock.calls[1]?.[0]).toBe('/api/search?q=008&pendingOnly=0');
+});

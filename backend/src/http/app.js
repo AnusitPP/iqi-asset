@@ -8,8 +8,6 @@ import { registerRecordsRoutes } from '../features/records/routes.js';
 import { registerReviewRoutes } from '../features/review/routes.js';
 import { safeMessage, logError } from '../core/errors/errors.js';
 import express from 'express';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
 import { randomBytes, createHmac } from 'node:crypto';
 import { createAuth } from '../features/auth/middleware.js';
 import { DashboardEditor } from '../features/dashboard/editor.js';
@@ -21,7 +19,6 @@ import { DashboardPhotos } from '../features/photos/service.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
-  const httpDirectory = dirname(fileURLToPath(import.meta.url));
   const lendingLedger = new LendingLedger(service.adapter, config);
   const loanRequests = new LoanRequestService(lendingLedger);
   const returnRequests = new ReturnRequestService(lendingLedger);
@@ -62,18 +59,6 @@ export function createApp(service, config) {
   registerReviewRoutes(app, { service });
   app.use('/api', (req, res) =>
     res.status(404).json({ error: 'ไม่พบ API นี้ — บันทึกได้เฉพาะ IQI' }),
-  );
-  app.use(
-    '/shared',
-    express.static(resolve(httpDirectory, '../../../shared'), {
-      dotfiles: 'deny',
-    }),
-  );
-  app.use(
-    express.static(resolve(httpDirectory, '../../../frontend/public'), {
-      dotfiles: 'deny',
-      index: 'index.html',
-    }),
   );
   app.use((req, res) => res.status(404).type('text').send('ไม่พบหน้านี้'));
   app.use((error, req, res, next) => {

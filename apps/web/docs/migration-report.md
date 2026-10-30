@@ -1,5 +1,7 @@
 # Frontend migration report
 
+> Historical migration record. The legacy frontend, root Vercel config and legacy build script have since been removed. Next.js in `apps/web` is now the only frontend, and Express is API-only. Current deployment instructions are in `apps/web/README.md` and the repository's `docs/vercel-deployment.md`. Counts and retained-directory statements below describe earlier migration stages.
+
 ## Delivered routes and features
 
 `/` redirects to `/dashboard`; `/login` handles the existing password/session flow. Protected `/assets` provides debounced/IME search, pending-only empty queries, source groups, copy/inspection-age/identity metadata, revision-protected review selection, full-row read/edit with live dropdowns, Bangkok date shortcut, CRLF-preserving saves and unsaved-change confirmation, and review inspection with unchanged-date feedback. `/dashboard` provides existing progress/summary/comparison cards, filters, searchable table, revision-protected individual/bulk drafts (including hidden rows and retained failures), detail/team/notes editing, and Drive photo gallery/preview/upload with legacy deduplication, three-photo capacity, server upload limits, image resizing, HEIC passthrough, sequential revision chaining and partial failure feedback.

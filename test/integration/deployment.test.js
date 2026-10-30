@@ -13,10 +13,6 @@ import {
   INSPECTION_HEADER,
 } from '../../backend/src/features/review/queue.js';
 import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
-import {
-  resizeForUpload,
-  setUploadLimit,
-} from '../../frontend/public/js/features/photos/prepareUpload.js';
 
 test('signed sessions work across instances while rate limits and revocations remain local', async (t) => {
   const states = [new StateStore(), new StateStore()];
@@ -216,18 +212,4 @@ test('Drive OAuth accepts secret JSON without filesystem credentials', () => {
   });
   assert.equal(connection.connected, true);
   assert.equal(connection.auth.credentials.refresh_token, 'refresh');
-});
-
-test('oversized HEIC is rejected before uploading on hosted deployments', async () => {
-  setUploadLimit(4 * 1024 * 1024);
-  try {
-    await assert.rejects(
-      resizeForUpload({ name: 'photo.heic', type: 'image/heic', size: 5 * 1024 * 1024 }),
-      /4 MB/,
-    );
-    const small = { name: 'photo.heic', type: 'image/heic', size: 1024 };
-    assert.equal(await resizeForUpload(small), small);
-  } finally {
-    setUploadLimit(25 * 1024 * 1024);
-  }
 });
