@@ -16,7 +16,12 @@ export function loadConfig(env = process.env) {
   const config = {
     hosted,
     appSecret: env.APP_SECRET,
-    allowedHosts: [env.VERCEL_URL, env.VERCEL_PROJECT_PRODUCTION_URL]
+    allowedHosts: [
+      env.VERCEL_URL,
+      env.VERCEL_PROJECT_PRODUCTION_URL,
+      'iqi-asset-dev.vercel.app',
+      ...(env.ALLOWED_HOSTS || '').split(','),
+    ]
       .filter(Boolean)
       .map((host) => host.trim().toLowerCase()),
     serviceAccount: serviceAccountCredentials(env.GOOGLE_SERVICE_ACCOUNT_JSON),
