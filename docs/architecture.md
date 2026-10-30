@@ -1,11 +1,11 @@
 # โครงสร้างโปรเจกต์
 
-Frontend เดียวของระบบอยู่ที่ `apps/web` ใช้ Next.js App Router และ strict TypeScript โฟลเดอร์ frontend เดิมถูกนำออกแล้ว Express ให้บริการเฉพาะ API และยังใช้ Google Sheets/Drive integration เดิม
+Frontend เดียวของระบบอยู่ที่ `front-end/` ใช้ Next.js App Router และ strict TypeScript โฟลเดอร์ frontend เดิมถูกนำออกแล้ว Express ให้บริการเฉพาะ API และยังใช้ Google Sheets/Drive integration เดิม
 
 ## จุดเริ่มต้น
 
-- `apps/web/src/app/`: layout และ routes `/login`, `/dashboard`, `/assets`, `/loans`, `/returns`
-- `apps/web/src/pages/api/[[...path]].ts`: ตัวเชื่อม Node HTTP request เข้า Express เดิม ปิด body parser ของ Next เพื่อคง JSON/binary upload behavior
+- `front-end/src/app/`: layout และ routes `/login`, `/dashboard`, `/assets`, `/loans`, `/returns`
+- `front-end/src/pages/api/[[...path]].ts`: ตัวเชื่อม Node HTTP request เข้า Express เดิม ปิด body parser ของ Next เพื่อคง JSON/binary upload behavior
 - `api/index.js`: Express entrypoint ที่โหลด runtime แบบ lazy และตอบ error อย่างปลอดภัย
 - `backend/src/runtime.js`: ประกอบ Google adapter, services และ Express app
 - `backend/src/http/app.js`: ติดตั้ง security, auth, readiness และ feature API routes ไม่มี static frontend routes
@@ -14,7 +14,7 @@ Frontend เดียวของระบบอยู่ที่ `apps/web` �
 ## Frontend
 
 ```text
-apps/web/src/
+front-end/src/
   app/                  App Router pages/layouts
   pages/api/            ตัวเชื่อม Express
   features/
@@ -46,13 +46,13 @@ Frontend เรียก API ผ่าน `services/` แล้วตรวจ r
 
 ## Commands จาก root
 
-- `npm run dev`: Express API ที่พอร์ต 3000
+- `npm run dev:api`: Express API ที่พอร์ต 3000
 - `npm run dev:web`: Next.js ที่พอร์ต 3001 โดย proxy ไป Express ตาม `IQI_BACKEND_ORIGIN`
-- `npm run build`: build Next.js และ API adapter ใน `apps/web`
+- `npm run build`: build Next.js และ API adapter ไปที่ `front-end/.next`
 - `npm run start:web`: เปิด Next production server หลัง build
 - `npm run check`, `npm run lint:web`, `npm run test:web`: ตรวจ frontend และ entrypoints
 - `npm test`: ตรวจ backend/shared และ integration tests
 
-`apps/web/vercel.json` เป็น deployment config เดียว ตั้ง Root Directory บน Vercel เป็น `apps/web` และเปิด include source outside root เพื่อ bundle `api`, `backend` และ `shared` เข้าด้วยกัน
+`front-end/vercel.json` เป็น deployment config เดียว ตั้ง Root Directory บน Vercel เป็น `front-end` และ Framework เป็น Next.js พร้อมเปิด include source outside root เพื่อ bundle `api`, `backend` และ `shared` เข้าด้วยกัน
 
 สคริปต์ส่วนตัวใน root `scripts/` ถูก ignore และไม่ใช่ application runtime หรือ build input; maintenance scripts ที่ดูแลในโปรเจกต์อยู่ที่ `backend/scripts/`

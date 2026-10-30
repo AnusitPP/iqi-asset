@@ -1,21 +1,22 @@
 # Deploy Next.js และ Express API บน Vercel project เดียว
 
-ระบบมี frontend เดียวที่ `apps/web` และ config เดียวที่ `apps/web/vercel.json` โฟลเดอร์ Vanilla frontend, build script เดิม และ root Vercel config ถูกนำออกแล้ว
+Next.js อยู่ใน `front-end/` โดยมีโค้ดใน `front-end/src/` และ config เดียวที่ `front-end/vercel.json` ใช้ Express API ใน `backend/` ผ่าน Next API adapter โฟลเดอร์ `apps/web` และ Vanilla frontend เดิมถูกนำออกแล้ว
 
 ## Project settings
 
 | Setting | Value |
 | --- | --- |
-| Root Directory | `apps/web` |
+| Root Directory | `front-end` |
 | Framework Preset | Next.js |
-| Build Command | `npm run build` (จาก `apps/web/vercel.json`) |
-| Output Directory | Default; ปิด override ที่เคยชี้ไป output เดิม |
-| Include source files outside Root Directory | เปิด |
-| Node.js | 22.x หรือเวอร์ชันที่ตรงกับ `apps/web/package.json` |
+| Build Command | `npm run build` (จาก `front-end/vercel.json`) |
+| Install Command | `cd .. && npm ci` ติดตั้งจาก lockfile ที่ repository root |
+| Output Directory | `.next` ภายใน `front-end/` |
+| Include source files outside Root Directory | เปิด เพื่อรวม `backend/`, `api/`, `shared/` และ root lockfile |
+| Node.js | 22.x หรือเวอร์ชันที่ตรงกับ `front-end/package.json` |
 
 Root Directory เป็น Vercel project setting ต้องตั้งใน Dashboard; ไม่ได้เปลี่ยนจากการแก้ไฟล์ใน workspace นี้โดยอัตโนมัติ
 
-จาก repository root คำสั่ง `npm run build` จะเรียก workspace build ของ `apps/web` เช่นเดียวกัน ไม่สร้าง static output ของเว็บเดิม
+จาก repository root คำสั่ง `npm run build` เรียก workspace `@iqi/front-end` และสร้าง `front-end/.next` หากเคยตั้ง Root Directory เป็นค่าว่าง, `apps/web` หรือ `backend` ให้เปลี่ยนเป็น `front-end` แล้ว deploy จาก commit ล่าสุด
 
 ## Server environment variables
 
@@ -33,7 +34,7 @@ Root Directory เป็น Vercel project setting ต้องตั้งใ�
 ## Routing และ build
 
 - App Router ให้บริการ `/dashboard`, `/assets`, `/loans`, `/returns`, `/login`
-- `src/pages/api/[[...path]].ts` ส่ง `/api/*` เข้า `api/index.js` และ Express เดิม ไม่มี business logic ซ้ำ
+- `front-end/src/pages/api/[[...path]].ts` ส่ง `/api/*` เข้า `api/index.js` และ Express เดิม ไม่มี business logic ซ้ำ
 - ปิด Next API body parsing เพื่อให้ Express ตรวจ JSON และ binary uploads ตามเดิม
 - Function duration 120 วินาที และ server tracing รวม backend/shared/dependencies จาก monorepo root
 - Express standalone ให้บริการเฉพาะ API; ไม่เสิร์ฟหน้า HTML หรือ shared scripts ของเว็บเดิม
@@ -46,8 +47,8 @@ npm run lint:web
 npm run test:web
 npm test
 npm run build
-npm run test:embedded-api --workspace @iqi/web
-npm run test:proxy --workspace @iqi/web
+npm run test:embedded-api
+npm run test:proxy
 ```
 
 หลังตั้ง Project settings และ secrets ให้ redeploy แล้วตรวจ `/login`, `/dashboard` และ `/api/auth/session` ทดสอบ Google reads ด้วยสิทธิ์ที่เหมาะสม ส่วน live writes ควรใช้รายการทดสอบที่กำหนดไว้

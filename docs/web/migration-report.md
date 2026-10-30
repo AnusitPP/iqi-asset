@@ -1,6 +1,6 @@
 # Frontend migration report
 
-> Historical migration record. The legacy frontend, root Vercel config and legacy build script have since been removed. Next.js in `apps/web` is now the only frontend, and Express is API-only. Current deployment instructions are in `apps/web/README.md` and the repository's `docs/vercel-deployment.md`. Counts and retained-directory statements below describe earlier migration stages.
+> Historical migration record. Next.js now lives in front-end/ (src/, public/, next.config.ts and vercel.json). Express remains in backend/. Current instructions are in ../web.md and ../vercel-deployment.md; paths and counts below describe earlier migration stages.
 
 ## Delivered routes and features
 

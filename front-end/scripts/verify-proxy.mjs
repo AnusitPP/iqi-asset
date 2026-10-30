@@ -5,8 +5,8 @@ import net from 'node:net';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { LOAN_HEADERS, RETURN_HEADERS } from '../../../backend/src/core/lending/schema.js';
-import { createApp } from '../../../backend/src/http/app.js';
+import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/core/lending/schema.js';
+import { createApp } from '../../backend/src/http/app.js';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const grid = [
   [
@@ -57,7 +57,7 @@ let output = '';
 const next = spawn(
   process.execPath,
   [
-    fileURLToPath(new URL('../../../node_modules/next/dist/bin/next', import.meta.url)),
+    fileURLToPath(new URL('../../node_modules/next/dist/bin/next', import.meta.url)),
     'dev',
     '--webpack',
     '--port',

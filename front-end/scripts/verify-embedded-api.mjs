@@ -15,7 +15,7 @@ let output = '';
 const child = spawn(
   process.env.npm_node_execpath || process.execPath,
   [
-    fileURLToPath(new URL('../../../node_modules/next/dist/bin/next', import.meta.url)),
+    fileURLToPath(new URL('../../node_modules/next/dist/bin/next', import.meta.url)),
     'dev',
     '--webpack',
     '--port',

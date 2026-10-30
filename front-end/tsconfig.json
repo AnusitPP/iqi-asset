@@ -27,10 +27,10 @@
         "./src/*"
       ],
       "@shared/*": [
-        "../../shared/*"
+        "../shared/*"
       ],
       "@iqi/vercel-api": [
-        "../../api/index.js"
+        "../api/index.js"
       ]
     },
     "noImplicitAny": true,
