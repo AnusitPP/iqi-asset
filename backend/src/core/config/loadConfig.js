@@ -16,11 +16,7 @@ export function loadConfig(env = process.env) {
   const config = {
     hosted,
     appSecret: env.APP_SECRET,
-    allowedHosts: [
-      env.VERCEL_URL,
-      env.VERCEL_PROJECT_PRODUCTION_URL,
-      ...(env.ALLOWED_HOSTS || '').split(','),
-    ]
+    allowedHosts: [env.VERCEL_URL, env.VERCEL_PROJECT_PRODUCTION_URL]
       .filter(Boolean)
       .map((host) => host.trim().toLowerCase()),
     serviceAccount: serviceAccountCredentials(env.GOOGLE_SERVICE_ACCOUNT_JSON),
