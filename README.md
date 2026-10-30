@@ -134,3 +134,22 @@ See [deployment instructions](docs/vercel-deployment.md) for environment variabl
 ## File structure
 
 Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/project-structure.md). Run all npm commands from the project root; `npm run build` prepares `frontend/dist/` for Vercel.
+
+## Next.js frontend
+
+Frontend ใหม่อยู่ที่ `apps/web` ใช้ npm workspace ร่วมกับ package-lock ที่ root พร้อม Next.js App Router, strict TypeScript, Mantine, React Hook Form, Zod และ TanStack Query
+
+```sh
+# Node 22.12+
+npm install
+cp apps/web/.env.example apps/web/.env.local
+npm run dev            # Express เดิม :3000
+# อีก terminal
+npm run dev:web        # Next.js :3001
+```
+
+รองรับ login/session, ค้นหาและแก้ไขครุภัณฑ์, รอตรวจสอบ, บันทึกผลตรวจ, Dashboard, รูปภาพ และฟอร์มยืม–คืนพร้อมค้นหา catalog โดยเรียก Express API เดิม
+
+ตรวจด้วย `npm run typecheck:web`, `npm run lint:web`, `npm run test:web`, `npm run build:web` และ `npm test`
+
+`api/`, `backend/`, `frontend/` และ Vercel deployment เดิมยังใช้คำสั่งเดิม อ่านรายละเอียดการรัน ข้อจำกัด และ inventory ได้ที่ [apps/web/README.md](apps/web/README.md)

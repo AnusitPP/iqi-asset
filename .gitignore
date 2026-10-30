@@ -17,3 +17,9 @@ test-results/
 
 # Generated frontend deployment assets
 frontend/dist/
+
+# Next.js generated files
+**/.next/
+**/out/
+*.tsbuildinfo
+!tsconfig.json
