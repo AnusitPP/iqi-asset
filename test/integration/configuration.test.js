@@ -5,7 +5,6 @@ import { loadConfig } from '../../backend/src/core/config/loadConfig.js';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
 import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
 import { safeMessage, logError } from '../../backend/src/core/errors/errors.js';
-import { readApiResponse } from '../../frontend/public/js/core/http/response.js';
 import { StateStore } from '../../backend/src/core/state/stateStore.js';
 
 const serviceAccount = { client_email: 'test@example.invalid', private_key: 'test-key' };
@@ -70,38 +69,6 @@ test('local config retains file fallback and hosted config rejects missing or ma
   });
 });
 
-test('frontend handles platform text/HTML, malformed JSON and application failures without parsing crashes', async () => {
-  for (const type of ['text/plain', 'text/html']) {
-    await assert.rejects(
-      readApiResponse(
-        new Response('A server error has occurred', {
-          status: 500,
-          headers: { 'Content-Type': type },
-        }),
-      ),
-      /HTTP 500/,
-    );
-  }
-  await assert.rejects(
-    readApiResponse(
-      new Response('<html>not json</html>', { headers: { 'Content-Type': 'text/html' } }),
-    ),
-    /ผิดรูปแบบ/,
-  );
-  await assert.rejects(
-    readApiResponse(new Response('{', { headers: { 'Content-Type': 'application/json' } })),
-    /JSON ไม่สมบูรณ์/,
-  );
-  await assert.rejects(
-    readApiResponse(Response.json({ error: 'ข้อมูลเปลี่ยนไป' }, { status: 409 })),
-    /ข้อมูลเปลี่ยนไป.*409/,
-  );
-  await assert.rejects(readApiResponse(new Response('too large', { status: 413 })), /ไฟล์ใหญ่/);
-  assert.deepEqual(await readApiResponse(Response.json({ authenticated: true })), {
-    authenticated: true,
-  });
-});
-
 test('Google diagnostics preserve status and frames without logging credentials or raw error bodies', (t) => {
   const captured = [];
   t.mock.method(console, 'error', (...args) => captured.push(args));
@@ -152,7 +119,7 @@ test('Vercel entry imports without credentials and returns controlled JSON on st
   assert.match(output, /CONTROLLED_STARTUP_ERROR/);
 });
 
-test('local server still starts and serves frontend/auth with mocked Google setup and no cloud writes', () => {
+test('local API server starts without serving removed web assets or making cloud writes', () => {
   const runtime = new URL('../../backend/src/runtime.js', import.meta.url).href;
   const serverModule = new URL('../../backend/server.js', import.meta.url).href;
   const script = `
@@ -170,9 +137,12 @@ test('local server still starts and serves frontend/auth with mocked Google setu
     if (!server.listening) await new Promise(resolve => server.once('listening', resolve));
     const base = 'http://127.0.0.1:' + server.address().port;
     try {
-      for (const path of ['/', '/js/app.js', '/styles/style.css', '/styles/dashboard.css', '/assets/fonts/thai.woff2', '/shared/core/formatters/labels.js', '/shared/features/photos/slots.js', '/js/features/dashboard/dashboard.js', '/api/auth/session']) {
+      for (const path of ['/api/auth/session', '/api/upload-config']) {
         const response = await fetch(base + path);
         if (!response.ok) throw new Error('Local route failed: ' + path);
+      }
+      for (const path of ['/', '/js/app.js', '/styles/style.css', '/shared/core/formatters/labels.js']) {
+        if ((await fetch(base + path)).status !== 404) throw new Error('Removed web asset is still served: ' + path);
       }
       const session = await fetch(base + '/api/auth/session').then(res => res.json());
       const response = await fetch(base + '/api/auth/login', {

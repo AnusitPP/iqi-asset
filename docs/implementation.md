@@ -1,5 +1,7 @@
 # IQI Asset Checker
 
+> Historical implementation plan for the retired Vanilla frontend. The current application uses `apps/web`; see [architecture](architecture.md) and [deployment](vercel-deployment.md).
+
 Approved scope: the user's full pasted specification, with the light Figma Community visual language. Only cross-sheet asset-number search and IQI row editing. Express, HTML/CSS/Vanilla JS, googleapis, dotenv. No deployment or database.
 
 Implementation sequence:

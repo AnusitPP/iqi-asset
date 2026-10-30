@@ -19,6 +19,7 @@ export function loadConfig(env = process.env) {
     allowedHosts: [
       env.VERCEL_URL,
       env.VERCEL_PROJECT_PRODUCTION_URL,
+      'iqi-asset-dev.vercel.app',
       ...(env.ALLOWED_HOSTS || '').split(','),
     ]
       .filter(Boolean)

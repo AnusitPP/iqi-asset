@@ -18,18 +18,14 @@ async function javascriptFiles(folder) {
     )
   ).flat();
 }
-test('runtime and maintenance imports resolve after feature reorganization', async () => {
+test('maintained backend, shared and test imports resolve after feature reorganization', async () => {
+  // Root scripts/ is gitignored personal tooling; maintained scripts live in backend/scripts.
+  // Next.js TypeScript imports are checked by typecheck:web and the production build.
   const files = (
     await Promise.all(
-      [
-        'backend/src',
-        'backend/scripts',
-        'frontend/public/js',
-        'shared',
-        'scripts',
-        'api',
-        'test',
-      ].map((dir) => javascriptFiles(path.join(root, dir))),
+      ['backend/src', 'backend/scripts', 'shared', 'api', 'test'].map((dir) =>
+        javascriptFiles(path.join(root, dir)),
+      ),
     )
   ).flat();
   for (const file of files) {
@@ -45,10 +41,4 @@ test('runtime and maintenance imports resolve after feature reorganization', asy
         await assert.doesNotReject(access(target), `${path.relative(root, file)}: ${specifier}`);
     }
   }
-});
-test('frontend entrypoint composes features instead of defining editors', async () => {
-  const source = await readFile(path.join(root, 'frontend/public/js/app.js'), 'utf8');
-  assert(source.split('\n').length < 100);
-  assert(!source.includes('createElement('));
-  assert(!source.includes('fetch('));
 });
