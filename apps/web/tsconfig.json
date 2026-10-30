@@ -28,6 +28,9 @@
       ],
       "@shared/*": [
         "../../shared/*"
+      ],
+      "@iqi/vercel-api": [
+        "../../api/index.js"
       ]
     },
     "noImplicitAny": true,

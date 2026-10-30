@@ -17,7 +17,7 @@ Source inspected: `frontend/public/index.html`, both CSS files, `js/app.js`, all
 | Drive gallery, legacy photo dedupe, max 3, previews, sequential upload, resize, HEIC, server upload limit, partial failure | PhotoEditor                                        | GET upload-config; POST dashboard/:row/photos binary + X-Record-Revision; GET dashboard/:row/photos/:id |
 | Toast, alerts, loading/retry, responsive tabs/header/footer                                                                | Mantine UI, feedback, copied/adapted legacy styles | Errors retain server message + HTTP status                                                              |
 
-The current source has Dashboard, search, loans and returns navigation with desktop sidebar/mobile menu. Next.js now provides `/loans` and `/returns`, using the existing catalog and form submission APIs. Inspection remains the review-card dialog; no redundant inspection route. Root redirects to dashboard. Original frontend and backend remain intact. No Next API handlers, server actions, deployment, commits, or Google API code.
+The current source has Dashboard, search, loans and returns navigation with desktop sidebar/mobile menu. Next.js now provides `/loans` and `/returns`, using the existing catalog and form submission APIs. Inspection remains the review-card dialog; no redundant inspection route. Root redirects to dashboard. The original frontend is retained and backend business logic remains in place. A thin Next Pages API adapter now reuses the existing Express entrypoint for same-project deployment; no backend logic, Server Actions, or Google API code was duplicated. Express static path construction was adjusted for Webpack compatibility.
 
 ## Verification limits
 

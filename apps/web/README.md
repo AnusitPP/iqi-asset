@@ -1,6 +1,6 @@
 # IQI Asset — Next.js frontend
 
-Frontend migration in the existing npm workspace. Express, Vercel API, Vanilla frontend, Google integration and production deployment remain unchanged. No deployment is performed.
+Frontend migration in the existing npm workspace. The original Express API is reused through a thin Next.js adapter for a combined frontend/backend Vercel deployment. Google integrations and business rules remain in `backend/`. The Vanilla frontend is retained. No deployment is performed automatically.
 
 ## Run locally
 
@@ -15,24 +15,27 @@ npm run dev          # Existing Express, default port 3000
 npm run dev:web      # Next.js, port 3001
 ```
 
-Open http://localhost:3001. Set the server-only `IQI_BACKEND_ORIGIN` in `apps/web/.env.local` to the existing Express origin if its PORT differs. Do not put credentials or secrets in NEXT_PUBLIC variables. Restart Next after changing this setting. `next.config.ts` rewrites `/api/*` to Express; `src/proxy.ts` rejects foreign browser origins and translates a verified same-origin Origin to the configured backend origin. Cookies, CSRF, payloads and API paths are preserved. No API handlers, actions or duplicate backend services are introduced.
+Open http://localhost:3001. Set the server-only `IQI_BACKEND_ORIGIN` in `apps/web/.env.local` to the existing Express origin if its PORT differs. Do not put credentials or secrets in NEXT_PUBLIC variables. Restart Next after changing this setting. `next.config.ts` rewrites `/api/*` to Express; `src/proxy.ts` rejects foreign browser origins and translates a verified same-origin Origin to the configured backend origin. Cookies, CSRF, payloads and API paths are preserved. On Vercel, `src/pages/api/[[...path]].ts` forwards requests to the existing `api/index.js` Express entrypoint. It contains no duplicated API/business logic, and disables Next body parsing so Express still handles JSON and binary bodies.
 
-For a standalone local production preview, set the same backend origin **before build and start**, then run `npm run build:web` and `npm run start:web`. The existing `vercel.json` still deploys Vanilla; this task does not switch production.
+For a standalone local production preview, set the same backend origin **before build and start**, then run `npm run build:web` and `npm run start:web`. When running locally, `IQI_BACKEND_ORIGIN` continues to select the separate Express server. On Vercel (`VERCEL=1`), that external rewrite and Origin translation are disabled; same-origin API requests are handled by the embedded Express adapter.
 
-## Vercel frontend build
+## Vercel: deploy frontend and backend together
 
-Use `apps/web` as the frontend project's **Root Directory**. Its `vercel.json` selects Next.js and runs this workspace's `npm run build` (`next build --webpack`), producing `.next/` without running `backend/scripts/build-frontend.js` or building `frontend/dist/`.
+Use the **same Vercel project**, with **Root Directory = apps/web**. `apps/web/vercel.json` selects Next.js and runs `npm run build`. Next builds the web pages and the catch-all API adapter together. `frontend/dist/` is not built or served by this deployment.
 
-In Vercel project settings:
+Project settings:
 
-- Framework Preset: **Next.js**.
-- Root Directory: **apps/web** (relative to this Git repository).
-- Build Command: use the checked-in configuration.
-- Output Directory: leave the override disabled so Next.js uses its default.
-- Enable **Include source files outside of the Root Directory in the Build Step**, because the application imports `shared/`.
-- Set server-only `IQI_BACKEND_ORIGIN` to the separately hosted backend URL for Production/Preview as needed; do not use localhost or the frontend's own URL.
+- Root Directory: `apps/web` (relative to the Git repository).
+- Framework Preset: `Next.js`.
+- Build Command: `npm run build`, as declared in this app's `vercel.json`.
+- Output Directory: disable any previous `frontend/dist` override; use Next.js default.
+- Enable **Include source files outside of the Root Directory in the Build Step**. The adapter imports the original `api/index.js`, `backend/` and `shared/`.
+- Retain the existing backend environment variables in this project, including `APP_PASSWORD`, `APP_SECRET`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SPREADSHEET_ID`, and existing Drive settings where used. Never add a `NEXT_PUBLIC_` prefix to secrets.
+- `IQI_BACKEND_ORIGIN` is for separate-server local development; it is ignored on Vercel to prevent calls to localhost or rewrite loops.
 
-The repository-root `vercel.json` remains the existing backend/legacy deployment configuration. Keeping the Vercel Root Directory at the repository root will still select that configuration. This change does not update remote Vercel settings or deploy anything. Dependency installation can still include workspace/shared dependencies; only the frontend build target is restricted to `apps/web`.
+`next.config.ts` traces server dependencies from the repository root and includes backend/shared runtime files. Native/backend packages stay external. The API adapter retains the 120-second function setting. Only the construction of Express static paths was adjusted to avoid Webpack interpreting directory URLs as assets; the standalone backend still serves its original files.
+
+The repository-root `vercel.json` is the legacy deployment configuration. If the Vercel project remains rooted at the repository root, it will still build and display the old website. Change Root Directory before redeploying. This workspace change does not update remote Vercel settings or deploy anything.
 
 ## Routes and architecture
 
@@ -56,6 +59,7 @@ npm run test:web
 npm run build:web
 npm test
 npm run test:proxy --workspace @iqi/web
+npm run test:embedded-api --workspace @iqi/web
 ```
 
 The proxy acceptance test starts isolated real Express/Next processes with an in-memory fixture adapter and checks session, cookies, same-origin POST/PUT, revision payloads, rejected foreign Origin/CSRF, logout revocation, catalog data, loan/return submissions, duplicate request replay and page HTTP responses. It never loads `.env`, starts the normal backend, or calls Google APIs. Unit/component fixtures are restricted to tests. Application components use validated Express responses only.
@@ -67,3 +71,5 @@ The proxy acceptance test starts isolated real Express/Next processes with an in
 Live Sheets/Drive reads/writes, deployed secure-cookie behavior, physical mobile layouts, real HEIC conversion and browser image decoding/upload must be checked with configured services. Automated DOM tests do not replace visual browser QA. Upload progress counts completed files; the existing fetch transport exposes no byte progress. Clipboard copying retains the LAN HTTP selection fallback and shows a manual-copy message if both methods fail. Reload and workspace links warn for unsaved data; browser history navigation needs manual care. No claim of live Google API verification is made.
 
 Loan/return writes retain the backend restriction: hosted Vercel writes return 503; the existing single-server/local backend is required. The frontend displays that server error. No production settings were changed.
+
+The embedded-API smoke test starts a temporary Next dev server in hosted mode with synthetic auth configuration. It checks frontend HTML, original Express session/cookie login/logout, unconsumed JSON streams, CSRF/Origin rejection, upload limits and API authorization. It makes no Google API calls. The separate-proxy fixture test remains available for local development.

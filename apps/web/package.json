@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests scripts next.config.ts vitest.config.ts --max-warnings 0",
     "test": "node scripts/run-tests.mjs",
-    "test:proxy": "node scripts/verify-proxy.mjs"
+    "test:proxy": "node scripts/verify-proxy.mjs",
+    "test:embedded-api": "node scripts/verify-embedded-api.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",

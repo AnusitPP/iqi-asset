@@ -9,6 +9,7 @@ import { registerReviewRoutes } from '../features/review/routes.js';
 import { safeMessage, logError } from '../core/errors/errors.js';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { randomBytes, createHmac } from 'node:crypto';
 import { createAuth } from '../features/auth/middleware.js';
 import { DashboardEditor } from '../features/dashboard/editor.js';
@@ -20,6 +21,7 @@ import { DashboardPhotos } from '../features/photos/service.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
+  const httpDirectory = dirname(fileURLToPath(import.meta.url));
   const lendingLedger = new LendingLedger(service.adapter, config);
   const loanRequests = new LoanRequestService(lendingLedger);
   const returnRequests = new ReturnRequestService(lendingLedger);
@@ -63,12 +65,12 @@ export function createApp(service, config) {
   );
   app.use(
     '/shared',
-    express.static(fileURLToPath(new URL('../../../shared', import.meta.url)), {
+    express.static(resolve(httpDirectory, '../../../shared'), {
       dotfiles: 'deny',
     }),
   );
   app.use(
-    express.static(fileURLToPath(new URL('../../../frontend/public', import.meta.url)), {
+    express.static(resolve(httpDirectory, '../../../frontend/public'), {
       dotfiles: 'deny',
       index: 'index.html',
     }),
