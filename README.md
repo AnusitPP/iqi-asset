@@ -4,7 +4,7 @@
 
 ## โครงสร้างโค้ด
 
-ดู [คู่มือโครงสร้างและจุดเริ่มต้นแต่ละฟีเจอร์](docs/architecture.md) — frontend เดียวอยู่ที่ `front-end/src` ส่วน backend แยกเป็น `core` กับ `features` และใช้กติกาจาก `shared/`
+ดู [คู่มือโครงสร้างและจุดเริ่มต้นแต่ละฟีเจอร์](docs/architecture.md) — frontend เดียวอยู่ที่ `frontend/src` ส่วน backend แยกเป็น `core` กับ `features` และใช้กติกาจาก `shared/`
 
 ## เปิดใช้งาน
 
@@ -12,15 +12,15 @@
 npm install
 # ครั้งแรกเท่านั้น ถ้ายังไม่มี .env:
 Copy-Item .env.example .env
-Copy-Item front-end/.env.example front-end/.env.local
+Copy-Item frontend/.env.example frontend/.env.local
 npm run dev:api   # Express API :3000
 # อีก terminal
-npm run dev:web   # Next.js :3001
+npm run dev   # Next.js :3001
 ```
 
 เปิด http://localhost:3001 แล้วล็อกอินด้วย `APP_PASSWORD` ที่ตั้งใน `.env` พอร์ต 3000 ให้บริการเฉพาะ API ส่วนหน้าเว็บให้บริการโดย Next.js หยุดเซิร์ฟเวอร์ด้วย Ctrl+C และ restart backend หลังเปลี่ยน `.env`
 
-วาง Service Account ที่ `credentials/service-account.json` และแชร์ Google Spreadsheet ให้บัญชีนั้นเป็น Editor พร้อมเปิด Google Sheets API ใน Google Cloud ตัว credential และ `.env` ถูก ignore และไม่ถูกวางไว้ใน `front-end/public/`
+วาง Service Account ที่ `credentials/service-account.json` และแชร์ Google Spreadsheet ให้บัญชีนั้นเป็น Editor พร้อมเปิด Google Sheets API ใน Google Cloud ตัว credential และ `.env` ถูก ignore และไม่ถูกวางไว้ใน `frontend/public/`
 
 ไฟล์ต้องเป็น **Google Sheets จริง** ถ้าเป็น Excel ให้เปิดแล้วเลือก File → Save as Google Sheets จากนั้นนำ ID ใหม่มาใส่ `.env` เซิร์ฟเวอร์จะแสดงข้อผิดพลาดที่อ่านได้ถ้าเชื่อมไม่ได้ และหน้าเว็บกดค้นหาเพื่อลองใหม่ได้
 
@@ -94,7 +94,7 @@ IQI จะอัปเดต `สถานะการค้นหา` เป็
 
 ## การบันทึกและความปลอดภัย
 
-- Next.js เสิร์ฟหน้าเว็บจาก `front-end/src` ส่วน Express ให้บริการเฉพาะ API ไม่มี route ส่ง credential / `.env` และแสดงข้อมูลชีตผ่าน React
+- Next.js เสิร์ฟหน้าเว็บจาก `frontend/src` ส่วน Express ให้บริการเฉพาะ API ไม่มี route ส่ง credential / `.env` และแสดงข้อมูลชีตผ่าน React
 - Backend จำกัดต้นฉบับที่อ่านได้ 3 แท็บ และแก้ไขข้อมูลต้นฉบับได้เฉพาะ IQI เท่านั้น ปุ่มหัวใจเขียนสำเนาไปแท็บรอตรวจสอบที่กำหนดไว้โดยเฉพาะ
 - มี CSRF token, ตรวจ Origin และ Host และไม่เปิด CORS ข้ามเว็บไซต์
 - API อ่าน/ค้นหา/บันทึกตรวจ session ฝั่ง backend ทุกครั้ง Cookie เป็น HttpOnly / SameSite=Strict รหัสไม่ถูกส่งไปเก็บใน JavaScript ของ frontend
@@ -136,23 +136,23 @@ See [deployment instructions](docs/vercel-deployment.md) for environment variabl
 
 ## File structure
 
-Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/architecture.md). Run all npm commands from the project root; `npm run build` builds Next.js and its Express API adapter in `front-end/src`.
+Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/architecture.md). Run all npm commands from the project root; `npm run build` builds Next.js and its Express API adapter in `frontend/src`.
 
 ## Next.js frontend
 
-Frontend ใหม่อยู่ที่ `front-end/src` ใช้ npm workspace พร้อม package-lock ที่ root พร้อม Next.js App Router, strict TypeScript, Mantine, React Hook Form, Zod และ TanStack Query
+Frontend ใหม่อยู่ที่ `frontend/src` ใช้ npm workspace พร้อม package-lock ที่ root พร้อม Next.js App Router, strict TypeScript, Mantine, React Hook Form, Zod และ TanStack Query
 
 ```sh
 # Node 22.12+
 npm install
-cp front-end/.env.example front-end/.env.local
+cp frontend/.env.example frontend/.env.local
 npm run dev:api        # Express เดิม :3000
 # อีก terminal
-npm run dev:web        # Next.js :3001
+npm run dev        # Next.js :3001
 ```
 
 รองรับ login/session, ค้นหาและแก้ไขครุภัณฑ์, รอตรวจสอบ, บันทึกผลตรวจ, Dashboard, รูปภาพ และฟอร์มยืม–คืนพร้อมค้นหา catalog โดยเรียก Express API เดิม
 
-ตรวจด้วย `npm run typecheck:web`, `npm run lint:web`, `npm run test:web`, `npm run build:web` และ `npm test`
+ตรวจด้วย `npm run typecheck:web`, `npm run lint:web`, `npm run test:web`, `npm run build` และ `npm test`
 
-ลบ `frontend/` เดิมแล้ว เหลือ config deploy ที่ `front-end/vercel.json` สำหรับ Next.js และ Express API ใน project เดียว ตั้ง Vercel Root Directory เป็น `front-end` อ่านรายละเอียดการรัน ข้อจำกัด และ inventory ได้ที่ [docs/web.md](docs/web.md)
+ลบ `frontend/` เดิมแล้ว เหลือ config deploy ที่ `frontend/vercel.json` สำหรับ Next.js และ Express API ใน project เดียว ตั้ง Vercel Root Directory เป็น `frontend` อ่านรายละเอียดการรัน ข้อจำกัด และ inventory ได้ที่ [docs/web.md](docs/web.md)

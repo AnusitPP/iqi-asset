@@ -1,6 +1,6 @@
 # Frontend migration report
 
-> Historical migration record. Next.js now lives in front-end/ (src/, public/, next.config.ts and vercel.json). Express remains in backend/. Current instructions are in ../web.md and ../vercel-deployment.md; paths and counts below describe earlier migration stages.
+> Historical migration record. Next.js now lives in frontend/ (src/, public/, next.config.ts and vercel.json). Express remains in backend/. Current instructions are in ../web.md and ../vercel-deployment.md; paths and counts below describe earlier migration stages.
 
 ## Delivered routes and features
 

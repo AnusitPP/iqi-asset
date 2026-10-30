@@ -5,24 +5,20 @@
   "scripts": {
     "setup:sheets": "node backend/scripts/setup-sheets.js",
     "drive:connect": "node backend/scripts/drive-connect.js",
-    "dev": "npm run dev:web",
-    "start": "npm run start:web",
+    "dev": "npm run dev --workspace @iqi/frontend",
+    "start": "npm run start --workspace @iqi/frontend",
     "test": "node --test test/backend/*.test.js test/frontend/*.test.js test/integration/*.test.js",
     "check": "node --check backend/server.js && node --check api/index.js && npm run typecheck:web",
     "lint": "eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "format": "prettier --write .",
-    "build": "npm run build:web",
-    "dev:web": "npm run dev --workspace @iqi/front-end",
-    "build:web": "npm run build --workspace @iqi/front-end",
-    "start:web": "npm run start --workspace @iqi/front-end",
-    "typecheck:web": "npm run typecheck --workspace @iqi/front-end",
-    "lint:web": "npm run lint --workspace @iqi/front-end",
-    "test:web": "node front-end/scripts/run-tests.mjs",
+    "build": "npm run build --workspace @iqi/frontend",
+    "typecheck:web": "npm run typecheck --workspace @iqi/frontend",
+    "lint:web": "npm run lint --workspace @iqi/frontend",
+    "test:web": "node frontend/scripts/run-tests.mjs",
     "dev:api": "node backend/server.js",
-    "start:api": "node backend/server.js",
-    "test:embedded-api": "node front-end/scripts/verify-embedded-api.mjs",
-    "test:proxy": "node front-end/scripts/verify-proxy.mjs"
+    "test:embedded-api": "node frontend/scripts/verify-embedded-api.mjs",
+    "test:proxy": "node frontend/scripts/verify-proxy.mjs"
   },
   "engines": {
     "node": ">=22.12"
@@ -43,6 +39,6 @@
     "prettier": "^3.9.10"
   },
   "workspaces": [
-    "front-end"
+    "frontend"
   ]
 }
