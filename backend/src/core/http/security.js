@@ -1,3 +1,4 @@
+import { GOOGLE_PROFILE_IMAGE_ORIGINS } from '../../../../shared/features/auth/profile.js';
 import express from 'express';
 import os from 'node:os';
 import { lanAddresses } from '../network/addresses.js';
@@ -28,8 +29,7 @@ export function configureRequestSecurity(app, config, csrf) {
     res.set({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy':
-        "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      'Content-Security-Policy': `default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: blob: ${GOOGLE_PROFILE_IMAGE_ORIGINS.join(' ')}; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
     });
     next();
   });
@@ -38,7 +38,10 @@ export function configureRequestSecurity(app, config, csrf) {
     if (req.method !== 'GET') {
       if (req.get('X-IQI-Request') !== csrf)
         return res.status(403).json({ error: 'คำขอไม่ถูกต้อง กรุณาโหลดหน้าเว็บใหม่' });
-      if (req.get('origin') && req.get('origin') !== `${req.protocol}://${req.get('host')}`)
+      const allowedOrigins = new Set(
+        [`${req.protocol}://${req.get('host')}`, config.publicOrigin].filter(Boolean),
+      );
+      if (req.get('origin') && !allowedOrigins.has(req.get('origin')))
         return res.status(403).json({ error: 'ไม่อนุญาตคำขอจากเว็บไซต์อื่น' });
     }
     next();

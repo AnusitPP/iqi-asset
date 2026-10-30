@@ -1,3 +1,4 @@
+import { can } from '../auth/permissions.js';
 import { displayFieldValue } from '/shared/core/formatters/labels.js';
 import { selectElement, createElement, createButton as button } from '../../core/dom/elements.js';
 import { debounce } from '../../core/functions/debounce.js';
@@ -265,7 +266,7 @@ export function initializeSearch({ api, connect, getCsrf, toast }) {
               ),
             );
           topline.append(stamp);
-          {
+          if (can('ASSET_EDIT')) {
             const heart = button(
               '',
               `pending-heart${record.pending ? ' is-pending' : ''}`,
@@ -320,7 +321,7 @@ export function initializeSearch({ api, connect, getCsrf, toast }) {
               'arrow',
             ),
           );
-          if (record.pending)
+          if (record.pending && can('ASSET_EDIT'))
             item.append(
               button(
                 'บันทึกผลตรวจ',

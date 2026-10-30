@@ -6,6 +6,13 @@ export function initializeWorkspaceTabs(onPageChanged) {
   const searchSections = () =>
     document.querySelectorAll('main>.intro,main>.search-card,main>#results,main>#page-error');
   function show(which) {
+    for (const page of ['users','audit','my-requests']) {
+      document.querySelector('#'+page+'-panel').hidden = which !== page;
+      const tab=document.querySelector('#'+page+'-tab');
+      tab.classList.toggle('active',which===page);
+      tab.setAttribute('aria-pressed',String(which===page));
+    }
+    document.dispatchEvent(new CustomEvent('workspace-page',{detail:which}));
     const active = which === 'dashboard';
     panel.hidden = !active;
     document.querySelector('#loans-panel').hidden = which !== 'loans';
@@ -26,7 +33,7 @@ export function initializeWorkspaceTabs(onPageChanged) {
     onPageChanged(which);
   }
 
-  for (const page of ['loans', 'returns', 'search', 'dashboard'])
+  for (const page of ['loans', 'returns', 'search', 'dashboard','users','audit','my-requests'])
     selectElement('#' + page + '-tab').addEventListener('click', () => show(page));
   return { show };
 }

@@ -1,3 +1,5 @@
+import { renderSignedInProfile } from './profile.js';
+import { applyCurrentUser } from './permissions.js';
 import { UI_MESSAGES } from '/shared/core/constants/messages.js';
 import { selectElement } from '../../core/dom/elements.js';
 import { setUploadLimit } from '../photos/prepareUpload.js';
@@ -15,40 +17,17 @@ export function initializeSession({
   const dashboard = { show: onConnected };
   function showLogin() {
     authenticated = false;
+    applyCurrentUser(null);
+    document.dispatchEvent(new Event('auth-cleared'));
+    renderSignedInProfile(null);
     onClear();
     selectElement('#logout-button').hidden = true;
     if (!authDialog.open) authDialog.showModal();
-    selectElement('#auth-password').focus();
+    selectElement('#auth-google-login').focus();
   }
   authDialog.addEventListener('cancel', (event) => event.preventDefault());
   authDialog.addEventListener('close', () => {
     if (!authenticated && !authDialog.open) authDialog.showModal();
-  });
-  selectElement('#auth-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    selectElement('#auth-error').hidden = true;
-    selectElement('#auth-submit').disabled = true;
-    selectElement('#auth-submit').textContent = 'กำลังตรวจสอบ…';
-    try {
-      await api('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ password: selectElement('#auth-password').value }),
-      });
-      authenticated = true;
-      selectElement('#auth-password').value = '';
-      authDialog.close();
-      selectElement('#logout-button').hidden = false;
-      if (await connect()) {
-        dashboard.show();
-      }
-    } catch (error) {
-      selectElement('#auth-error').textContent = error.message;
-      selectElement('#auth-error').hidden = false;
-      selectElement('#auth-password').select();
-    } finally {
-      selectElement('#auth-submit').disabled = false;
-      selectElement('#auth-submit').textContent = 'เข้าใช้งาน';
-    }
   });
   selectElement('#logout-button').addEventListener('click', async () => {
     if (hasUnsavedChanges() && !confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการล็อกออกหรือไม่?'))
@@ -65,10 +44,12 @@ export function initializeSession({
     try {
       const { maxUploadBytes } = await api('/api/upload-config');
       setUploadLimit(maxUploadBytes);
-      const session = await api('/api/auth/session');
+      const session = await api('/api/auth/me');
       setCsrf(session.csrf);
       if (session.authenticated) {
         authenticated = true;
+        applyCurrentUser(session.user);
+        renderSignedInProfile(session.user);
         selectElement('#logout-button').hidden = false;
         if (await connect()) dashboard.show();
       } else showLogin();

@@ -1,9 +1,12 @@
+import { createSheetAuth } from './sheet.middleware.js';
+import { createAuthRoutes } from './auth.routes.js';
 import { signToken, readToken } from '../../core/security/tokens.js';
 import express from 'express';
 import { randomBytes, scryptSync, timingSafeEqual, createHash, createHmac } from 'node:crypto';
 import { StateStore } from '../../core/state/stateStore.js';
-const LIFETIME = 8 * 60 * 60 * 1000;
+import { SESSION_LIFETIME_MS as LIFETIME } from '../../core/config/session.config.js';
 export function createAuth(config, csrf) {
+  if (config.authSpreadsheetId || config.authStorage) return createSheetAuth(config, csrf);
   const router = express.Router();
   const state = config.state || new StateStore();
   const secret = createHmac('sha256', config.appSecret || randomBytes(32))
@@ -32,9 +35,29 @@ export function createAuth(config, csrf) {
     secure: config.hosted || req.secure,
     path: '/',
   });
-  router.get('/auth/session', async (req, res) =>
-    res.json({ authenticated: await authenticated(req), csrf }),
-  );
+  const startSession = async (req, res, user) => {
+    await revoke(req);
+    const signed = signToken(
+      {
+        purpose: 'session',
+        id: randomBytes(32).toString('hex'),
+        expires: Date.now() + LIFETIME,
+        ...(user ? { user } : {}),
+      },
+      secret,
+    );
+    res.cookie('iqi_session', signed, { ...cookieOptions(req), maxAge: LIFETIME });
+  };
+  router.use('/auth', createAuthRoutes(config, startSession));
+  router.get('/auth/session', async (req, res) => {
+    const isAuthenticated = await authenticated(req);
+    const name = isAuthenticated ? session(req)?.user?.name : undefined;
+    res.json({
+      authenticated: isAuthenticated,
+      csrf,
+      user: typeof name === 'string' ? { name } : null,
+    });
+  });
   router.post('/auth/login', async (req, res) => {
     const ip = createHash('sha256')
       .update(req.ip || '')
@@ -59,10 +82,7 @@ export function createAuth(config, csrf) {
         return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง' });
       }
       await state.delete(key);
-      await revoke(req);
-      const id = randomBytes(32).toString('hex');
-      const signed = signToken({ purpose: 'session', id, expires: Date.now() + LIFETIME }, secret);
-      res.cookie('iqi_session', signed, { ...cookieOptions(req), maxAge: LIFETIME });
+      await startSession(req, res);
       res.json({ authenticated: true });
     });
   });

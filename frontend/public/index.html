@@ -7,6 +7,8 @@
     <title>IQI Asset Checker — Dashboard</title>
     <link rel="stylesheet" href="/styles/style.css" />
     <link rel="stylesheet" href="/styles/dashboard.css" />
+    <link rel="stylesheet" href="/styles/audit.css" />
+    <link rel="stylesheet" href="/styles/users.css" />
     <script type="module" src="/js/app.js"></script>
   </head>
   <body>
@@ -33,7 +35,7 @@
         >
       </div>
       <nav class="workspace-tabs" aria-label="หน้าข้อมูล">
-        <button class="workspace-tab active" id="dashboard-tab" type="button" aria-pressed="true">
+        <button class="workspace-tab active" data-permission="ADMIN_DASHBOARD_VIEW" id="dashboard-tab" type="button" aria-pressed="true">
           Dashboard
         </button>
         <button class="workspace-tab" id="search-tab" type="button" aria-pressed="false">
@@ -45,8 +47,15 @@
         <button class="workspace-tab" id="returns-tab" type="button" aria-pressed="false">
           คืนครุภัณฑ์
         </button>
+        <button class="workspace-tab" id="my-requests-tab" type="button" aria-pressed="false" data-permission="LOAN_VIEW_OWN">รายการของฉัน</button>
+        <button class="workspace-tab" id="users-tab" type="button" aria-pressed="false" data-permission="USER_VIEW" hidden>ผู้ใช้งาน</button>
+        <button class="workspace-tab" id="audit-tab" type="button" aria-pressed="false" data-permission="AUDIT_VIEW" hidden>Audit Log</button>
       </nav>
       <div class="workspace-nav-footer">
+        <div id="auth-user-profile" class="auth-user-profile" hidden>
+          <span id="auth-user-avatar"></span>
+          <div class="auth-user-identity"><span id="auth-user-name" class="auth-user-name"></span><span id="auth-user-role" class="auth-user-role"></span></div>
+        </div>
         <button
           type="button"
           id="logout-button"
@@ -60,6 +69,35 @@
       </div>
     </dialog>
     <main class="container">
+      <section id="users-panel" hidden aria-labelledby="users-title">
+        <div class="dash-heading users-heading"><div><h1 id="users-title">ผู้ใช้งาน</h1><p>จัดการบัญชีองค์กรและสิทธิ์การเข้าใช้งาน IQI Asset Checker</p></div><button type="button" id="users-refresh" class="button secondary">รีเฟรชข้อมูล</button></div>
+        <form id="users-filter" class="users-toolbar" role="search" aria-label="กรองผู้ใช้งาน">
+          <label class="users-search"><span aria-hidden="true">⌕</span><input name="search" type="search" placeholder="ค้นหาชื่อหรืออีเมล" aria-label="ค้นหาผู้ใช้" maxlength="200" /></label>
+          <select name="role" aria-label="กรอง Role"><option value="">ทุก Role</option><option>STAFF</option><option>ADMIN</option><option>SUPER_ADMIN</option></select>
+          <select name="status" aria-label="กรองสถานะ"><option value="">ทุกสถานะ</option><option value="ACTIVE">ใช้งานอยู่</option><option value="DISABLED">ปิดใช้งาน</option></select>
+          <button type="submit" class="button primary">ค้นหา</button><button id="users-reset" type="button" class="button secondary">ล้างตัวกรอง</button>
+        </form>
+        <div class="users-list-heading"><h2>บัญชีผู้ใช้งาน</h2><span id="users-count" class="users-count">0</span></div>
+        <div id="users-table-wrap" class="users-table-wrap" role="region" aria-label="ตารางผู้ใช้งาน" tabindex="0" hidden><table class="users-table"><thead><tr><th scope="col">ชื่อผู้ใช้งาน</th><th scope="col">อีเมล</th><th scope="col">Role</th><th scope="col">สถานะ</th><th scope="col">เข้าใช้ครั้งแรก</th><th scope="col">เข้าใช้ล่าสุด</th><th scope="col">จัดการ</th></tr></thead><tbody id="users-table-body"></tbody></table></div>
+        <div id="users-empty" class="users-empty" hidden>ไม่พบผู้ใช้งานที่ตรงกับตัวกรอง</div>
+        <div class="users-pagination"><p id="users-feedback" class="users-feedback" role="status" aria-live="polite"></p><span id="users-page" class="users-page"></span><button type="button" id="users-previous" class="button secondary" disabled>ก่อนหน้า</button><button type="button" id="users-next" class="button secondary" disabled>ถัดไป</button></div>
+      </section>
+      <section id="audit-panel" hidden aria-labelledby="audit-title">
+        <div class="dash-heading audit-heading"><div><h1 id="audit-title">Audit Log</h1><p>ประวัติการใช้งานและการเปลี่ยนแปลงในระบบ</p></div>
+          <button type="button" id="audit-refresh" class="button secondary">รีเฟรชข้อมูล</button></div>
+        <form id="audit-filter" class="audit-toolbar" role="search" aria-label="กรอง Audit Log">
+          <label class="audit-search"><span aria-hidden="true">⌕</span><input id="audit-search" type="search" placeholder="ค้นหาชื่อ อีเมล หรือ Entity ID" aria-label="ค้นหา Audit Log" maxlength="200" /></label>
+          <select id="audit-action-filter" aria-label="กรองการกระทำ"><option value="">ทุกการกระทำ</option></select>
+          <select id="audit-type-filter" aria-label="กรองประเภท"><option value="">ทุกประเภท</option></select>
+          <button type="button" id="audit-reset" class="button secondary">ล้างตัวกรอง</button>
+        </form>
+        <p id="audit-feedback" class="audit-feedback" role="status" aria-live="polite"></p>
+        <div id="audit-table-wrap" class="audit-table-wrap" role="region" aria-label="ตารางประวัติการใช้งาน" tabindex="0" hidden>
+          <table class="audit-table"><thead><tr><th scope="col">ผู้ใช้งาน</th><th scope="col">Entity ID</th><th scope="col">การกระทำ</th><th scope="col">ประเภท</th><th scope="col">วันและเวลา</th><th scope="col">รายละเอียด</th></tr></thead><tbody id="audit-table-body"></tbody></table>
+        </div>
+        <div id="audit-empty" class="audit-empty" hidden></div>
+      </section>
+      <section id="my-requests-panel" hidden aria-labelledby="my-requests-title"><h1 id="my-requests-title">รายการของฉัน</h1><p id="my-requests-feedback" role="status"></p><div id="my-requests-list"></div></section>
       <section id="loans-panel" hidden aria-labelledby="loans-title">
         <div class="dash-heading"><h1 id="loans-title">ยืมครุภัณฑ์</h1></div>
         <form id="loan-form" class="loan-form">
@@ -279,23 +317,24 @@
         <div class="detail-actions" id="detail-actions"></div>
       </div>
     </dialog>
+    <dialog id="user-detail-dialog" class="users-detail-dialog" aria-labelledby="user-detail-title">
+      <div class="users-detail-header"><h2 id="user-detail-title">ข้อมูลผู้ใช้งาน</h2><button id="user-detail-close" type="button" class="button secondary">ปิด</button></div>
+      <div id="user-detail-content"></div>
+      <form id="user-access-form" class="users-access-form" hidden><label>Role<select id="user-detail-role"><option>STAFF</option><option>ADMIN</option></select></label><label>สถานะ<select id="user-detail-status"><option value="ACTIVE">ใช้งานอยู่</option><option value="DISABLED">ปิดใช้งาน</option></select></label><button id="user-detail-save" type="submit" class="button primary">บันทึกการเปลี่ยนแปลง</button></form>
+      <p id="user-detail-feedback" class="users-detail-feedback" role="status"></p>
+    </dialog>
+    <dialog id="audit-detail-dialog" class="audit-detail-dialog" aria-labelledby="audit-detail-title">
+      <div class="audit-detail-heading"><h2 id="audit-detail-title">รายละเอียด Audit</h2><button type="button" id="audit-detail-close" class="button secondary">ปิด</button></div>
+      <div id="audit-detail-content"></div>
+    </dialog>
     <dialog id="auth-dialog" closedby="none" aria-labelledby="auth-title">
-      <form id="auth-form" class="auth-form">
+      <div class="auth-form">
         <span class="auth-symbol" data-icon="lock" aria-hidden="true"></span>
         <h2 id="auth-title">เข้าใช้งาน IQI Asset Checker</h2>
-        <p>กรอกรหัสผ่านเพื่อค้นหาและจัดการครุภัณฑ์</p>
-        <label for="auth-password">รหัสผ่าน</label
-        ><input
-          id="auth-password"
-          type="password"
-          autocomplete="current-password"
-          maxlength="256"
-          required
-          autofocus
-        />
+        <p>เข้าสู่ระบบด้วยบัญชีองค์กร @step.cmu.ac.th</p>
         <div id="auth-error" class="alert error" role="alert" hidden></div>
-        <button type="submit" id="auth-submit" class="button primary">เข้าใช้งาน</button>
-      </form>
+        <a href="/api/auth/google" id="auth-google-login" class="button primary" autofocus>เข้าสู่ระบบด้วย Google</a>
+      </div>
     </dialog>
     <dialog id="inspection-dialog" aria-labelledby="inspection-title">
       <form id="inspection-form" class="auth-form">

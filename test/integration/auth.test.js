@@ -56,7 +56,7 @@ test('password popup is backed by API authentication, expiring sessions and rate
     const cookie = success.headers.get('set-cookie');
     assert.match(cookie, /HttpOnly/i);
     assert.match(cookie, /SameSite=Strict/i);
-    assert.match(cookie, /Max-Age=28800/i);
+    assert.match(cookie, /Max-Age=1800/i);
     const headers = { Cookie: cookie.split(';')[0], 'X-IQI-Request': session.csrf };
     assert.equal((await fetch(base + '/api/status', { headers })).status, 200);
     assert.equal(
@@ -121,3 +121,4 @@ test('password popup is backed by API authentication, expiring sessions and rate
     await new Promise((r) => server.close(r));
   }
 });
+

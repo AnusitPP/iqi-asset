@@ -1,3 +1,4 @@
+import { applicationOrigin } from './app-url.js';
 import path from 'node:path';
 import {
   configurationError,
@@ -7,6 +8,9 @@ import {
 
 export function loadConfig(env = process.env) {
   const hosted = env.VERCEL === '1';
+  const publicOrigin = env.APP_URL ? applicationOrigin(env) : undefined;
+  if ((env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET) && !env.AUTH_SPREADSHEET_ID)
+    throw configurationError('กรุณาตั้งค่า AUTH_SPREADSHEET_ID สำหรับ Google Login');
   if (hosted && (!env.APP_PASSWORD || !env.APP_SECRET))
     throw configurationError('Vercel ต้องตั้ง APP_PASSWORD และ APP_SECRET');
   if (hosted && !env.GOOGLE_SERVICE_ACCOUNT_JSON)
@@ -15,8 +19,12 @@ export function loadConfig(env = process.env) {
     throw configurationError('APP_SECRET ต้องยาวอย่างน้อย 32 ตัวอักษร');
   const config = {
     hosted,
+    publicOrigin,
+    authSpreadsheetId: env.AUTH_SPREADSHEET_ID || '',
+    bootstrapSuperAdminEmail: (env.BOOTSTRAP_SUPER_ADMIN_EMAIL || '').trim().toLowerCase(),
     appSecret: env.APP_SECRET,
     allowedHosts: [
+      ...(publicOrigin ? [new URL(publicOrigin).hostname] : []),
       env.VERCEL_URL,
       env.VERCEL_PROJECT_PRODUCTION_URL,
       ...(env.ALLOWED_HOSTS || '').split(','),

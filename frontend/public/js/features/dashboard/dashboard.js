@@ -1,3 +1,4 @@
+import { can } from '../auth/permissions.js';
 import { UI_MESSAGES } from '/shared/core/constants/messages.js';
 import { initializeWorkspaceTabs } from '../../core/navigation/tabs.js';
 import { initializeDashboardDetails } from './details.js';
@@ -539,7 +540,7 @@ export function initializeDashboard({ api, isAuthenticated, onLogin }) {
   }
   show('dashboard');
   return {
-    show: () => show('dashboard'),
+    show: () => show(can('ADMIN_DASHBOARD_VIEW') ? 'dashboard' : 'search'),
     clear() {
       loadGeneration++;
       isLoading = false;

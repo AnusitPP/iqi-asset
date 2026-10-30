@@ -911,6 +911,9 @@
   flex-direction: column;
 }
 .workspace-nav-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: auto;
   padding-top: 20px;
   border-top: 1px solid var(--line);
@@ -1269,3 +1272,20 @@ body:has(.dashboard-dialog[open]) {
   color: var(--green);
   border-radius: 8px;
 }
+
+.auth-user-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.workspace-nav-footer .logout-button {
+  flex-shrink: 0;
+}
+
+.account-card { padding: 20px; border: 1px solid var(--line); border-radius: 12px; margin: 12px 0; background: white; }
+.account-card h2 { font-size: 16px; overflow-wrap: anywhere; }
+.account-card p { overflow-wrap: anywhere; }
+.account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.account-actions input, .account-actions select { padding: 10px; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; font: inherit; }

@@ -1,3 +1,6 @@
+import { initializeAdminUsers } from './features/adminUsers/index.js';
+import { initializeAudit } from './features/audit/index.js';
+import { initializeMyRequests } from './features/myRequests/index.js';
 import { initializeReturns } from './features/returns/returns.js';
 import { createApiClient } from './core/http/client.js';
 import { createConnection } from './core/http/connection.js';
@@ -39,5 +42,8 @@ session = initializeSession({
   hasUnsavedChanges: search.hasUnsavedChanges,
   toast: showToast,
 });
+initializeAdminUsers(api);
+initializeAudit(api);
+initializeMyRequests(api);
 initializeWorkspaceMenu();
 session.start();

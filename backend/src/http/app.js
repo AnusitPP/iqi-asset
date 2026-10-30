@@ -1,3 +1,6 @@
+import { registerUserRoutes } from '../features/users/routes.js';
+import { protectApi } from '../features/auth/middleware/protect-api.js';
+import { registerAuditRoutes } from '../features/audit/routes.js';
 import { configureRequestSecurity } from '../core/http/security.js';
 import { registerCatalogRoutes } from '../features/catalog/routes.js';
 import { registerLoansRoutes } from '../features/loans/routes.js';
@@ -33,6 +36,8 @@ export function createApp(service, config) {
   configureRequestSecurity(app, config, csrf);
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
+  app.use('/api', (req,res,next) => { req.authStorage ? protectApi(req,res,next) : next(); });
+  if (config.authSpreadsheetId || config.authStorage) { registerAuditRoutes(app); registerUserRoutes(app,config); }
   app.use('/api', async (req, res, next) => {
     if (service.ready) await service.ready();
     next();
