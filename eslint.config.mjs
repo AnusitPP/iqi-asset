@@ -3,7 +3,14 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['node_modules/**', '**/dist/**', 'build/**', 'coverage/**'],
+    ignores: [
+      '**/.next/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/*.min.js',
+    ],
   },
   {
     files: ['**/*.{js,mjs,cjs}'],

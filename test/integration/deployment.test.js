@@ -16,7 +16,7 @@ import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
 import {
   resizeForUpload,
   setUploadLimit,
-} from '../../frontend/public/js/features/photos/prepareUpload.js';
+} from '../../legacy-frontend/public/js/features/photos/prepareUpload.js';
 
 test('signed sessions work across instances while rate limits and revocations remain local', async (t) => {
   const states = [new StateStore(), new StateStore()];

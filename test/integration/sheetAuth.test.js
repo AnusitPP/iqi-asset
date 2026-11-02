@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
 import { SheetSessionService } from '../../backend/src/features/auth/services/session.service.js';
 import { TestAuthStorage } from '../helpers/authStorage.js';
+test('Google session endpoint reports missing Sheet auth configuration before the legacy auth guard', async (t) => {
+  const server = createApp({ adapter: {} }, { host: '127.0.0.1' }).listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(base + '/api/auth/me');
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /AUTH_SPREADSHEET_ID/);
+  assert.equal((await fetch(base + '/api/dashboard')).status, 401);
+});
 test('sheet auth exposes current profile, disables password bypass and enforces API permissions', async (t) => {
   const authStorage = new TestAuthStorage();
   const sessions = new SheetSessionService(authStorage, {});

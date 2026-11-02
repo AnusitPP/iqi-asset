@@ -11,7 +11,6 @@ import { registerRecordsRoutes } from '../features/records/routes.js';
 import { registerReviewRoutes } from '../features/review/routes.js';
 import { safeMessage, logError } from '../core/errors/errors.js';
 import express from 'express';
-import { fileURLToPath } from 'node:url';
 import { randomBytes, createHmac } from 'node:crypto';
 import { createAuth } from '../features/auth/middleware.js';
 import { DashboardEditor } from '../features/dashboard/editor.js';
@@ -36,8 +35,13 @@ export function createApp(service, config) {
   configureRequestSecurity(app, config, csrf);
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
-  app.use('/api', (req,res,next) => { req.authStorage ? protectApi(req,res,next) : next(); });
-  if (config.authSpreadsheetId || config.authStorage) { registerAuditRoutes(app); registerUserRoutes(app,config); }
+  app.use('/api', (req, res, next) => {
+    req.authStorage ? protectApi(req, res, next) : next();
+  });
+  if (config.authSpreadsheetId || config.authStorage) {
+    registerAuditRoutes(app);
+    registerUserRoutes(app, config);
+  }
   app.use('/api', async (req, res, next) => {
     if (service.ready) await service.ready();
     next();
@@ -65,18 +69,6 @@ export function createApp(service, config) {
   registerReviewRoutes(app, { service });
   app.use('/api', (req, res) =>
     res.status(404).json({ error: 'ไม่พบ API นี้ — บันทึกได้เฉพาะ IQI' }),
-  );
-  app.use(
-    '/shared',
-    express.static(fileURLToPath(new URL('../../../shared', import.meta.url)), {
-      dotfiles: 'deny',
-    }),
-  );
-  app.use(
-    express.static(fileURLToPath(new URL('../../../frontend/public', import.meta.url)), {
-      dotfiles: 'deny',
-      index: 'index.html',
-    }),
   );
   app.use((req, res) => res.status(404).type('text').send('ไม่พบหน้านี้'));
   app.use((error, req, res, next) => {

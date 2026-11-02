@@ -12,5 +12,4 @@ User selected Google Sheets. Bootstrap email: apanpimsen@step.cmu.ac.th. Auth sp
 
 Current checkpoint: tables are prepared and read back; permission helpers and their tests exist, but auth/session repositories, API enforcement and user-management UI are not wired yet. Existing login continues using its previous session implementation. The previously prepared unused SQL migration was removed. Google Sheets has no database uniqueness/conditional transaction guarantees; the persistence design still needs to address concurrent mutations before claiming production readiness. Never treat a memory mutex as a cross-instance solution. Do not deploy production implicitly.
 
-
 Update: Sheet integration is now implemented; see auth-sheets.md for the actual modules, routes, verification and remaining workflow/transaction limits.

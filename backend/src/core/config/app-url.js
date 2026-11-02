@@ -1,7 +1,8 @@
 import { configurationError } from './credentials.js';
-export function applicationOrigin(env = process.env) {
+export function applicationOrigin(env = process.env, variable = 'APP_URL') {
   const baseUrl =
-    env.APP_URL || (env.VERCEL === '1' ? 'https://iqi-asset.vercel.app' : 'http://localhost:3000');
+    env[variable] ||
+    (env.VERCEL === '1' ? 'https://iqi-asset.vercel.app' : 'http://localhost:3000');
   try {
     const parsed = new URL(baseUrl);
     if (
@@ -16,6 +17,6 @@ export function applicationOrigin(env = process.env) {
       throw new Error();
     return parsed.origin;
   } catch {
-    throw configurationError('APP_URL ต้องเป็น HTTPS origin หรือ HTTP localhost สำหรับทดสอบ');
+    throw configurationError(`${variable} ต้องเป็น HTTPS origin หรือ HTTP localhost สำหรับทดสอบ`);
   }
 }

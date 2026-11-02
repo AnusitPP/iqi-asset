@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   filterAuditEntries,
   auditActionTone,
-} from '../../frontend/public/js/features/audit/model.js';
+} from '../../legacy-frontend/public/js/features/audit/model.js';
 const entries = [
   {
     actor_name_snapshot: 'Anusit Panpimsen',
