@@ -156,7 +156,8 @@ describe('loan and return migration', () => {
     expect(submitted[0]).not.toHaveProperty('start');
     expect(submitted[0]).not.toHaveProperty('due');
     expect(submitted[0]).not.toHaveProperty('mode');
-    expect(transport.mock.calls.some(([path]) => path === '/api/loan-catalog')).toBe(true);
+    expect(transport.mock.calls.some(([path]) => path === '/api/return-catalog')).toBe(true);
+    expect(transport.mock.calls.some(([path]) => path === '/api/loan-catalog')).toBe(false);
   });
   it('requires selecting a catalog result instead of just typing its name', async () => {
     mountForm('loan');

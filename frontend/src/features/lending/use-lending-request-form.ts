@@ -112,6 +112,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
       setNotice(message);
       showToast(message);
       await client.invalidateQueries({ queryKey: ['loan-catalog'] });
+      await client.invalidateQueries({ queryKey: ['return-catalog'] });
       await client.invalidateQueries({ queryKey: ['my-requests'] });
     } catch (caught) {
       setError(caught);

@@ -1,8 +1,8 @@
-export function readyToBorrowData(values = []) {
+function parseCatalogRows(values, sheetName) {
   const headers = (values[0] || []).map((value) => String(value).trim());
   for (const name of ['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์']) {
     if (headers.filter((header) => header === name).length !== 1)
-      throw Object.assign(new Error(`พร้อมยืม: ไม่พบคอลัมน์ ${name} หรือมีคอลัมน์ซ้ำ`), {
+      throw Object.assign(new Error(`${sheetName}: ไม่พบคอลัมน์ ${name} หรือมีคอลัมน์ซ้ำ`), {
         status: 422,
       });
   }
@@ -13,4 +13,12 @@ export function readyToBorrowData(values = []) {
     return [{ row: index + 2, asset, serial: get('S/N'), name: get('ชื่ออุปกรณ์') }];
   });
   return { records };
+}
+
+export function readyToBorrowData(values = []) {
+  return parseCatalogRows(values, 'พร้อมยืม');
+}
+
+export function borrowedAssetCatalogData(values = []) {
+  return parseCatalogRows(values, 'รายการยืมครุภัณฑ์');
 }

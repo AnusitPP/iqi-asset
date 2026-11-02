@@ -29,6 +29,7 @@ const adapter = {
     ['FIXTURE-MOUSE', 'SN-001', 'Mouse'],
   ],
   readLoanSheets: async () => structuredClone(ledger),
+  readBorrowedAssets: async () => structuredClone(ledger.loans),
   appendLoanRows: async (name, rows) => {
     ledger[name].push(...structuredClone(rows));
   },
@@ -192,6 +193,13 @@ try {
   assert.equal(repeatedLoan.status, 200);
   assert.deepEqual(await repeatedLoan.json(), { id: loanResult.id, unchanged: true });
   assert.equal(ledger.loans.length, 2);
+  const returnCatalogResponse = await fetch(base + '/api/return-catalog', {
+    headers: staffHeaders,
+  });
+  assert.equal(returnCatalogResponse.status, 200);
+  const returnCatalog = await returnCatalogResponse.json();
+  assert.equal(returnCatalog.records[0].asset, 'FIXTURE-MOUSE');
+  assert.equal(returnCatalog.records[0].serial, 'SN-001');
   const returned = await fetch(base + '/api/returns', {
     method: 'POST',
     headers: authenticated,

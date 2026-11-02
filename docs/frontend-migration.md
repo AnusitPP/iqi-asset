@@ -20,7 +20,7 @@ The current Vanilla implementation was retained in `legacy-frontend/` for compar
 
 All JSON/binary calls go through categorized `services/` and the typed `ApiClient`; Zod validates responses. Existing Google Sheets schemas, roles, service-account credentials, identity/session behavior and API business logic are retained. New UI data is not stored in browser localStorage; session query caches/drafts clear on logout or unauthorized responses.
 
-The lending catalog keeps the current application's `/api/loan-catalog` source for both forms. This migration does not add the alternate return-catalog API from the earlier development branch.
+The loan form loads `/api/loan-catalog` from the พร้อมยืม sheet. The return form loads `/api/return-catalog` from the รายการยืมครุภัณฑ์ sheet, using separate query caches. Return catalog records contain only row, asset, serial and name; submission validation remains in the existing lending services.
 
 Automated verification covers frontend interaction/contracts, Google-session redirects/logout, permissions, user filtering/editing, audit detail/filtering, own requests, form dates/idempotency/draft isolation, backend/auth regression suites, production build and two isolated HTTP smoke scripts. Tests do not perform real Google OAuth token exchange, Sheets writes, Drive uploads, mobile visual QA or a live Vercel deployment. Real account/service checks remain necessary after configuring OAuth and deployment environment.
 

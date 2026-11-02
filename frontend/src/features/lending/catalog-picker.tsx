@@ -26,12 +26,15 @@ export function LendingCatalogPicker({
     [requested, setRequested] = useState(false);
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const catalog = useQuery({
-    queryKey: ['loan-catalog'],
-    queryFn: ({ signal }) => catalogService.fetchLoanCatalog(api, signal),
+    queryKey: [mode === 'loan' ? 'loan-catalog' : 'return-catalog'],
+    queryFn: ({ signal }) =>
+      mode === 'loan'
+        ? catalogService.fetchLoanCatalog(api, signal)
+        : catalogService.fetchReturnCatalog(api, signal),
     enabled: requested,
   });
   const matches = matchCatalog(catalog.data?.records ?? [], query);
-  const sheetName = 'พร้อมยืม';
+  const sheetName = mode === 'loan' ? 'พร้อมยืม' : 'รายการยืมครุภัณฑ์';
   return (
     <div>
       <Combobox
