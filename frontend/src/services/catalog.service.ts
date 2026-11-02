@@ -4,4 +4,7 @@ export const catalogService = {
   fetchLoanCatalog(api: ApiClient, signal?: AbortSignal) {
     return api.request('/api/loan-catalog', catalogSchema, { signal });
   },
+  fetchReturnCatalog(api: ApiClient, signal?: AbortSignal) {
+    return api.request('/api/return-catalog', catalogSchema, { signal });
+  },
 };

@@ -1,5 +1,5 @@
 'use client';
-import { LendingRequestForm } from '@/features/lending/lending-request-form';
+import { ReturnRequestForm } from './return-request-form';
 export function ReturnsPage() {
-  return <LendingRequestForm mode="return" />;
+  return <ReturnRequestForm />;
 }

@@ -26,11 +26,15 @@ export function LendingCatalogPicker({
     [requested, setRequested] = useState(false);
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const catalog = useQuery({
-    queryKey: ['loan-catalog'],
-    queryFn: ({ signal }) => catalogService.fetchLoanCatalog(api, signal),
+    queryKey: [mode === 'loan' ? 'loan-catalog' : 'return-catalog'],
+    queryFn: ({ signal }) =>
+      mode === 'loan'
+        ? catalogService.fetchLoanCatalog(api, signal)
+        : catalogService.fetchReturnCatalog(api, signal),
     enabled: requested,
   });
   const matches = matchCatalog(catalog.data?.records ?? [], query);
+  const sheetName = mode === 'loan' ? 'พร้อมยืม' : 'รายการยืมครุภัณฑ์';
   return (
     <div>
       <Combobox
@@ -74,7 +78,7 @@ export function LendingCatalogPicker({
         <Combobox.Dropdown>
           <Combobox.Options mah={260} style={{ overflowY: 'auto' }}>
             {catalog.isFetching ? (
-              <Combobox.Empty>กำลังอ่านข้อมูลจากชีตพร้อมยืม…</Combobox.Empty>
+              <Combobox.Empty>กำลังอ่านข้อมูลจากชีต{sheetName}…</Combobox.Empty>
             ) : matches.length ? (
               matches.map((record) => (
                 <Combobox.Option key={record.row} value={String(record.row)}>
@@ -92,7 +96,7 @@ export function LendingCatalogPicker({
           ? `เลือกแล้ว: ${selected.asset}`
           : requested
             ? `พบ ${matches.length} รายการ · กรุณาเลือกอุปกรณ์จากผลค้นหา`
-            : 'ค้นหาจากชีตพร้อมยืม'}
+            : `ค้นหาจากชีต${sheetName}`}
       </Text>
       <ErrorAlert error={catalog.error} />
       {catalog.error && (

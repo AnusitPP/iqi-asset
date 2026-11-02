@@ -5,7 +5,8 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { z } from 'zod';
 import { ApiClient, ApiError } from '../src/lib/api-client';
-import { LendingRequestForm } from '../src/features/lending/lending-request-form';
+import { LoansPage } from '../src/features/loans/loans-page';
+import { ReturnsPage } from '../src/features/returns/returns-page';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 import { loanFormSchema, returnFormSchema } from '../src/types/lending';
 import {
@@ -25,7 +26,8 @@ beforeEach(() => {
   submitted = [];
   transport.mockReset();
   transport.mockImplementation(async (path, options) => {
-    if (path === '/api/loan-catalog') return Response.json(catalog);
+    if (path === '/api/loan-catalog' || path === '/api/return-catalog')
+      return Response.json(catalog);
     const payload: unknown = JSON.parse(String(options?.body));
     submitted.push(payload);
     return Response.json({ id: path === '/api/loans' ? 'L-test' : 'R-test' });
@@ -42,7 +44,7 @@ function mountForm(
     <MantineProvider env="test">
       <QueryClientProvider client={client}>
         <UnsavedChangesProvider>
-          <LendingRequestForm mode={mode} />
+          {mode === 'loan' ? <LoansPage /> : <ReturnsPage />}
         </UnsavedChangesProvider>
       </QueryClientProvider>
     </MantineProvider>,
@@ -90,7 +92,8 @@ describe('loan and return migration', () => {
   it('prevents duplicate clicks while a request is pending', async () => {
     let finishRequest: ((response: Response) => void) | undefined;
     transport.mockImplementation(async (path, options) => {
-      if (path === '/api/loan-catalog') return Response.json(catalog);
+      if (path === '/api/loan-catalog' || path === '/api/return-catalog')
+        return Response.json(catalog);
       const payload: unknown = JSON.parse(String(options?.body));
       submitted.push(payload);
       return new Promise<Response>((resolve) => {
@@ -133,6 +136,8 @@ describe('loan and return migration', () => {
     expect(submitted[0]).not.toHaveProperty('start');
     expect(submitted[0]).not.toHaveProperty('due');
     expect(submitted[0]).not.toHaveProperty('mode');
+    expect(transport.mock.calls.some(([path]) => path === '/api/return-catalog')).toBe(true);
+    expect(transport.mock.calls.some(([path]) => path === '/api/loan-catalog')).toBe(false);
   });
   it('requires selecting a catalog result instead of just typing its name', async () => {
     mountForm('loan');
@@ -154,7 +159,8 @@ describe('loan and return migration', () => {
   it('reuses the request ID after an uncertain server failure and changes it after editing', async () => {
     let calls = 0;
     transport.mockImplementation(async (path, options) => {
-      if (path === '/api/loan-catalog') return Response.json(catalog);
+      if (path === '/api/loan-catalog' || path === '/api/return-catalog')
+        return Response.json(catalog);
       const payload: unknown = JSON.parse(String(options?.body));
       submitted.push(payload);
       calls++;
@@ -186,6 +192,33 @@ describe('loan and return migration', () => {
     expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', 'ทดสอบ ผู้ยืม');
     expect(screen.getByLabelText(/^เลขครุภัณฑ์/)).toHaveProperty('value', 'MOUSE-001 / SN1');
     expect(screen.getByLabelText(/^วันที่ส่งคืน/)).toHaveProperty('value', '2026-11-01');
+  });
+  it('keeps loan and return drafts separate when switching between their pages', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const loanPage = mountForm('loan', client);
+    const user = await selectCatalogAsset();
+    await user.type(screen.getByLabelText(/^เหตุผล/), 'ประชุมทีม');
+    setLoanDates();
+    loanPage.unmount();
+
+    const returnPage = mountForm('return', client);
+    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', '');
+    expect(screen.getByLabelText(/^เลขครุภัณฑ์/)).toHaveProperty('value', '');
+    expect(screen.queryByLabelText(/^เหตุผล/)).toBeNull();
+    await selectCatalogAsset();
+    fireEvent.change(screen.getByLabelText(/^วันที่ส่งคืน/), { target: { value: '2026-11-02' } });
+    returnPage.unmount();
+
+    const restoredLoan = mountForm('loan', client);
+    expect(screen.getByLabelText(/^เหตุผล/)).toHaveProperty('value', 'ประชุมทีม');
+    expect(screen.getByLabelText(/^วันที่ต้องการยืม/)).toHaveProperty('value', '2026-10-30');
+    expect(screen.getByLabelText(/^กำหนดวันส่งคืน/)).toHaveProperty('value', '2026-11-06');
+    expect(screen.getByLabelText(/^เลขครุภัณฑ์/)).toHaveProperty('value', 'MOUSE-001 / SN1');
+    restoredLoan.unmount();
+
+    mountForm('return', client);
+    expect(screen.getByLabelText(/^วันที่ส่งคืน/)).toHaveProperty('value', '2026-11-02');
+    expect(screen.queryByLabelText(/^วันที่ต้องการยืม/)).toBeNull();
   });
 });
 describe('shared rules and task cancellation', () => {
