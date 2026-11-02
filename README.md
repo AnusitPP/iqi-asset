@@ -138,7 +138,6 @@ See [deployment instructions](docs/vercel-deployment.md) for environment variabl
 
 Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/architecture.md). Run all npm commands from the project root; `npm run build` builds Next.js and its Express API adapter into `frontend/.next`. Set Vercel Root Directory to `frontend`, Framework to Next.js, and include source files outside root. The original Vanilla frontend is retained in `legacy-frontend/` for regression comparison.
 
-
 ## Next.js frontend
 
 See [frontend commands](frontend/README.md), [feature parity](docs/frontend-migration.md), and [Vercel settings](docs/vercel-deployment.md). Frontend checks: `npm run check`, `npm run lint:web`, `npm run test:web`, `npm run build`. HTTP smoke tests: `npm run test:embedded-api` and `npm run test:proxy`.

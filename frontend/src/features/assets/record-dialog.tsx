@@ -132,8 +132,7 @@ function AssetRecordEditor({
           {record.row}
         </Text>
         <Text>
-          {editable ? 'แก้ไขได้' : 'ดูอย่างเดียว'} · ข้อมูลครบ {record.headers.length}{' '}
-          คอลัมน์
+          {editable ? 'แก้ไขได้' : 'ดูอย่างเดียว'} · ข้อมูลครบ {record.headers.length} คอลัมน์
         </Text>
         <ErrorAlert error={saveAssetRecordMutation.error} />
         {hint && <Text role="status">{hint}</Text>}

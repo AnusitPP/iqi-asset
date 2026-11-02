@@ -4,7 +4,7 @@ import { permissionsForRole, hasPermission } from '../../shared/features/auth/pe
 import { requirePermission } from '../../backend/src/features/auth/middleware/require-permission.js';
 
 test('roles grant only their defined capabilities; unknown role fails closed', () => {
-  const user = role => ({ permissions: permissionsForRole(role) });
+  const user = (role) => ({ permissions: permissionsForRole(role) });
   assert.equal(hasPermission(user('STAFF'), 'LOAN_CREATE'), true);
   assert.equal(hasPermission(user('STAFF'), 'USER_MANAGE'), false);
   assert.equal(hasPermission(user('ADMIN'), 'ASSET_EDIT'), true);
@@ -17,9 +17,17 @@ test('roles grant only their defined capabilities; unknown role fails closed', (
 });
 test('permission middleware rejects anonymous and forbidden requests', () => {
   const guard = requirePermission('USER_MANAGE');
-  assert.throws(() => guard({}, {}, () => {}), e => e.status === 401);
-  assert.throws(() => guard({ user: { permissions: permissionsForRole('ADMIN') } }, {}, () => {}), e => e.status === 403);
+  assert.throws(
+    () => guard({}, {}, () => {}),
+    (e) => e.status === 401,
+  );
+  assert.throws(
+    () => guard({ user: { permissions: permissionsForRole('ADMIN') } }, {}, () => {}),
+    (e) => e.status === 403,
+  );
   let passed = false;
-  guard({ user: { permissions: ['*'] } }, {}, () => { passed = true; });
+  guard({ user: { permissions: ['*'] } }, {}, () => {
+    passed = true;
+  });
   assert.equal(passed, true);
 });

@@ -2,21 +2,21 @@
 
 The current Vanilla implementation was retained in `legacy-frontend/` for comparison and existing model regression tests. The earlier Next.js implementation from repository history supplied the existing assets/dashboard/photos/lending components. It was updated for the current Google identity, Sheet-backed sessions and role model rather than bringing back the old password login.
 
-| Existing behavior | Next.js implementation |
-| --- | --- |
-| Google Login, profile/avatar, logout | `features/auth`, `components/ui/user-avatar.tsx`, `/api/auth/google`, `/api/auth/me`, `/api/auth/logout` |
-| Role-based menu and edit controls | `components/layout/workspace.tsx`, server-issued permissions; Express authorization unchanged |
-| Asset search, pending filter, grouped results, details/editing | `features/assets`; shared labels/dates/revisions retained |
-| Review selection and inspection | `features/assets`, `features/inspections`; writes hidden for users without ASSET_EDIT |
-| Dashboard statistics/comparison/team/search filters | `features/dashboard`; collapse controls and progress retained |
-| Individual/bulk saves and team/notes editing | `features/dashboard`; sequential revisions, stale drafts and cancellation retained |
-| Drive gallery, image preparation, upload limits/progress | `features/photos`; original backend transport retained |
-| Loan and return forms, catalog selection, seven calendar days | `features/loans`, `features/returns`, `features/lending`; borrower is populated/read-only from signed-in profile |
-| My requests | `features/my-requests`, existing `/api/my-requests` |
-| User filtering, latest-login sort, pagination, detail and role/status edits | `features/users`, existing GET/PATCH `/api/admin/users` endpoints; sole SUPER_ADMIN read-only |
-| Audit search/action/type filters and before/after detail | `features/audit`, existing `/api/audit`; text rendered through React |
-| Desktop sidebar/mobile navigation, unsaved state, retry/feedback | shared workspace, Mantine Drawer, unsaved/task guards and toast |
-| Same-project Vercel API | `src/pages/api/[[...path]].ts`, original `api/index.js`, monorepo file tracing |
+| Existing behavior                                                           | Next.js implementation                                                                                           |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Google Login, profile/avatar, logout                                        | `features/auth`, `components/ui/user-avatar.tsx`, `/api/auth/google`, `/api/auth/me`, `/api/auth/logout`         |
+| Role-based menu and edit controls                                           | `components/layout/workspace.tsx`, server-issued permissions; Express authorization unchanged                    |
+| Asset search, pending filter, grouped results, details/editing              | `features/assets`; shared labels/dates/revisions retained                                                        |
+| Review selection and inspection                                             | `features/assets`, `features/inspections`; writes hidden for users without ASSET_EDIT                            |
+| Dashboard statistics/comparison/team/search filters                         | `features/dashboard`; collapse controls and progress retained                                                    |
+| Individual/bulk saves and team/notes editing                                | `features/dashboard`; sequential revisions, stale drafts and cancellation retained                               |
+| Drive gallery, image preparation, upload limits/progress                    | `features/photos`; original backend transport retained                                                           |
+| Loan and return forms, catalog selection, seven calendar days               | `features/loans`, `features/returns`, `features/lending`; borrower is populated/read-only from signed-in profile |
+| My requests                                                                 | `features/my-requests`, existing `/api/my-requests`                                                              |
+| User filtering, latest-login sort, pagination, detail and role/status edits | `features/users`, existing GET/PATCH `/api/admin/users` endpoints; sole SUPER_ADMIN read-only                    |
+| Audit search/action/type filters and before/after detail                    | `features/audit`, existing `/api/audit`; text rendered through React                                             |
+| Desktop sidebar/mobile navigation, unsaved state, retry/feedback            | shared workspace, Mantine Drawer, unsaved/task guards and toast                                                  |
+| Same-project Vercel API                                                     | `src/pages/api/[[...path]].ts`, original `api/index.js`, monorepo file tracing                                   |
 
 All JSON/binary calls go through categorized `services/` and the typed `ApiClient`; Zod validates responses. Existing Google Sheets schemas, roles, service-account credentials, identity/session behavior and API business logic are retained. New UI data is not stored in browser localStorage; session query caches/drafts clear on logout or unauthorized responses.
 

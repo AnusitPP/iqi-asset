@@ -21,14 +21,9 @@ async function javascriptFiles(folder) {
 test('runtime and maintenance imports resolve after feature reorganization', async () => {
   const files = (
     await Promise.all(
-      [
-        'backend/src',
-        'backend/scripts',
-        'legacy-frontend/public/js',
-        'shared',
-        'api',
-        'test',
-      ].map((dir) => javascriptFiles(path.join(root, dir))),
+      ['backend/src', 'backend/scripts', 'legacy-frontend/public/js', 'shared', 'api', 'test'].map(
+        (dir) => javascriptFiles(path.join(root, dir)),
+      ),
     )
   ).flat();
   for (const file of files) {

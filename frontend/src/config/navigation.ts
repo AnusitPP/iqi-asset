@@ -90,7 +90,7 @@ export const portalModules: readonly PortalModule[] = [
         permission: 'RETURN_CREATE',
       },
     ],
-  }
+  },
   // {
   //   id: 'it-services',
   //   title: 'ซอฟต์แวร์และบริการไอที',

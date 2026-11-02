@@ -12,40 +12,40 @@ Implemented on `feature/fe-new-structure` in the existing Next.js frontend. No n
 
 ## Data and permissions
 
-| Home area | Existing source | Behavior |
-| --- | --- | --- |
-| รายการครุภัณฑ์ / ตรวจเช็คแล้ว / รอการตรวจเช็ค | `dashboardService.fetchDashboardData()` → `/api/dashboard` | Uses total, completed and total minus completed; labels refer to Dashboard records, not deduplicated inventory. Only requests data with ADMIN_DASHBOARD_VIEW. |
-| คำร้องของฉัน | `myRequestsService.list()` → `/api/my-requests` | Counts returned own requests; only requests with LOAN_VIEW_OWN. 
-Unavailable/forbidden summary values show an explicit unavailable state rather than zero. Loading, empty, error and retry states are retained. No purchase/printer counters or notification badge were invented. Navigation filters existing permission grants; backend authorization remains authoritative.
+| Home area                                                                                                                                                                                                                                                                                                    | Existing source                                            | Behavior                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| รายการครุภัณฑ์ / ตรวจเช็คแล้ว / รอการตรวจเช็ค                                                                                                                                                                                                                                                                | `dashboardService.fetchDashboardData()` → `/api/dashboard` | Uses total, completed and total minus completed; labels refer to Dashboard records, not deduplicated inventory. Only requests data with ADMIN_DASHBOARD_VIEW. |
+| คำร้องของฉัน                                                                                                                                                                                                                                                                                                 | `myRequestsService.list()` → `/api/my-requests`            | Counts returned own requests; only requests with LOAN_VIEW_OWN.                                                                                               |
+| Unavailable/forbidden summary values show an explicit unavailable state rather than zero. Loading, empty, error and retry states are retained. No purchase/printer counters or notification badge were invented. Navigation filters existing permission grants; backend authorization remains authoritative. |
 
 ## Routes
 
-| Route | Function |
-| --- | --- |
-| `/` | New protected portal Home |
-| `/dashboard` | Existing inspection progress, search, filters, asset table, individual/bulk updates and refresh |
-| `/assets` | Existing asset search, pending/review selection, inspection and record details/editing; navigation label is ตรวจเช็คครุภัณฑ์ |
-| `/loans`, `/returns` | Existing loan and return forms, catalog selection and API integrations |
-| `/my-requests` | Existing personal requests |
-| `/users` | Existing user administration |
-| `/audit` | Existing Audit Log and details |
-| `/login`, `/api/*` | Existing login/logout/session and Express adapter |
-| `/services/[service]` | Configured, statically generated planned-service pages. Unknown slugs return 404. |
+| Route                 | Function                                                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `/`                   | New protected portal Home                                                                                                    |
+| `/dashboard`          | Existing inspection progress, search, filters, asset table, individual/bulk updates and refresh                              |
+| `/assets`             | Existing asset search, pending/review selection, inspection and record details/editing; navigation label is ตรวจเช็คครุภัณฑ์ |
+| `/loans`, `/returns`  | Existing loan and return forms, catalog selection and API integrations                                                       |
+| `/my-requests`        | Existing personal requests                                                                                                   |
+| `/users`              | Existing user administration                                                                                                 |
+| `/audit`              | Existing Audit Log and details                                                                                               |
+| `/login`, `/api/*`    | Existing login/logout/session and Express adapter                                                                            |
+| `/services/[service]` | Configured, statically generated planned-service pages. Unknown slugs return 404.                                            |
 
 Planned-service destinations clearly show **อยู่ระหว่างพัฒนา**, provide a Home link and have no forms, API calls or invented business workflow:
 
-| Service | Route |
-| --- | --- |
-| ถือครองครุภัณฑ์ | `/services/asset-holdings` |
-| เบิกวัสดุ | `/services/material-requisition` |
-| ขอซื้อซอฟต์แวร์ ฮาร์ดแวร์ | `/services/purchase-request` |
-| ยืมใช้ซอฟต์แวร์ | `/services/software-loan` |
-| สร้าง Teams | `/services/teams` |
-| ลงทะเบียน Printer | `/services/printer` |
-| JumboGuest | `/services/jumbo-guest` |
-| เว็บไซต์ | `/services/websites` |
-| ชดเชยคอม2 | `/services/computer-compensation` |
-| อื่น ๆ | `/services/other` |
+| Service                   | Route                             |
+| ------------------------- | --------------------------------- |
+| ถือครองครุภัณฑ์           | `/services/asset-holdings`        |
+| เบิกวัสดุ                 | `/services/material-requisition`  |
+| ขอซื้อซอฟต์แวร์ ฮาร์ดแวร์ | `/services/purchase-request`      |
+| ยืมใช้ซอฟต์แวร์           | `/services/software-loan`         |
+| สร้าง Teams               | `/services/teams`                 |
+| ลงทะเบียน Printer         | `/services/printer`               |
+| JumboGuest                | `/services/jumbo-guest`           |
+| เว็บไซต์                  | `/services/websites`              |
+| ชดเชยคอม2                 | `/services/computer-compensation` |
+| อื่น ๆ                    | `/services/other`                 |
 
 No existing external service URLs for these planned modules were found, so none were fabricated. Existing runtime sheet links remain available under ลิงก์ชีตที่เกี่ยวข้อง.
 

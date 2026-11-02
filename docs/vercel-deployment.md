@@ -4,15 +4,15 @@ Frontend เป็น Next.js + TypeScript ใน `frontend/` ส่วน `back
 
 ## Project settings
 
-| Setting | Value |
-| --- | --- |
-| Root Directory | `frontend` |
-| Framework Preset | Next.js |
-| Install Command | `cd .. && npm ci` จาก `frontend/vercel.json` |
-| Build Command | `npm run build` จาก `frontend/vercel.json` |
-| Output Directory | `.next` ภายใน `frontend/` |
+| Setting                                     | Value                                                         |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| Root Directory                              | `frontend`                                                    |
+| Framework Preset                            | Next.js                                                       |
+| Install Command                             | `cd .. && npm ci` จาก `frontend/vercel.json`                  |
+| Build Command                               | `npm run build` จาก `frontend/vercel.json`                    |
+| Output Directory                            | `.next` ภายใน `frontend/`                                     |
 | Include source files outside Root Directory | เปิด เพื่อรวม `backend/`, `api/`, `shared/` และ root lockfile |
-| Node.js | 22.x หรือใหม่กว่าที่ตรงกับ package engines |
+| Node.js                                     | 22.x หรือใหม่กว่าที่ตรงกับ package engines                    |
 
 ต้องตั้ง Root Directory ใน Vercel Dashboard ให้ตรงกับ Git repository นี้ ไม่มี `vercel.json` ที่ root และไม่มีการ deploy เว็บ Vanilla เดิม ถ้าเห็นข้อผิดพลาดหา Express entrypoint หรือ output `public` ให้ตรวจ Framework/Root Directory และ commit ที่ deployment ใช้อยู่
 

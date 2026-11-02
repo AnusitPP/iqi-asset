@@ -35,8 +35,13 @@ export function createApp(service, config) {
   configureRequestSecurity(app, config, csrf);
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
-  app.use('/api', (req,res,next) => { req.authStorage ? protectApi(req,res,next) : next(); });
-  if (config.authSpreadsheetId || config.authStorage) { registerAuditRoutes(app); registerUserRoutes(app,config); }
+  app.use('/api', (req, res, next) => {
+    req.authStorage ? protectApi(req, res, next) : next();
+  });
+  if (config.authSpreadsheetId || config.authStorage) {
+    registerAuditRoutes(app);
+    registerUserRoutes(app, config);
+  }
   app.use('/api', async (req, res, next) => {
     if (service.ready) await service.ready();
     next();

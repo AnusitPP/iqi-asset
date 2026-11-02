@@ -121,4 +121,3 @@ test('password popup is backed by API authentication, expiring sessions and rate
     await new Promise((r) => server.close(r));
   }
 });
-

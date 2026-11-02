@@ -47,7 +47,6 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
     if (desktop) setMenuOpen(false);
   }, [desktop]);
 
-
   const activeGroup = activeModule?.id;
   useEffect(() => {
     if (activeGroup)
