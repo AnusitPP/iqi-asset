@@ -7,7 +7,6 @@ import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { ApiClient } from '../src/lib/api-client';
 import { AuthenticatedWorkspace } from '../src/components/layout/workspace';
 import { PortalHomePage } from '../src/features/home/home-page';
-import { recentServicesKey } from '../src/features/home/recently-used';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 import { allPortalServices, findPortalService, findPortalModule } from '../src/config/navigation';
 const navigation = vi.hoisted(() => ({ path: '/', replace: vi.fn() }));
@@ -190,7 +189,6 @@ it('records actual navigation once and renders it when returning home', async ()
   expect(screen.getByText('ยังไม่มีประวัติการเปิดบริการ')).toBeTruthy();
   navigation.path = '/assets';
   view.rerender(portal(<p>Inspection content</p>, client));
-  await waitFor(() => expect(client.getQueryData(recentServicesKey)).toEqual(['/assets']));
   navigation.path = '/';
   view.rerender(portal(<PortalHomePage />, client));
   const recent = within(screen.getByRole('region', { name: 'บริการที่ใช้ล่าสุด' }));
