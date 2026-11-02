@@ -56,6 +56,7 @@ export function loadConfig(env = process.env) {
     dateHeader: env.IQI_DATE_HEADER || '',
     dateMode: env.IQI_DATE_MODE || 'date',
     password: env.APP_PASSWORD || '1234',
+    disabled_menu: env.DISABLED_MENU === 'true',
   };
   if (new Set(config.sheets).size !== 3)
     throw configurationError('ชื่อ Sheet ทั้งสามต้องไม่ซ้ำกัน');

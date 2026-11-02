@@ -55,3 +55,7 @@ Express standalone ให้บริการเฉพาะ API ไม่เ�
 - `npm run test:embedded-api`, `npm run test:proxy`: isolated HTTP acceptance tests
 
 ดู [deployment settings](vercel-deployment.md) ก่อน deploy จาก Git; Root Directory ต้องเป็น `frontend` และเปิด source files outside root
+
+## IT Service Portal
+
+หน้า `/` เป็น Home ของบริการไอที และใช้ navigation กลางที่ `frontend/src/config/navigation.ts` ร่วมกับ sidebar, breadcrumbs และ module cards หน้าทำงานเดิมยังใช้ routes เดิม ส่วน `/services/[service]` ใช้เฉพาะบริการที่ระบุว่าอยู่ระหว่างพัฒนา ดู [รายงาน redesign และรายการไฟล์/route](it-service-portal-redesign.md)

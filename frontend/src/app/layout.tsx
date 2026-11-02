@@ -5,10 +5,11 @@ import '@mantine/core/styles.css';
 import './legacy.css';
 import './dashboard.css';
 import './globals.css';
+import './portal.css';
 import { AppProviders } from '@/providers/app-providers';
 export const metadata: Metadata = {
-  title: 'IQI Asset Checker — ค้นหาครุภัณฑ์',
-  description: 'ระบบตรวจสอบครุภัณฑ์ IQI',
+  title: 'Asset Checker — IT Service Portal',
+  description: 'ศูนย์กลางบริการไอทีและครุภัณฑ์ IQI',
 };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

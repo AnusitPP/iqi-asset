@@ -188,6 +188,7 @@ p {
   border-radius: 20px;
   box-shadow: 0 8px 32px #25334204;
   overflow: hidden;
+  padding: 10px;
 }
 #search-form {
   padding: 26px 29px 20px;

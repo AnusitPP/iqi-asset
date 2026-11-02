@@ -1,4 +1,9 @@
-import { redirect } from 'next/navigation';
+import { AuthenticatedWorkspace } from '@/components/layout/workspace';
+import { PortalHomePage } from '@/features/home/home-page';
 export default function HomePage() {
-  redirect('/dashboard');
+  return (
+    <AuthenticatedWorkspace>
+      <PortalHomePage />
+    </AuthenticatedWorkspace>
+  );
 }

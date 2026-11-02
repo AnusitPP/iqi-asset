@@ -106,7 +106,7 @@ function renderWorkspace(children: ReactNode, client: QueryClient) {
     </MantineProvider>,
   );
 }
-it('opens the mobile menu with four routes and closes it after navigation', async () => {
+it('opens the grouped mobile menu and closes it after navigation', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   renderWorkspace(
     <AuthenticatedWorkspace>
@@ -123,7 +123,7 @@ it('opens the mobile menu with four routes and closes it after navigation', asyn
   expect(within(drawer).getByRole('link', { name: 'คืนครุภัณฑ์' }).getAttribute('href')).toBe(
     '/returns',
   );
-  await user.click(within(drawer).getByRole('link', { name: 'ค้นหาครุภัณฑ์' }));
+  await user.click(within(drawer).getByRole('link', { name: 'ตรวจเช็คครุภัณฑ์' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 });
 it('filters by team, retains filters across remount, and resets all filters together', async () => {

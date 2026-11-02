@@ -1,36 +1,37 @@
 'use client';
-import { useEffect, useState, type ReactNode, type MouseEvent } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Button, Burger, Drawer, Group, Text } from '@mantine/core';
+import { Button, Drawer } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { systemService } from '@/services/system.service';
 import { useHasUnsavedChanges } from '@/hooks/use-unsaved';
+import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
 import { defaultWorkspacePath } from '@/types/account';
-import { UserAvatar } from '@/components/ui/user-avatar';
-const navigationItems = [
-  { href: '/dashboard', label: 'Dashboard', permission: 'ADMIN_DASHBOARD_VIEW' },
-  { href: '/assets', label: 'ค้นหาครุภัณฑ์', permission: 'ASSET_VIEW' },
-  { href: '/loans', label: 'ยืมครุภัณฑ์', permission: 'LOAN_CREATE' },
-  { href: '/returns', label: 'คืนครุภัณฑ์', permission: 'RETURN_CREATE' },
-  { href: '/my-requests', label: 'รายการของฉัน', permission: 'LOAN_VIEW_OWN' },
-  { href: '/users', label: 'ผู้ใช้งาน', permission: 'USER_VIEW' },
-  { href: '/audit', label: 'Audit Log', permission: 'AUDIT_VIEW' },
-];
+import { findPortalService, findPortalModule, isServiceAllowed } from '@/config/navigation';
+import { AppSidebar } from '@/components/portal/app-sidebar';
+import { PortalTopbar } from '@/components/portal/topbar';
+import { PortalNavigationProvider } from '@/components/portal/navigation-context';
+
 export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
-  const dirty = useHasUnsavedChanges(),
-    auth = useAuthSession(),
-    path = usePathname(),
-    router = useRouter();
-  const [error, setError] = useState<unknown>(null),
-    [leaving, setLeaving] = useState(false),
-    [menuOpen, setMenuOpen] = useState(false);
+  const dirty = useHasUnsavedChanges();
+  const auth = useAuthSession();
+  const path = usePathname() ?? '/';
+  const router = useRouter();
+  const [error, setError] = useState<unknown>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useWorkspaceState('portal-sidebar-collapsed', false);
+  const [groups, setGroups] = useWorkspaceState<Record<string, boolean>>(
+    'portal-sidebar-groups',
+    {},
+  );
   const desktop = useMediaQuery('(min-width: 1024px)');
-  const currentPage = navigationItems.find((item) => item.href === path);
-  const allowed = !currentPage || auth.can(currentPage.permission);
+  const currentPage = findPortalService(path);
+  const activeModule = findPortalModule(path);
+  const allowed = !currentPage || isServiceAllowed(currentPage, auth.can);
   const status = useQuery({
     queryKey: ['connection'],
     queryFn: ({ signal }) => systemService.fetchConnectionStatus(auth.api, signal),
@@ -45,13 +46,20 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (desktop) setMenuOpen(false);
   }, [desktop]);
-  const confirmNavigationWithUnsavedChanges = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (dirty && !window.confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการเปลี่ยนหน้าหรือไม่?')) {
-      event.preventDefault();
-      return;
-    }
-    setMenuOpen(false);
-  };
+
+
+  const activeGroup = activeModule?.id;
+  useEffect(() => {
+    if (activeGroup)
+      setGroups((previous) =>
+        previous[activeGroup] === true ? previous : { ...previous, [activeGroup]: true },
+      );
+  }, [activeGroup, setGroups]);
+  const toggleGroup = (id: string) =>
+    setGroups((previous) => ({
+      ...previous,
+      [id]: !(previous[id] ?? !['it-services', 'other'].includes(id)),
+    }));
   const handleLogout = async () => {
     if (dirty && !window.confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการล็อกออกหรือไม่?')) return;
     setLeaving(true);
@@ -65,66 +73,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
       setLeaving(false);
     }
   };
-  const renderWorkspaceMenu = () => (
-    <>
-      <Link
-        onClick={confirmNavigationWithUnsavedChanges}
-        className="brand"
-        href={defaultWorkspacePath(auth.user)}
-      >
-        <span className="brand-mark">iqi.</span>
-        <span className="brand-name">
-          Asset Checker<span>ระบบตรวจสอบครุภัณฑ์</span>
-        </span>
-      </Link>
-      <span className={`connection ${status.data && !status.error ? 'online' : 'offline'}`}>
-        <span className="status-dot" />
-        {status.isFetching
-          ? 'กำลังเชื่อมต่อ'
-          : status.data && !status.error
-            ? 'Google Sheets เชื่อมต่อแล้ว'
-            : 'ยังไม่เชื่อมต่อ'}
-      </span>
-      <nav className="workspace-tabs" aria-label="หน้าข้อมูล">
-        {navigationItems
-          .filter((item) => auth.can(item.permission))
-          .map((item) => (
-            <Link
-              key={item.href}
-              onClick={confirmNavigationWithUnsavedChanges}
-              className={`workspace-tab ${path === item.href ? 'active' : ''}`}
-              href={item.href}
-              aria-current={path === item.href ? 'page' : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
-      </nav>
-      {auth.user && (
-        <Group wrap="nowrap" p="sm">
-          <UserAvatar name={auth.user.name} url={auth.user.avatar_url} />
-          <div>
-            <Text size="sm" fw={600}>
-              {auth.user.name}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {auth.user.role}
-            </Text>
-          </div>
-        </Group>
-      )}
-      <Button
-        variant="subtle"
-        loading={leaving}
-        onClick={() => {
-          void handleLogout();
-        }}
-      >
-        ล็อกออก
-      </Button>
-    </>
-  );
-  if (auth.loading) return <LoadingIndicator />;
+  if (auth.loading || (!auth.authenticated && !auth.error)) return <LoadingIndicator />;
   if (auth.error)
     return (
       <main className="container">
@@ -132,62 +81,83 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
         <Button onClick={auth.retrySessionLookup}>ลองอีกครั้ง</Button>
       </main>
     );
-  if (!auth.authenticated) return <LoadingIndicator />;
+  const sidebarProps = {
+    path,
+    groups,
+    onToggleGroup: toggleGroup,
+    onToggleCollapse: () => setCollapsed((value) => !value),
+    onLogout: () => {
+      void handleLogout();
+    },
+    leaving,
+  };
   return (
-    <div className="workspace-frame">
-      <aside className="workspace-sidebar" aria-label="เมนูหลัก">
-        {renderWorkspaceMenu()}
-      </aside>
-      <header className="workspace-mobile-header">
-        <Burger
-          opened={menuOpen}
-          onClick={() => setMenuOpen((value) => !value)}
-          aria-label={menuOpen ? 'ปิดเมนู' : 'เปิดเมนู'}
-          aria-expanded={menuOpen}
-          aria-controls="workspace-mobile-menu"
-        />
-        <span>IQI Asset Checker</span>
-      </header>
-      <Drawer
-        id="workspace-mobile-menu"
-        opened={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        title="เมนูหลัก"
-        size={280}
-        transitionProps={{ duration: 180 }}
-      >
-        {renderWorkspaceMenu()}
-      </Drawer>
-      <main className="container workspace-content">
-        <ErrorAlert error={error} />
-        <ErrorAlert error={status.error} />
-        {status.error && (
-          <Button
-            onClick={() => {
-              void status.refetch();
-            }}
-          >
-            ลองเชื่อมต่ออีกครั้ง
-          </Button>
-        )}
-        <div className="sheet-links">
-          {status.data?.reviewUrl && (
-            <a href={status.data.reviewUrl} target="_blank" rel="noreferrer">
-              เปิดชีตรอตรวจสอบ ↗
-            </a>
-          )}
-          {status.data?.iqiItUrl && (
-            <a href={status.data.iqiItUrl} target="_blank" rel="noreferrer">
-              เปิดชีต IT + IQI ↗
-            </a>
-          )}
+    <PortalNavigationProvider onNavigate={() => setMenuOpen(false)}>
+      <div className={`portal-shell${collapsed ? ' is-collapsed' : ''}`}>
+        <a className="portal-skip-link" href="#portal-main">
+          ข้ามไปยังเนื้อหา
+        </a>
+        <aside className="portal-sidebar" aria-label="เมนูหลัก">
+          <AppSidebar {...sidebarProps} collapsed={collapsed} />
+        </aside>
+        <div className="portal-body">
+          <PortalTopbar
+            path={path}
+            menuOpen={menuOpen}
+            onMenuToggle={() => setMenuOpen((value) => !value)}
+            connected={!!status.data && !status.error}
+            connecting={status.isFetching}
+          />
+          <main className="portal-main container" id="portal-main" tabIndex={-1}>
+            <ErrorAlert error={error} />
+            <ErrorAlert error={status.error} />
+            {status.error && (
+              <Button
+                variant="light"
+                onClick={() => {
+                  void status.refetch();
+                }}
+              >
+                ลองเชื่อมต่ออีกครั้ง
+              </Button>
+            )}
+            {allowed ? children : <LoadingIndicator />}
+            {(status.data?.reviewUrl || status.data?.iqiItUrl) && (
+              <details className="portal-sheet-links">
+                <summary>ลิงก์ชีตที่เกี่ยวข้อง</summary>
+                <div className="sheet-links">
+                  {status.data.reviewUrl && (
+                    <a href={status.data.reviewUrl} target="_blank" rel="noreferrer">
+                      เปิดชีตรอตรวจสอบ ↗
+                    </a>
+                  )}
+                  {status.data.iqiItUrl && (
+                    <a href={status.data.iqiItUrl} target="_blank" rel="noreferrer">
+                      เปิดชีต IT + IQI ↗
+                    </a>
+                  )}
+                </div>
+              </details>
+            )}
+            <footer className="portal-footer">
+              <span>IQI · IT Service Portal</span>
+              <span>Asset Checker · ข้อมูลจาก Google Sheets</span>
+            </footer>
+          </main>
         </div>
-        {allowed ? children : <LoadingIndicator />}
-        <footer>
-          <span>IQI Asset Checker</span>
-          <span>ข้อมูลจาก Google Sheets</span>
-        </footer>
-      </main>
-    </div>
+        <Drawer
+          id="workspace-mobile-menu"
+          opened={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          title="เมนูหลัก"
+          closeButtonProps={{ 'aria-label': 'ปิดเมนู' }}
+          size={288}
+          transitionProps={{ duration: 180 }}
+          classNames={{ body: 'portal-drawer-body' }}
+        >
+          <AppSidebar {...sidebarProps} mobile collapsed={false} />
+        </Drawer>
+      </div>
+    </PortalNavigationProvider>
   );
 }
