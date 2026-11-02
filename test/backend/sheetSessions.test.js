@@ -51,6 +51,15 @@ test('bootstrap binds verified sub, changes roles immediately, audits mutation a
   assert.equal((await sessions.read(token)).user.role, 'ADMIN');
   await users.update(owner, staff.id, 'role', 'STAFF');
   assert.equal((await sessions.read(token)).user.role, 'STAFF');
+  const grant = storage.tables.Admins.find((entry) => entry.user_id === staff.id);
+  assert.equal(grant.role, 'STAFF');
+  assert.equal(grant.status, 'DISABLED');
+  assert.equal((await sessions.read(token)).user.status, 'ACTIVE');
+  await users.update(owner, staff.id, 'role', 'ADMIN');
+  assert.equal(grant.role, 'ADMIN');
+  assert.equal(grant.status, 'ACTIVE');
+  assert.equal((await sessions.read(token)).user.role, 'ADMIN');
+  await users.update(owner, staff.id, 'role', 'STAFF');
   await users.update(owner, staff.id, 'status', 'DISABLED');
   assert.equal(await sessions.read(token), null);
   await assert.rejects(sessions.login(identity), (e) => e.status === 403);

@@ -10,6 +10,7 @@ import {
 } from '@/config/navigation';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { defaultWorkspacePath } from '@/types/account';
 import { usePortalLinkHandler } from './navigation-context';
 
 type SidebarProps = {
@@ -81,7 +82,7 @@ export function AppSidebar({
     <div className={`portal-sidebar-inner${collapsed ? ' is-collapsed' : ''}`}>
       <div className="portal-sidebar-brand-row">
         <Link
-          href="/"
+          href={isServiceAllowed(homeService, can) ? '/' : defaultWorkspacePath(user)}
           className="portal-brand"
           onClick={navigate}
           aria-label="Asset Checker หน้าหลัก"
@@ -111,7 +112,9 @@ export function AppSidebar({
         aria-label="หน้าข้อมูล"
         id={mobile ? 'portal-mobile-navigation' : 'portal-desktop-navigation'}
       >
-        <SidebarItem service={homeService} path={path} collapsed={collapsed} />
+        {isServiceAllowed(homeService, can) && (
+          <SidebarItem service={homeService} path={path} collapsed={collapsed} />
+        )}
         {sidebarModules.map((module) => {
           const services = module.services.filter((service) => isServiceAllowed(service, can));
           if (!services.length) return null;

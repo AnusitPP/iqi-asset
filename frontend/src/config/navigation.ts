@@ -29,7 +29,13 @@ export type PortalModule = {
   tone: 'green' | 'blue' | 'violet' | 'amber';
   services: readonly PortalService[];
 };
-export const homeService: PortalService = { id: 'home', label: 'หน้าหลัก', href: '/', icon: Home };
+export const homeService: PortalService = {
+  id: 'home',
+  label: 'หน้าหลัก',
+  href: '/',
+  icon: Home,
+  permission: 'PORTAL_HOME_VIEW',
+};
 export const portalModules: readonly PortalModule[] = [
   {
     id: 'overview',
@@ -190,5 +196,5 @@ export function findPortalModule(path: string) {
   );
 }
 export function isServiceAllowed(service: PortalService, can: (permission: string) => boolean) {
-  return !service.permission || can(service.permission);
+  return can(service.permission ?? 'PORTAL_HOME_VIEW');
 }

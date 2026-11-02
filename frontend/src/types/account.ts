@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { permissionsForRole } from '@shared/features/auth/permissions.js';
 
 export const roleSchema = z.enum(['STAFF', 'ADMIN', 'SUPER_ADMIN']);
 export const userStatusSchema = z.enum(['ACTIVE', 'DISABLED']);
@@ -48,10 +49,13 @@ export const myRequestsSchema = z.object({
 });
 
 export function canAccess(user: AccountUser | null | undefined, permission: string) {
+  if (!user) return false;
+  const rolePermissions = permissionsForRole(user.role);
   return (
-    user?.permissions.includes('*') === true || user?.permissions.includes(permission) === true
+    (rolePermissions.includes('*') || rolePermissions.includes(permission)) &&
+    (user.permissions.includes('*') || user.permissions.includes(permission))
   );
 }
 export function defaultWorkspacePath(user: AccountUser | null | undefined) {
-  return canAccess(user, 'ADMIN_DASHBOARD_VIEW') ? '/dashboard' : '/assets';
+  return canAccess(user, 'ADMIN_DASHBOARD_VIEW') ? '/dashboard' : '/loans';
 }

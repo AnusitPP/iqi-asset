@@ -5,6 +5,7 @@ import { ChevronRight, Home } from 'lucide-react';
 import { findPortalModule, findPortalService } from '@/config/navigation';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { defaultWorkspacePath } from '@/types/account';
 import { usePortalLinkHandler } from './navigation-context';
 export function PortalTopbar({
   path,
@@ -19,7 +20,7 @@ export function PortalTopbar({
   connected: boolean;
   connecting: boolean;
 }) {
-  const { user } = useAuthSession();
+  const { user, can } = useAuthSession();
   const navigate = usePortalLinkHandler();
   const current = findPortalService(path);
   const module = findPortalModule(path);
@@ -37,7 +38,11 @@ export function PortalTopbar({
           />
         </div>
         <nav aria-label="เส้นทางหน้า" className="portal-breadcrumbs">
-          <Link href="/" onClick={navigate} aria-label="กลับหน้าหลัก">
+          <Link
+            href={can('PORTAL_HOME_VIEW') ? '/' : defaultWorkspacePath(user)}
+            onClick={navigate}
+            aria-label="กลับหน้าเริ่มต้น"
+          >
             <Home size={16} aria-hidden="true" />
           </Link>
           <ChevronRight size={13} aria-hidden="true" />
@@ -51,10 +56,12 @@ export function PortalTopbar({
         </nav>
       </div>
       <div className="portal-topbar-end">
-        <span className={`portal-connection${connected ? ' is-online' : ''}`} role="status">
-          <i />
-          {connecting ? 'กำลังเชื่อมต่อ' : connected ? 'เชื่อมต่อระบบแล้ว' : 'ยังไม่เชื่อมต่อ'}
-        </span>
+        {can('ASSET_VIEW') && (
+          <span className={`portal-connection${connected ? ' is-online' : ''}`} role="status">
+            <i />
+            {connecting ? 'กำลังเชื่อมต่อ' : connected ? 'เชื่อมต่อระบบแล้ว' : 'ยังไม่เชื่อมต่อ'}
+          </span>
+        )}
         {user && (
           <div className="portal-topbar-profile">
             <UserAvatar name={user.name} url={user.avatar_url} />
