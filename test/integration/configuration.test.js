@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { loadConfig } from '../../backend/src/core/config/loadConfig.js';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
 import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
 import { safeMessage, logError } from '../../backend/src/core/errors/errors.js';
-import { readApiResponse } from '../../frontend/public/js/core/http/response.js';
+import { readApiResponse } from '../../legacy-frontend/public/js/core/http/response.js';
 import { StateStore } from '../../backend/src/core/state/stateStore.js';
 
 const serviceAccount = { client_email: 'test@example.invalid', private_key: 'test-key' };
@@ -48,7 +49,7 @@ test('local config retains file fallback and hosted config rejects missing or ma
   });
   assert.equal(local.serviceAccount, undefined);
   assert.match(local.keyFile, /credentials[\\/]test.json$/);
-  assert.equal(local.driveOAuthFile, './credentials/oauth.json');
+  assert.equal(local.driveOAuthFile, path.resolve('credentials/oauth.json'));
   for (const key of ['APP_PASSWORD', 'APP_SECRET', 'GOOGLE_SERVICE_ACCOUNT_JSON']) {
     assert.throws(() => loadConfig({ ...env, [key]: '' }), { code: 'APP_CONFIGURATION' });
   }
@@ -152,7 +153,7 @@ test('Vercel entry imports without credentials and returns controlled JSON on st
   assert.match(output, /CONTROLLED_STARTUP_ERROR/);
 });
 
-test('local server still starts and serves frontend/auth with mocked Google setup and no cloud writes', () => {
+test('local server is API-only with mocked Google setup and no cloud writes', () => {
   const runtime = new URL('../../backend/src/runtime.js', import.meta.url).href;
   const serverModule = new URL('../../backend/server.js', import.meta.url).href;
   const script = `
@@ -170,9 +171,12 @@ test('local server still starts and serves frontend/auth with mocked Google setu
     if (!server.listening) await new Promise(resolve => server.once('listening', resolve));
     const base = 'http://127.0.0.1:' + server.address().port;
     try {
-      for (const path of ['/', '/js/app.js', '/styles/style.css', '/styles/dashboard.css', '/assets/fonts/thai.woff2', '/shared/core/formatters/labels.js', '/shared/features/photos/slots.js', '/js/features/dashboard/dashboard.js', '/api/auth/session']) {
+      for (const path of ['/api/auth/session', '/api/upload-config']) {
         const response = await fetch(base + path);
-        if (!response.ok) throw new Error('Local route failed: ' + path);
+        if (!response.ok) throw new Error('Local API failed: ' + path);
+      }
+      for (const path of ['/', '/js/app.js', '/styles/style.css', '/shared/features/photos/slots.js']) {
+        if ((await fetch(base + path)).status !== 404) throw new Error('Legacy web route still served: ' + path);
       }
       const session = await fetch(base + '/api/auth/session').then(res => res.json());
       const response = await fetch(base + '/api/auth/login', {

@@ -24,9 +24,8 @@ test('runtime and maintenance imports resolve after feature reorganization', asy
       [
         'backend/src',
         'backend/scripts',
-        'frontend/public/js',
+        'legacy-frontend/public/js',
         'shared',
-        'scripts',
         'api',
         'test',
       ].map((dir) => javascriptFiles(path.join(root, dir))),
@@ -47,7 +46,7 @@ test('runtime and maintenance imports resolve after feature reorganization', asy
   }
 });
 test('frontend entrypoint composes features instead of defining editors', async () => {
-  const source = await readFile(path.join(root, 'frontend/public/js/app.js'), 'utf8');
+  const source = await readFile(path.join(root, 'legacy-frontend/public/js/app.js'), 'utf8');
   assert(source.split('\n').length < 100);
   assert(!source.includes('createElement('));
   assert(!source.includes('fetch('));

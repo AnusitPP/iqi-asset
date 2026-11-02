@@ -1,5 +1,5 @@
 import { applicationOrigin } from './app-url.js';
-import path from 'node:path';
+import { resolveProjectFile } from './paths.js';
 import {
   configurationError,
   parseCredentialJSON,
@@ -9,6 +9,7 @@ import {
 export function loadConfig(env = process.env) {
   const hosted = env.VERCEL === '1';
   const publicOrigin = env.APP_URL ? applicationOrigin(env) : undefined;
+  const frontendOrigin = env.FRONTEND_URL ? applicationOrigin(env, 'FRONTEND_URL') : undefined;
   if ((env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET) && !env.AUTH_SPREADSHEET_ID)
     throw configurationError('กรุณาตั้งค่า AUTH_SPREADSHEET_ID สำหรับ Google Login');
   if (hosted && (!env.APP_PASSWORD || !env.APP_SECRET))
@@ -20,6 +21,7 @@ export function loadConfig(env = process.env) {
   const config = {
     hosted,
     publicOrigin,
+    frontendOrigin,
     authSpreadsheetId: env.AUTH_SPREADSHEET_ID || '',
     bootstrapSuperAdminEmail: (env.BOOTSTRAP_SUPER_ADMIN_EMAIL || '').trim().toLowerCase(),
     appSecret: env.APP_SECRET,
@@ -37,13 +39,15 @@ export function loadConfig(env = process.env) {
       'GOOGLE_DRIVE_OAUTH_JSON',
     ),
     photoFolderId: env.GOOGLE_PHOTO_FOLDER_ID || '1C42KW3QDHJ2X4scDba0p11TV1xM4L8-z',
-    driveOAuthFile: env.GOOGLE_DRIVE_OAUTH_FILE || '',
+    driveOAuthFile: resolveProjectFile(env.GOOGLE_DRIVE_OAUTH_FILE || ''),
     maxUploadBytes: hosted ? 4 * 1024 * 1024 : 25 * 1024 * 1024,
     publicPhotoPreview: env.PUBLIC_PHOTO_PREVIEW === 'true',
     port: Number(env.PORT || 3000),
     host: env.HOST || '0.0.0.0',
     spreadsheetId: env.GOOGLE_SPREADSHEET_ID || '1IvDnE8yCqN232ZuaXgNSj-42Zm4k1IjDYFNgsXXWdHo',
-    keyFile: path.resolve(env.GOOGLE_SERVICE_ACCOUNT_FILE || 'credentials/service-account.json'),
+    keyFile: resolveProjectFile(
+      env.GOOGLE_SERVICE_ACCOUNT_FILE || 'credentials/service-account.json',
+    ),
     sheets: [
       env.SHEET_IQI || 'IQI',
       env.SHEET_ALL_ITEMS || 'รายการทั้งหมด',

@@ -1,6 +1,6 @@
 # IQI Asset Checker
 
-เว็บ local สำหรับค้นเลขครุภัณฑ์พร้อมกัน 3 Sheet และแก้ไข **IQI เท่านั้น** ใช้ Node.js 20+, Express และ Google Sheets API ไม่มี database และไม่ต้อง deploy
+เว็บ local สำหรับค้นเลขครุภัณฑ์พร้อมกัน 3 Sheet และแก้ไข **IQI เท่านั้น** ใช้ Node.js 22.12+, Next.js + TypeScript, Express และ Google Sheets API โดยไม่มี database เพิ่มเติม
 
 ## โครงสร้างโค้ด
 
@@ -12,10 +12,13 @@
 npm install
 # ครั้งแรกเท่านั้น ถ้ายังไม่มี .env:
 Copy-Item .env.example .env
+Copy-Item frontend/.env.example frontend/.env.local
+npm run dev:api
+# อีก terminal
 npm run dev
 ```
 
-เปิด http://localhost:3000 แล้วกรอกรหัสใน popup (ค่าปัจจุบันตามที่ตั้งให้: `1234`) หยุดเซิร์ฟเวอร์ด้วย Ctrl+C หรือใช้ `npm start` เพื่อเปิดอีกครั้ง เปลี่ยนรหัสได้ที่ `APP_PASSWORD` ใน `.env` แล้ว restart
+เปิด http://localhost:3001 และเข้าสู่ระบบด้วย Google ตั้ง `APP_URL=http://localhost:3000` และ `FRONTEND_URL=http://localhost:3001` ใน root `.env` และลงทะเบียน callback `http://localhost:3000/api/auth/google/callback` ใน Google OAuth client โดยเก็บค่า credentials/Sheet IDs เดิมไว้ Express API รันที่ :3000 ส่วน Next.js รันที่ :3001
 
 วาง Service Account ที่ `credentials/service-account.json` และแชร์ Google Spreadsheet ให้บัญชีนั้นเป็น Editor พร้อมเปิด Google Sheets API ใน Google Cloud ตัว credential และ `.env` ถูก ignore และไม่ได้อยู่ใน frontend/public/
 
@@ -91,7 +94,7 @@ IQI จะอัปเดต `สถานะการค้นหา` เป็
 
 ## การบันทึกและความปลอดภัย
 
-- เสิร์ฟเฉพาะ `frontend/public/` ไม่มี route ส่ง credential / `.env` และใช้ textContent แสดงข้อมูล Sheet
+- Next.js เสิร์ฟหน้าเว็บจาก `frontend/src/` ส่วน Express ให้บริการเฉพาะ API ไม่มี route ส่ง credential / `.env` และ React แสดงข้อมูล Sheet เป็นข้อความ
 - Backend จำกัดต้นฉบับที่อ่านได้ 3 แท็บ และแก้ไขข้อมูลต้นฉบับได้เฉพาะ IQI เท่านั้น ปุ่มหัวใจเขียนสำเนาไปแท็บรอตรวจสอบที่กำหนดไว้โดยเฉพาะ
 - มี CSRF token, ตรวจ Origin และ Host และไม่เปิด CORS ข้ามเว็บไซต์
 - API อ่าน/ค้นหา/บันทึกตรวจ session ฝั่ง backend ทุกครั้ง Cookie เป็น HttpOnly / SameSite=Strict รหัสไม่ถูกส่งไปเก็บใน JavaScript ของ frontend
@@ -113,7 +116,7 @@ node scripts/live-check.mjs --write-test
 
 หากการคืนค่าใน live write test ล้มเหลว จะเก็บ backup ที่ `credentials/last-live-test-backup.json` เพื่อให้ตรวจคืนค่าได้ และไม่เขียนทับการแก้ไขที่พบว่าเกิดจากภายนอก
 
-UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan](https://www.figma.com/community/file/977500202909795677/dashboard): พื้นขาว, ตัวอักษรเข้ม, whitespace, มุมโค้ง และสีเป็นจุดเน้น ปรับ workflow เฉพาะครุภัณฑ์ ไม่มี sidebar/chart/statistics ฟอนต์ Noto Sans Thai ให้บริการจากเครื่อง ไม่เรียก external font CDN
+UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan](https://www.figma.com/community/file/977500202909795677/dashboard): พื้นขาว, ตัวอักษรเข้ม, whitespace, มุมโค้ง และสีเป็นจุดเน้น ปรับ workflow เฉพาะครุภัณฑ์ พร้อม sidebar, เมนูมือถือ และสถิติ Dashboard ฟอนต์ Noto Sans Thai ให้บริการจากเครื่อง ไม่เรียก external font CDN
 
 ### Dashboard Appscriptdata
 
@@ -129,8 +132,13 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 
 ## Vercel deployment
 
-See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, signed-cookie sessions, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.
+See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, Google Login, Sheet-backed sessions, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.
 
 ## File structure
 
-Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/project-structure.md). Run all npm commands from the project root; `npm run build` prepares `frontend/dist/` for Vercel.
+Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/architecture.md). Run all npm commands from the project root; `npm run build` builds Next.js and its Express API adapter into `frontend/.next`. Set Vercel Root Directory to `frontend`, Framework to Next.js, and include source files outside root. The original Vanilla frontend is retained in `legacy-frontend/` for regression comparison.
+
+
+## Next.js frontend
+
+See [frontend commands](frontend/README.md), [feature parity](docs/frontend-migration.md), and [Vercel settings](docs/vercel-deployment.md). Frontend checks: `npm run check`, `npm run lint:web`, `npm run test:web`, `npm run build`. HTTP smoke tests: `npm run test:embedded-api` and `npm run test:proxy`.

@@ -28,7 +28,7 @@ export function googleCallbackController(config, startSession, failedLogin) {
         nonce: cookieValue('google_oauth_nonce'),
       });
       await startSession(req, res, identity);
-      res.redirect(303, '/');
+      res.redirect(303, config.frontendOrigin ? `${config.frontendOrigin}/` : '/');
     } catch (error) {
       if (failedLogin) {
         try {

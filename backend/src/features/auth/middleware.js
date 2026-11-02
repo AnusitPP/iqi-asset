@@ -49,6 +49,12 @@ export function createAuth(config, csrf) {
     res.cookie('iqi_session', signed, { ...cookieOptions(req), maxAge: LIFETIME });
   };
   router.use('/auth', createAuthRoutes(config, startSession));
+  router.get('/auth/me', (req, res) =>
+    res.status(503).json({
+      error:
+        'กรุณาตั้งค่า AUTH_SPREADSHEET_ID, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET และ GOOGLE_ALLOWED_DOMAIN สำหรับ Google Login',
+    }),
+  );
   router.get('/auth/session', async (req, res) => {
     const isAuthenticated = await authenticated(req);
     const name = isAuthenticated ? session(req)?.user?.name : undefined;

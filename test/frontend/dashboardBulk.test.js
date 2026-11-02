@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { saveStatusDrafts } from '../../frontend/public/js/features/dashboard/dashboardBulk.js';
+import { saveStatusDrafts } from '../../legacy-frontend/public/js/features/dashboard/dashboardBulk.js';
 
 test('bulk save processes every draft, retains failures and removes only successes', async () => {
   const drafts = new Map([
