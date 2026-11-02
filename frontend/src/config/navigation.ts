@@ -9,6 +9,7 @@ import {
   History,
   ShieldCheck,
   ListChecks,
+  Files,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -176,6 +177,13 @@ export const accountModule: PortalModule = {
     },
     { id: 'users', label: 'ผู้ใช้งาน', href: '/users', icon: UsersRound, permission: 'USER_VIEW' },
     { id: 'audit', label: 'Audit Log', href: '/audit', icon: History, permission: 'AUDIT_VIEW' },
+    {
+      id: 'sheets',
+      label: 'ไฟล์ Google Sheets',
+      href: '/sheets',
+      icon: Files,
+      permission: 'ADMIN_DASHBOARD_VIEW',
+    },
   ],
 };
 export const sidebarModules = [...portalModules, accountModule];

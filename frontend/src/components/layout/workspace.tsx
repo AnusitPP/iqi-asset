@@ -122,23 +122,6 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               </Button>
             )}
             {allowed ? children : <LoadingIndicator />}
-            {canReadStatus && (status.data?.reviewUrl || status.data?.iqiItUrl) && (
-              <details className="portal-sheet-links">
-                <summary>ลิงก์ชีตที่เกี่ยวข้อง</summary>
-                <div className="sheet-links">
-                  {status.data.reviewUrl && (
-                    <a href={status.data.reviewUrl} target="_blank" rel="noreferrer">
-                      เปิดชีตรอตรวจสอบ ↗
-                    </a>
-                  )}
-                  {status.data.iqiItUrl && (
-                    <a href={status.data.iqiItUrl} target="_blank" rel="noreferrer">
-                      เปิดชีต IT + IQI ↗
-                    </a>
-                  )}
-                </div>
-              </details>
-            )}
             <footer className="portal-footer">
               <span>IQI · IT Service Portal</span>
               <span>Asset Checker · ข้อมูลจาก Google Sheets</span>
