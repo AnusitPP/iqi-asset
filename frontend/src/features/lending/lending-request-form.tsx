@@ -59,7 +59,7 @@ export function LendingRequestForm({
               readOnly={borrowerReadOnly}
               {...form.register('borrower')}
               error={form.formState.errors.borrower?.message}
-              disabled={busy}
+              disabled
             />
             <NativeSelect
               label="ทีม"

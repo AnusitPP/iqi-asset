@@ -376,8 +376,62 @@
   gap: 6px;
   align-items: center;
 }
+.dash-status-field {
+  width: 140px;
+  flex: 0 0 140px;
+  --status-background: #fff;
+  --status-color: #4a5750;
+  --status-border: #cdd6d1;
+}
+.dash-status-field.good {
+  --status-background: #dcefe1;
+  --status-color: #29683d;
+}
+.dash-status-field.damaged {
+  --status-background: #fff0ba;
+  --status-color: #805d0e;
+}
+.dash-status-field.lost {
+  --status-background: #ffdddd;
+  --status-color: #9b3939;
+}
+.dash-status-field.other {
+  --status-background: #d9efff;
+  --status-color: #155f92;
+  --status-border: #79bde7;
+}
+.dash-status-field.cctv {
+  --status-background: #ebdcfa;
+  --status-color: #6b3091;
+  --status-border: #b98bde;
+}
+.dash-status-field .dash-status-input {
+  height: 37px;
+  border-radius: 8px;
+  background: var(--status-background);
+  color: var(--status-color);
+  border-color: var(--status-border);
+  font-size: 12px;
+  cursor: pointer;
+}
+.dash-status-field .dash-status-input:focus {
+  border-color: var(--status-color);
+}
+.dash-status-option {
+  font-size: 12px;
+  border-radius: 6px;
+}
+.dash-status-chevron {
+  color: var(--status-color);
+  transition: transform 150ms ease;
+}
+.dash-status-field:has(input[aria-expanded='true']) .dash-status-chevron {
+  transform: rotate(180deg);
+}
 .dash-status-select {
   font: inherit;
+  width: 108px;
+  flex: 0 0 108px;
   min-width: 108px;
   min-height: 37px;
   border: 1px solid #cdd6d1;

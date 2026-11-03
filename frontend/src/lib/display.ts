@@ -62,6 +62,9 @@ export function preserveUnchangedAssetValues(
     value === baseline[index] ? (original[index] ?? '') : value,
   );
 }
+export function formatDashboardStatusLabel(status: string) {
+  return status === 'อุปกรอื่นๆ' ? 'อุปกรณ์อื่นๆ' : status;
+}
 export function getStatusColorClass(status: string) {
   return (
     (
@@ -71,6 +74,7 @@ export function getStatusColorClass(status: string) {
         หาไม่เจอ: 'lost',
         ยังไม่ตรวจ: 'todo',
         อุปกรอื่นๆ: 'other',
+        อุปกรณ์อื่นๆ: 'other',
         กล้องวงจรปิด: 'cctv',
         ตรงกัน: 'good',
         ข้อมูลไม่ตรง: 'damaged',

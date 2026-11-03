@@ -1,6 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+test('dashboard recognizes other-equipment spelling variants from Sheets', async () => {
+  const { dashboardData } = await import('../../backend/src/features/dashboard/data.js');
+  const data = dashboardData([
+    ['ผลตรวจ Apps Script', 'สถานะการเทียบ', 'เลขครุภัณฑ์ Apps Script'],
+    ['อุปกรณ์อื่นๆ', 'ตรงกัน', '001'],
+    ['อุปกรณ์อื่น ๆ', 'ตรงกัน', '002'],
+    ['อุปกรอื่นๆ', 'ตรงกัน', '003'],
+  ]);
+  assert.deepEqual(
+    data.records.map((record) => record.inspection),
+    Array(3).fill('อุปกรอื่นๆ'),
+  );
+  assert.equal(data.inspection['อุปกรอื่นๆ'], 3);
+  assert.equal(data.completed, 3);
+});
+
 test('Apps Script other-equipment status saves and counts as inspected', async () => {
   const { dashboardData, DashboardEditor } =
     await import('../../backend/src/features/dashboard/editor.js');
