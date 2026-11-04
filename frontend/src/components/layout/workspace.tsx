@@ -12,7 +12,7 @@ import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
 import { defaultWorkspacePath } from '@/types/account';
 import { findPortalService, findPortalModule, isServiceAllowed } from '@/config/navigation';
 import { AppSidebar } from '@/components/portal/app-sidebar';
-import { PortalTopbar } from '@/components/portal/topbar';
+
 import { PortalNavigationProvider } from '@/components/portal/navigation-context';
 
 export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
@@ -101,13 +101,6 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
           <AppSidebar {...sidebarProps} collapsed={collapsed} />
         </aside>
         <div className="portal-body">
-          <PortalTopbar
-            path={path}
-            menuOpen={menuOpen}
-            onMenuToggle={() => setMenuOpen((value) => !value)}
-            connected={!!status.data && !status.error}
-            connecting={status.isFetching}
-          />
           <main className="portal-main container" id="portal-main" tabIndex={-1}>
             <ErrorAlert error={error} />
             <ErrorAlert error={canReadStatus ? status.error : null} />
