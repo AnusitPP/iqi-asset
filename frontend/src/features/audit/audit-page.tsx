@@ -1,30 +1,18 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Badge,
-  Code,
-  Button,
-  Group,
-  Modal,
-  NativeSelect,
-  Paper,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-  Box,
-  Title,
-} from '@mantine/core';
+import { Button, Group, Text, Box, Title } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { auditService } from '@/services/audit.service';
 import type { AuditEntry } from '@/types/account';
-import { formatAccountTimestamp, readableAuditData } from '@/lib/account-display';
 import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
-import { UserAvatar } from '@/components/ui/user-avatar';
+import { AuditFilters } from './audit-filters';
+import { AuditList } from './audit-list';
+import { AuditDetailsDialog } from './audit-details-dialog';
 
 export function AuditPage() {
   const { api, can } = useAuthSession();
+  const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
   const [action, setAction] = useState('');
   const [type, setType] = useState('');
@@ -52,6 +40,9 @@ export function AuditPage() {
   );
   const actions = [...new Set(records.map((entry) => entry.action).filter(Boolean))].sort();
   const types = [...new Set(records.map((entry) => entry.entity_type).filter(Boolean))].sort();
+  const pageSize = 10;
+  const lastPage = Math.max(0, Math.ceil(matches.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
   return (
     <Box component="section">
       <Group justify="space-between" align="center" className="dash-heading">
@@ -65,38 +56,31 @@ export function AuditPage() {
           โหลดประวัติล่าสุด
         </Button>
       </Group>
-      <Paper withBorder p="lg" radius="lg">
-        <Group align="end">
-          <TextInput
-            label="ค้นหาประวัติ"
-            placeholder="ชื่อ อีเมล หรือ Entity ID"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-          />
-          <NativeSelect
-            label="การกระทำ"
-            data={[{ value: '', label: 'ทุกการกระทำ' }, ...actions]}
-            value={action}
-            onChange={(event) => setAction(event.currentTarget.value)}
-          />
-          <NativeSelect
-            label="ประเภท"
-            data={[{ value: '', label: 'ทุกประเภท' }, ...types]}
-            value={type}
-            onChange={(event) => setType(event.currentTarget.value)}
-          />
-          <Button
-            variant="default"
-            onClick={() => {
-              setQuery('');
-              setAction('');
-              setType('');
-            }}
-          >
-            ล้างตัวกรอง
-          </Button>
-        </Group>
-      </Paper>
+      <AuditFilters
+        query={query}
+        action={action}
+        type={type}
+        actions={actions}
+        types={types}
+        onQueryChange={(value) => {
+          setQuery(value);
+          setPage(0);
+        }}
+        onActionChange={(value) => {
+          setAction(value);
+          setPage(0);
+        }}
+        onTypeChange={(value) => {
+          setType(value);
+          setPage(0);
+        }}
+        onReset={() => {
+          setQuery('');
+          setAction('');
+          setType('');
+          setPage(0);
+        }}
+      />
       <ErrorAlert error={audit.error} />
       {audit.isPending ? (
         <LoadingIndicator />
@@ -112,96 +96,35 @@ export function AuditPage() {
                 : 'ยังไม่มีประวัติการใช้งาน'}
             </Text>
           ) : (
-            <Table.ScrollContainer minWidth={780}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>วันและเวลา</Table.Th>
-                    <Table.Th>ผู้ใช้งาน</Table.Th>
-                    <Table.Th>การกระทำ</Table.Th>
-                    <Table.Th>ประเภท / Entity ID</Table.Th>
-                    <Table.Th>รายละเอียด</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {matches.map((entry) => (
-                    <Table.Tr key={entry.id}>
-                      <Table.Td>{formatAccountTimestamp(entry.created_at)}</Table.Td>
-                      <Table.Td>
-                        <Group wrap="nowrap">
-                          <UserAvatar
-                            name={entry.actor_name_snapshot || 'ไม่ระบุตัวตน'}
-                            url={entry.actor_avatar_url}
-                          />
-                          <Box>
-                            <Text>{entry.actor_name_snapshot || 'ไม่ระบุตัวตน'}</Text>
-                            <Text size="xs">{entry.actor_email_snapshot}</Text>
-                          </Box>
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          color={
-                            /FAILED|REJECTED|DISABLED/.test(entry.action)
-                              ? 'red'
-                              : /SUCCESS|APPROVED|ACCEPTED|CREATED/.test(entry.action)
-                                ? 'green'
-                                : /CHANGED|ASSIGNED/.test(entry.action)
-                                  ? 'blue'
-                                  : 'gray'
-                          }
-                        >
-                          {entry.action}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        {entry.entity_type}
-                        <Text size="xs">{entry.entity_id || '—'}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Button variant="subtle" onClick={() => setSelected(entry)}>
-                          ดูรายละเอียด
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
+            <>
+              <AuditList
+                records={matches.slice(currentPage * pageSize, (currentPage + 1) * pageSize)}
+                onSelect={setSelected}
+              />
+              <Group justify="space-between" wrap="nowrap" gap="xs" my="md">
+                <Button
+                  variant="default"
+                  disabled={!currentPage}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  ก่อนหน้า
+                </Button>
+                <Text size="sm" ta="center">
+                  หน้า {currentPage + 1} / {lastPage + 1}
+                </Text>
+                <Button
+                  variant="default"
+                  disabled={currentPage >= lastPage}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  ถัดไป
+                </Button>
+              </Group>
+            </>
           )}
         </>
       )}
-      <Modal
-        opened={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.action ?? 'รายละเอียด Audit'}
-        size="xl"
-      >
-        {selected && (
-          <Stack>
-            <Text>
-              ผู้ใช้งาน: {selected.actor_name_snapshot || 'ไม่ระบุตัวตน'} ·{' '}
-              {selected.actor_email_snapshot || '—'}
-            </Text>
-            <Text>
-              ประเภท: {selected.entity_type} · Entity ID: {selected.entity_id || '—'}
-            </Text>
-            <Text>วันและเวลา: {formatAccountTimestamp(selected.created_at)}</Text>
-            <Text>Audit ID: {selected.id}</Text>
-            <Text fw={700}>ก่อนเปลี่ยนแปลง</Text>
-            <Code block style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              {readableAuditData(selected.before_data)}
-            </Code>
-            <Text fw={700}>หลังเปลี่ยนแปลง</Text>
-            <Code block style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              {readableAuditData(selected.after_data)}
-            </Code>
-            <Button variant="default" onClick={() => setSelected(null)}>
-              ปิด
-            </Button>
-          </Stack>
-        )}
-      </Modal>
+      {selected && <AuditDetailsDialog selected={selected} onClose={() => setSelected(null)} />}
     </Box>
   );
 }

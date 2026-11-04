@@ -260,6 +260,44 @@ it('filters audit entries and shows before/after data as text', async () => {
   await user.type(screen.getByLabelText('ค้นหาประวัติ'), 'missing');
   expect(screen.getByText(/ไม่พบรายการที่ตรงกับตัวกรอง/)).toBeTruthy();
 });
+it('paginates mobile audit cards, opens details and resets the page when filtering', async () => {
+  const originalMatchMedia = vi.mocked(window.matchMedia).getMockImplementation()!;
+  const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    ...originalMatchMedia(query),
+    matches: query === '(max-width: 47.99em)',
+  }));
+  const originalTransport = transport.getMockImplementation()!;
+  transport.mockImplementation(async (input, options) => {
+    const response = await originalTransport(input, options);
+    if (input !== '/api/audit') return response;
+    const data = await response.json();
+    return Response.json({
+      records: Array.from({ length: 11 }, (_, index) => ({
+        ...data.records[0],
+        id: `audit-${index}`,
+        entity_id: `ENTITY-${index}`,
+      })),
+    });
+  });
+  const view = mount(<AuditPage />);
+  try {
+    const user = userEvent.setup();
+    await screen.findByText(/ENTITY-0$/);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'ดูรายละเอียด' })).toHaveLength(10);
+    await user.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    expect(screen.getByText(/ENTITY-10$/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
+    expect(await screen.findByText(/"status": "requested"/)).toBeTruthy();
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิด' }));
+    await user.type(screen.getByLabelText('ค้นหาประวัติ'), 'ENTITY-0');
+    expect(screen.getByText('หน้า 1 / 1')).toBeTruthy();
+    expect(screen.getByText(/ENTITY-0$/)).toBeTruthy();
+  } finally {
+    view.unmount();
+    media.mockImplementation(originalMatchMedia);
+  }
+});
 it('loads own requests with the current API contract', async () => {
   currentUser = makeUser('staff');
   mount(<MyRequestsPage />);
