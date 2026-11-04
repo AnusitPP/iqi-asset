@@ -91,7 +91,7 @@ export function DashboardRecordDialog({
       />
       <form
         onSubmit={form.handleSubmit(async (values) => {
-          await saveTeamAndNotesMutation.mutateAsync(values).catch(() => {});
+          await saveTeamAndNotesMutation.mutateAsync(values).catch(() => { });
         })}
       >
         <Stack>
@@ -112,6 +112,9 @@ export function DashboardRecordDialog({
                       ]}
                       {...form.register('team')}
                       disabled={busy}
+                      styles={{
+                        input: { backgroundColor: '#fefefe' },
+                      }}
                     />
                   ) : header === 'หมายเหตุ' ? (
                     <Textarea
@@ -121,6 +124,9 @@ export function DashboardRecordDialog({
                       {...form.register('notes')}
                       error={form.formState.errors.notes?.message}
                       disabled={busy}
+                      styles={{
+                        input: { backgroundColor: '#fefefe' },
+                      }}
                     />
                   ) : (
                     <>
