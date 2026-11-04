@@ -28,19 +28,6 @@ export function AuditDetailsDialog({
       padding="lg"
       centered
       styles={{ title: { fontSize: 18, fontWeight: 700 }, header: { paddingBottom: 24 } }}
-      closeButtonProps={{
-        'aria-label': 'ปิด',
-        icon: (
-          <Text span size="xs" fw={600} c="dimmed">
-            ปิด
-          </Text>
-        ),
-        w: 60,
-        h: 42,
-        radius: 'md',
-        bg: 'gray.0',
-        style: { border: '1px solid var(--mantine-color-gray-2)', flexShrink: 0 },
-      }}
     >
       <Stack gap="xl">
         <Stack gap="sm">
