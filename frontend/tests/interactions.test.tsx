@@ -169,6 +169,42 @@ describe('migrated interactions', () => {
     );
     expect(screen.queryByLabelText('รหัสผ่าน')).toBeNull();
   });
+  it('shows dashboard mobile cards and saves a status with the original revision', async () => {
+    const originalMatchMedia = vi.mocked(window.matchMedia).getMockImplementation()!;
+    const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      ...originalMatchMedia(query),
+      matches: query === '(max-width: 47.99em)',
+    }));
+    mocks.request.mockImplementation(async (path: string) =>
+      path === '/api/dashboard'
+        ? dashboard
+        : { record: { ...dashRecord, revision: 'd2', inspection: 'ดี' }, unchanged: false },
+    );
+    try {
+      renderWithAppProviders(<DashboardPage />);
+      const user = userEvent.setup();
+      await screen.findByText('IQI-001');
+      expect(screen.queryByRole('table')).toBeNull();
+      expect(screen.getByRole('combobox', { name: 'กรองตามทีม' })).toBeTruthy();
+      expect(screen.getByText('SN1')).toBeTruthy();
+      fireEvent.change(screen.getByRole('combobox', { name: 'สถานะ IQI-001 SN1' }), {
+        target: { value: 'ดี' },
+      });
+      await user.click(screen.getByRole('button', { name: /^บันทึก$/ }));
+      await waitFor(() =>
+        expect(mocks.request).toHaveBeenCalledWith('/api/dashboard/2/status', expect.anything(), {
+          method: 'PUT',
+          body: { status: 'ดี', revision: 'd1' },
+        }),
+      );
+      expect(await screen.findByText('บันทึกสำเร็จ 1 รายการ')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'ดูข้อมูล' }));
+      expect(await screen.findByRole('dialog', { name: 'IQI-001' })).toBeTruthy();
+    } finally {
+      cleanup();
+      media.mockImplementation(originalMatchMedia);
+    }
+  });
   it('validates real ApiClient response schemas independently of component fixtures', async () => {
     const api = new ApiClient(
       undefined,
