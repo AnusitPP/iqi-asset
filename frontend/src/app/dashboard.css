@@ -66,23 +66,6 @@
 .dash-inspection-progress .mantine-Progress-section {
   background: #40866a;
 }
-.dash-filter-item {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-.dash-filter-control {
-  padding: 0;
-  min-height: 24px;
-  font-size: 14px;
-  color: var(--ink);
-}
-.dash-filter-control:hover {
-  background: transparent;
-}
-.dash-filter-content {
-  padding: 0;
-}
 .dash-progress-head {
   display: flex;
   justify-content: space-between;
@@ -258,7 +241,6 @@
 }
 .dash-table th {
   text-align: left;
-  background: #f1f4f2;
   color: #66746c;
   padding: 14px;
   white-space: nowrap;

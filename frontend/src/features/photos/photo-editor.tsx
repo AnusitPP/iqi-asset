@@ -1,6 +1,18 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Text, Group, Progress, FileInput, Image, Box, Title, Anchor } from '@mantine/core';
+import {
+  Button,
+  Text,
+  Group,
+  Progress,
+  FileButton,
+  Image,
+  Box,
+  Title,
+  Anchor,
+  Paper,
+  Stack,
+} from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -35,7 +47,7 @@ export function AssetPhotoEditor({
     queryFn: ({ signal }) => photosService.fetchUploadLimits(api, signal),
   });
   const [files, setFiles] = useState<File[]>([]),
-    [previews, setPreviews] = useState<{ url: string; name: string }[]>([]),
+    [previews, setPreviews] = useState<{ url: string; file: File }[]>([]),
     [notice, setNotice] = useState(''),
     [progress, setProgress] = useState(0),
     [inputKey, setInputKey] = useState(0);
@@ -44,7 +56,7 @@ export function AssetPhotoEditor({
   useEffect(() => {
     const urls = files
       .filter((f) => !/hei[cf]/i.test(f.name + f.type))
-      .map((f) => ({ url: URL.createObjectURL(f), name: f.name }));
+      .map((file) => ({ url: URL.createObjectURL(file), file }));
     setPreviews(urls);
     return () => urls.forEach((p) => URL.revokeObjectURL(p.url));
   }, [files]);
@@ -102,15 +114,14 @@ export function AssetPhotoEditor({
       {remaining ? (
         <>
           <Text size="sm">เลือกพร้อมกันได้อีก {remaining} รูป · ไม่เกิน 25 MB/รูป</Text>
-          <FileInput
+          <FileButton
             key={inputKey}
-            value={files}
-            placeholder="เลือกไฟล์รูปภาพ"
             multiple
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-            aria-label={`เลือกรูปครุภัณฑ์ ${record.asset}`}
+            inputProps={{ 'aria-label': `เลือกรูปครุภัณฑ์ ${record.asset}` }}
             disabled={busy || uploadPhotosMutation.isPending}
             onChange={(selected) => {
+              if (!selected.length) return;
               try {
                 validatePhotoUploadSelection(selected, remaining);
                 setFiles(selected);
@@ -120,12 +131,65 @@ export function AssetPhotoEditor({
                 setNotice(getErrorMessage(error));
               }
             }}
-          />
-          <Box className="dash-photo-gallery">
-            {previews.map((p) => (
-              <Image key={p.url} src={p.url} alt={p.name} />
-            ))}
-          </Box>
+          >
+            {(props) => (
+              <Group mt="xs">
+                <Button
+                  {...props}
+                  variant="default"
+                  disabled={busy || uploadPhotosMutation.isPending}
+                >
+                  เลือกไฟล์รูปภาพ
+                </Button>
+                {files.length > 0 && (
+                  <Text size="sm" c="dimmed">
+                    เลือกแล้ว {files.length} รูป
+                  </Text>
+                )}
+              </Group>
+            )}
+          </FileButton>
+          <Group align="stretch" my={8}>
+            {files.map((file, index) => {
+              const preview = previews.find((item) => item.file === file);
+              return (
+                <Paper key={`${file.name}-${index}`} withBorder p="sm" w={180}>
+                  <Stack gap="xs">
+                    {preview ? (
+                      <Image src={preview.url} alt={file.name} h={110} fit="contain" />
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        ไฟล์ HEIC/HEIF · ไม่มีภาพตัวอย่าง
+                      </Text>
+                    )}
+                    <Text size="xs" style={{ overflowWrap: 'anywhere' }}>
+                      {file.name}
+                    </Text>
+                    <Button
+                      type="button"
+                      color="red"
+                      variant="light"
+                      size="xs"
+                      aria-label={`นำรูป ${file.name} ออก`}
+                      disabled={busy || uploadPhotosMutation.isPending}
+                      onClick={() => {
+                        const remainingFiles = files.filter((_, fileIndex) => fileIndex !== index);
+                        setFiles(remainingFiles);
+                        setInputKey((value) => value + 1);
+                        setNotice(
+                          remainingFiles.length
+                            ? `เลือกแล้ว ${remainingFiles.length} รูป`
+                            : '',
+                        );
+                      }}
+                    >
+                      นำออก
+                    </Button>
+                  </Stack>
+                </Paper>
+              );
+            })}
+          </Group>
           <Group>
             <Button
               disabled={!files.length || !config.data || busy}

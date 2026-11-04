@@ -1,6 +1,16 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Modal, NativeSelect, Textarea, Stack, Text, SimpleGrid, Box } from '@mantine/core';
+import {
+  Button,
+  Group,
+  Modal,
+  NativeSelect,
+  Textarea,
+  Stack,
+  Text,
+  SimpleGrid,
+  Box,
+} from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -122,16 +132,23 @@ export function DashboardRecordDialog({
               ),
             )}
           </SimpleGrid>
-          <Button
-            type="submit"
-            loading={saveTeamAndNotesMutation.isPending}
-            disabled={!form.formState.isDirty || uploading}
-          >
-            บันทึกทีมและหมายเหตุ
-          </Button>
-          <Button variant="default" disabled={busy} onClick={confirmAndCloseDashboardRecord}>
-            ปิด
-          </Button>
+          <Group justify="center" gap="md">
+            <Button
+              type="submit"
+              loading={saveTeamAndNotesMutation.isPending}
+              disabled={!form.formState.isDirty || uploading}
+            >
+              บันทึกทีมและหมายเหตุ
+            </Button>
+            <Button
+              color="red"
+              variant="filled"
+              disabled={busy}
+              onClick={confirmAndCloseDashboardRecord}
+            >
+              ยกเลิก
+            </Button>
+          </Group>
         </Stack>
       </form>
     </Modal>

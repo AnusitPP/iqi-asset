@@ -280,7 +280,11 @@ describe('forms and photos', () => {
     await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, [
       new File(['a'], 'one.heic', { type: 'image/heic' }),
       new File(['b'], 'two.heic', { type: 'image/heic' }),
+      new File(['c'], 'remove.heic', { type: 'image/heic' }),
     ]);
+    await user.click(screen.getByRole('button', { name: 'นำรูป remove.heic ออก' }));
+    expect(screen.queryByText('remove.heic')).toBeNull();
+    expect(screen.getAllByText('เลือกแล้ว 2 รูป').length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: 'อัปโหลด' }));
     expect(await screen.findByText('เพิ่มแล้ว 2/2 รูป')).toBeTruthy();
     const calls = mocks.request.mock.calls.filter(([path]) => path === '/api/dashboard/2/photos');

@@ -207,10 +207,22 @@ export function DashboardPage() {
         </Text>
       </Paper>
       <Accordion
-        classNames={{
-          item: 'dash-filter-item',
-          control: 'dash-filter-control',
-          content: 'dash-filter-content',
+        chevronSize={16}
+        radius={18}
+        styles={{
+          item: {
+            border: '1px solid var(--line)',
+            overflow: 'hidden',
+            backgroundColor: 'var(--mantine-color-white)',
+          },
+          control: {
+            minHeight: filtersOpen ? 44 : 60,
+            backgroundColor: 'var(--mantine-color-portalYellow-1)',
+            color: 'var(--mantine-color-black)',
+          },
+          label: { paddingBlock: 0, fontSize: 16, fontWeight: 700 },
+          chevron: { color: '#111827' },
+          content: { padding: 0 },
         }}
         value={filtersOpen ? 'filters' : null}
         onChange={(value) => setFiltersOpen(value === 'filters')}
@@ -218,8 +230,10 @@ export function DashboardPage() {
         my="md"
       >
         <Accordion.Item value="filters">
-          <Accordion.Control>ตัวกรองสถานะและการเทียบข้อมูล</Accordion.Control>
-          <Accordion.Panel>
+          <Accordion.Control p={{ base: 18, '37.5em': 24 }}>
+            ตัวกรองสถานะและการเทียบข้อมูล
+          </Accordion.Control>
+          <Accordion.Panel px={{ base: 18, '37.5em': 24 }} pb={{ base: 18, '37.5em': 24 }}>
             <Title order={2} className="dash-section-title">
               ผลตรวจ Apps Script
             </Title>
@@ -282,7 +296,13 @@ export function DashboardPage() {
             ไม่พบรายการตามตัวกรองที่เลือก
           </Text>
         ) : (
-          <Table className="dash-table">
+          <Table
+            className="dash-table"
+            styles={{
+              th: { textAlign: 'center' },
+              td: { textAlign: 'center', verticalAlign: 'middle' },
+            }}
+          >
             <Table.Thead>
               <Table.Tr>
                 {[
@@ -293,10 +313,15 @@ export function DashboardPage() {
                   'ผู้ถือครอง / ทีม',
                   'รายละเอียด',
                 ].map((title) => (
-                  <Table.Th key={title} scope="col">
+                  <Table.Th
+                    key={title}
+                    scope="col"
+                    style={title === 'เลขครุภัณฑ์ / อุปกรณ์' ? { textAlign: 'left' } : undefined}
+                  >
                     {title === 'ผู้ถือครอง / ทีม' ? (
                       <Select
                         className="dash-team-filter"
+                        mx="auto"
                         classNames={{
                           input: 'dash-team-filter-input',
                           option: 'dash-status-option',
@@ -330,7 +355,7 @@ export function DashboardPage() {
             <Table.Tbody>
               {records.map((r) => (
                 <Table.Tr key={r.row} className={`dash-row ${getStatusColorClass(r.inspection)}`}>
-                  <Table.Td>
+                  <Table.Td style={{ textAlign: 'left', verticalAlign: 'top' }}>
                     <CopyableText value={r.asset} />
                     <span className="dash-item-name">{r.name || 'ไม่ระบุชื่ออุปกรณ์'}</span>
                   </Table.Td>
@@ -338,7 +363,7 @@ export function DashboardPage() {
                     <CopyableText value={r.serial} />
                   </Table.Td>
                   <Table.Td>
-                    <Box className="dash-status-controls">
+                    <Group justify="center" gap={6} wrap="nowrap">
                       <Select
                         rightSection={
                           <ChevronDown
@@ -373,14 +398,18 @@ export function DashboardPage() {
                         }}
                       />
                       <Button
-                        className="dash-save"
-                        size="compact-xs"
+                        variant="default"
+                        size="sm"
+                        radius={8}
+                        h={36}
+                        px={20}
+                        fw={600}
                         disabled={saveStatusDraftsMutation.isPending || !drafts.current.has(r.row)}
                         onClick={() => saveStatusDraftsMutation.mutate(r.row)}
                       >
                         บันทึก
                       </Button>
-                    </Box>
+                    </Group>
                     <Box className="dash-updated-at">
                       {r.updatedAt ? `อัปเดตล่าสุด ${r.updatedAt}` : 'ยังไม่มีวันที่อัปเดตจากเว็บ'}
                     </Box>
@@ -396,11 +425,14 @@ export function DashboardPage() {
                   </Table.Td>
                   <Table.Td>
                     <Button
-                      size="compact-xs"
-                      variant="light"
+                      size="sm"
+                      variant="default"
+                      radius={8}
+                      h={36}
+                      px={20}
+                      fw={600}
                       disabled={saveStatusDraftsMutation.isPending}
                       onClick={() => setSelected(r.row)}
-                      color="#242525"
                     >
                       ดูข้อมูล
                     </Button>

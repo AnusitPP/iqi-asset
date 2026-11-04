@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AppShell, Burger, Button, Container, Drawer, Group, Box, Anchor } from '@mantine/core';
+import { AppShell, Button, Container, Drawer, Box, Anchor } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -105,14 +105,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
           <AppSidebar {...sidebarProps} collapsed={collapsed} />
         </AppShell.Navbar>
         <AppShell.Main>
-          <Container size={1700} className="portal-main" id="portal-main" tabIndex={-1}>
-            <Group hiddenFrom="64em" mb="md">
-              <Burger
-                opened={menuOpen}
-                onClick={() => setMenuOpen((value) => !value)}
-                aria-label="เปิดเมนู"
-              />
-            </Group>
+          <Container className="portal-main" id="portal-main" tabIndex={-1}>
             <ErrorAlert error={error} />
             <ErrorAlert error={canReadStatus ? status.error : null} />
             {canReadStatus && status.error && (
