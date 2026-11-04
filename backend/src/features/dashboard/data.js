@@ -10,7 +10,9 @@ export function dashboardData(values = []) {
   const records = values.slice(1).flatMap((row, index) => {
     const get = (name) => String(row[headers.indexOf(name)] ?? '').trim();
     if (!get('เลขครุภัณฑ์ Apps Script')) return [];
-    const status = get('ผลตรวจ Apps Script');
+    const rawStatus = get('ผลตรวจ Apps Script');
+    // Keep the existing API/storage status key compatible with older sheets.
+    const status = /^(?:อุปกร|อุปกรณ์)อื่น\s*ๆ$/u.test(rawStatus) ? 'อุปกรอื่นๆ' : rawStatus;
     return [
       {
         row: index + 2,

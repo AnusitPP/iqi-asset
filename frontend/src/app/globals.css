@@ -105,12 +105,21 @@ body {
   font-weight: 600;
 }
 .dash-team-filter {
+  width: 160px;
   max-width: 100%;
-  padding: 6px;
+}
+.dash-team-filter .dash-team-filter-input {
+  height: 34px;
   border: 1px solid #dce4df;
   border-radius: 6px;
   background: white;
   font: inherit;
+}
+.dash-team-chevron {
+  transition: transform 150ms ease;
+}
+.dash-team-filter:has(input[aria-expanded='true']) .dash-team-chevron {
+  transform: rotate(180deg);
 }
 @media (min-width: 1024px) {
   .workspace-sidebar {

@@ -74,7 +74,7 @@ export class UserManagementService {
           table: 'Admins',
           row: grant.row,
           values: {
-            role: value === 'STAFF' ? grant.role : value,
+            role: value,
             status: value === 'STAFF' ? 'DISABLED' : 'ACTIVE',
             updated_at: now,
             assigned_by: actor.id,

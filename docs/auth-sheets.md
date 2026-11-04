@@ -21,7 +21,7 @@ Profile, bootstrap grant, session and login audit are written together using a S
 
 integrations/google/auth-storage.js handles Sheets transport/schema validation. auth/repositories/user.repository.js resolves identity and role; auth/services/session.service.js implements login/session/revocation; controllers/session.controller.js handles cookies/responses. sheet.middleware.js composes these separately from the existing legacy auth middleware used by older isolated test fixtures. Real configured Google deployments use sheet.middleware and reject password POST with 410. Missing AUTH_SPREADSHEET_ID with configured Google credentials fails startup instead of falling back.
 
-shared/features/auth/permissions.js defines permissions; auth/middleware/protect-api.js enforces the existing API surface before handlers. Users routes/controller/service handle listing/detail and audited role/status changes. Audit routes expose authentication/user-management history only to USER_MANAGE holders; ADMIN sees operational audit only. The permanently protected bootstrap anchor ensures there is an active SUPER_ADMIN even across concurrent last-admin mutations; its role/status cannot be reduced from the UI/API.
+shared/features/auth/permissions.js defines permissions; auth/middleware/protect-api.js enforces the existing API surface before handlers. Users routes/controller/service handle listing/detail and audited role/status changes. Audit routes expose authentication/user-management history only to USER_MANAGE holders; ADMIN cannot access Audit Log. The permanently protected bootstrap anchor ensures there is an active SUPER_ADMIN even across concurrent last-admin mutations; its role/status cannot be reduced from the UI/API.
 
 Frontend auth/permissions.js applies permission-based menus, profile and readonly requester names. adminUsers/, audit/ and myRequests/ own their respective pages. app.js only composes these. Asset editing is denied on the server for STAFF, detail/search editable flags are masked, and inspection actions are hidden. Loan/return requester name and idempotency namespace are bound to the authenticated user. Own requests are resolved by immutable actor_user_id audit links, never by a display name. Historical records without ownership remain unavailable in My Requests.
 
@@ -38,8 +38,8 @@ GET /api/my-requests: current user's linked loan/return requests.
 
 ## Verification
 
-STAFF: sign in with a second real permitted organization account; new account must have STAFF, no Users/Admin Dashboard/Audit menu, and direct management endpoints must return 403.
-ADMIN: SUPER_ADMIN changes that user's role through Users; next API request must honor ADMIN permissions, while Users management stays forbidden.
+STAFF: sign in with a second real permitted organization account; the account can access only Loans, Returns and My Requests and lands on /loans. Home, Assets, Dashboard, Users and Audit pages and their APIs must be denied.
+ADMIN: SUPER_ADMIN changes that user's role through Users; next API request must honor ADMIN permissions, while Users listing/detail is allowed and role/status management and Audit Log stay forbidden.
 SUPER_ADMIN: bootstrap login creates/binds the configured owner, Users can search/detail and update other profiles, role/status changes must have audit entries. Attempted bootstrap demotion/deactivation must return 409.
 Tests cover cross-instance revocation, expiration, wrong identity/email reuse, fresh role/status enforcement, protected bootstrap and API permissions. Do not invent a Google sub in live data to test roles.
 

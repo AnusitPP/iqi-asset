@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import type { ReactNode, AnchorHTMLAttributes } from 'react';
+import { permissionsForRole } from '@shared/features/auth/permissions.js';
 import { ApiClient } from '../src/lib/api-client';
 import {
   userSchema,
@@ -37,10 +38,7 @@ const makeUser = (id: string, role: AccountUser['role'] = 'STAFF') =>
     email: `${id}@example.invalid`,
     role,
     status: 'ACTIVE',
-    permissions:
-      role === 'SUPER_ADMIN'
-        ? ['*']
-        : ['ASSET_VIEW', 'LOAN_CREATE', 'RETURN_CREATE', 'LOAN_VIEW_OWN'],
+    permissions: permissionsForRole(role),
     created_at: '2026-10-01T00:00:00Z',
     last_login_at: '2026-11-01T08:00:00Z',
   });
@@ -154,7 +152,7 @@ it('hides administrative menus for STAFF and redirects a forbidden direct route'
       <div>Private user management</div>
     </AuthenticatedWorkspace>,
   );
-  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/assets'));
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
   expect(screen.queryByText('Private user management')).toBeNull();
   expect(screen.queryByRole('link', { name: 'ผู้ใช้งาน' })).toBeNull();
   expect(screen.queryByRole('link', { name: 'Audit Log' })).toBeNull();
@@ -179,6 +177,18 @@ it('filters users and edits role/status through their existing PATCH endpoints',
   expect(
     transport.mock.calls.filter(([, options]) => options?.method === 'PATCH').map(([path]) => path),
   ).toEqual(['/api/admin/users/staff/role', '/api/admin/users/staff/status']);
+});
+it('lets ADMIN view users without offering role or status mutations', async () => {
+  currentUser = makeUser('admin', 'ADMIN');
+  mount(<UsersPage />);
+  await screen.findByText('Staff Example');
+  expect(screen.queryByRole('button', { name: 'จัดการสิทธิ์' })).toBeNull();
+  const row = screen.getByText('Staff Example').closest('tr');
+  if (!row) throw new Error('Missing user row');
+  await userEvent.setup().click(within(row).getByRole('button', { name: 'รายละเอียด' }));
+  await screen.findByRole('dialog');
+  expect(screen.queryByLabelText('Role')).toBeNull();
+  expect(transport.mock.calls.some(([, options]) => options?.method === 'PATCH')).toBe(false);
 });
 it('keeps the sole SUPER_ADMIN read-only', async () => {
   mount(<UsersPage />);
@@ -236,7 +246,19 @@ it('loads own requests with the current API contract', async () => {
   expect(screen.getByText('รอดำเนินการ')).toBeTruthy();
 });
 it('derives landing pages and permissions from server-issued grants', () => {
-  expect(defaultWorkspacePath(makeUser('staff'))).toBe('/assets');
+  expect(defaultWorkspacePath(makeUser('staff'))).toBe('/loans');
   expect(defaultWorkspacePath(makeUser('owner', 'SUPER_ADMIN'))).toBe('/dashboard');
   expect(canAccess(makeUser('staff'), 'USER_MANAGE')).toBe(false);
+});
+it('does not restore revoked capabilities from stale or overbroad cached grants', () => {
+  const staleStaff = {
+    ...makeUser('staff'),
+    permissions: ['ASSET_VIEW', 'LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE', '*'],
+  };
+  expect(canAccess(staleStaff, 'ASSET_VIEW')).toBe(false);
+  expect(canAccess(staleStaff, 'LOAN_CREATE')).toBe(true);
+  const staleAdmin = { ...makeUser('admin', 'ADMIN'), permissions: ['*', 'AUDIT_VIEW'] };
+  expect(canAccess(staleAdmin, 'AUDIT_VIEW')).toBe(false);
+  expect(canAccess(staleAdmin, 'USER_MANAGE')).toBe(false);
+  expect(canAccess(staleAdmin, 'USER_VIEW')).toBe(true);
 });

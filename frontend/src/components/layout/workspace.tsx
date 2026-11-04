@@ -32,10 +32,11 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   const currentPage = findPortalService(path);
   const activeModule = findPortalModule(path);
   const allowed = !currentPage || isServiceAllowed(currentPage, auth.can);
+  const canReadStatus = auth.authenticated && auth.can('ASSET_VIEW');
   const status = useQuery({
     queryKey: ['connection'],
     queryFn: ({ signal }) => systemService.fetchConnectionStatus(auth.api, signal),
-    enabled: auth.authenticated,
+    enabled: canReadStatus,
   });
   useEffect(() => {
     if (!auth.loading && !auth.authenticated && !auth.error) router.replace('/login');
@@ -109,8 +110,8 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
           />
           <main className="portal-main container" id="portal-main" tabIndex={-1}>
             <ErrorAlert error={error} />
-            <ErrorAlert error={status.error} />
-            {status.error && (
+            <ErrorAlert error={canReadStatus ? status.error : null} />
+            {canReadStatus && status.error && (
               <Button
                 variant="light"
                 onClick={() => {
@@ -121,23 +122,6 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               </Button>
             )}
             {allowed ? children : <LoadingIndicator />}
-            {(status.data?.reviewUrl || status.data?.iqiItUrl) && (
-              <details className="portal-sheet-links">
-                <summary>ลิงก์ชีตที่เกี่ยวข้อง</summary>
-                <div className="sheet-links">
-                  {status.data.reviewUrl && (
-                    <a href={status.data.reviewUrl} target="_blank" rel="noreferrer">
-                      เปิดชีตรอตรวจสอบ ↗
-                    </a>
-                  )}
-                  {status.data.iqiItUrl && (
-                    <a href={status.data.iqiItUrl} target="_blank" rel="noreferrer">
-                      เปิดชีต IT + IQI ↗
-                    </a>
-                  )}
-                </div>
-              </details>
-            )}
             <footer className="portal-footer">
               <span>IQI · IT Service Portal</span>
               <span>Asset Checker · ข้อมูลจาก Google Sheets</span>

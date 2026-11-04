@@ -1,5 +1,6 @@
 'use client';
-import { Button, Group, Text, TextInput } from '@mantine/core';
+import { Button, Group, Select, Text, TextInput } from '@mantine/core';
+import { ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
@@ -10,7 +11,7 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardStatuses, type DashboardRecord } from '@/types/contracts';
 import { dashboardService, type DashboardData } from '@/services/dashboard.service';
 import { CopyableText, ErrorAlert } from '@/components/ui/feedback';
-import { getStatusColorClass } from '@/lib/display';
+import { formatDashboardStatusLabel, getStatusColorClass } from '@/lib/display';
 import { DashboardRecordDialog } from './dashboard-details';
 import { saveStatusDraftsSequentially, type StatusDraft } from './save-drafts';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
@@ -112,7 +113,7 @@ export function DashboardPage() {
       aria-pressed={selected}
       onClick={onClick}
     >
-      <span className="dash-stat-label">{label}</span>
+      <span className="dash-stat-label">{formatDashboardStatusLabel(label)}</span>
       <strong>{count}</strong>
       <span className="dash-stat-caption">รายการ</span>
     </button>
@@ -258,25 +259,31 @@ export function DashboardPage() {
                 ].map((title) => (
                   <th key={title} scope="col">
                     {title === 'ผู้ถือครอง / ทีม' ? (
-                      <select
+                      <Select
                         className="dash-team-filter"
+                        classNames={{
+                          input: 'dash-team-filter-input',
+                          option: 'dash-status-option',
+                        }}
                         aria-label="กรองตามทีม"
                         value={teamFilter}
-                        onChange={(event) => setTeamFilter(event.currentTarget.value)}
-                      >
-                        <option value="">ผู้ถือครอง / ทีม · ทุกทีม</option>
-                        {[
-                          ...new Set(
-                            dashboard.records.map((record) => record.team.trim()).filter(Boolean),
-                          ),
-                        ]
-                          .sort((a, b) => a.localeCompare(b, 'th'))
-                          .map((team) => (
-                            <option key={team} value={team}>
-                              {team}
-                            </option>
-                          ))}
-                      </select>
+                        onChange={(team) => setTeamFilter(team ?? '')}
+                        allowDeselect={false}
+                        rightSection={
+                          <ChevronDown size={16} className="dash-team-chevron" aria-hidden="true" />
+                        }
+                        rightSectionPointerEvents="none"
+                        data={[
+                          { value: '', label: 'ผู้ถือครอง / ทีม · ทุกทีม' },
+                          ...[
+                            ...new Set(
+                              dashboard.records.map((record) => record.team.trim()).filter(Boolean),
+                            ),
+                          ]
+                            .sort((a, b) => a.localeCompare(b, 'th'))
+                            .map((team) => ({ value: team, label: team })),
+                        ]}
+                      />
                     ) : (
                       title
                     )}
@@ -296,33 +303,41 @@ export function DashboardPage() {
                   </td>
                   <td>
                     <div className="dash-status-controls">
-                      <select
+                      <Select
+                        rightSection={
+                          <ChevronDown
+                            size={16}
+                            className="dash-status-chevron"
+                            aria-hidden="true"
+                          />
+                        }
+                        rightSectionPointerEvents="none"
                         aria-label={`สถานะ ${r.asset} ${r.serial}`}
-                        className={`dash-status-select ${getStatusColorClass(drafts.current.get(r.row)?.status ?? r.inspection)}`}
+                        className={`dash-status-field ${getStatusColorClass(drafts.current.get(r.row)?.status ?? r.inspection)}`}
+                        classNames={{ input: 'dash-status-input', option: 'dash-status-option' }}
+                        placeholder="เลือกสถานะ"
+                        allowDeselect={false}
+                        data={dashboardStatuses.map((status) => ({
+                          value: status,
+                          label: formatDashboardStatusLabel(status),
+                        }))}
                         value={
                           drafts.current.get(r.row)?.status ??
-                          (r.inspection === 'ไม่ระบุ' ? '' : r.inspection)
+                          (r.inspection === 'ไม่ระบุ' ? null : r.inspection)
                         }
                         disabled={saveStatusDraftsMutation.isPending}
-                        onChange={(e) => {
-                          if (!e.currentTarget.value || e.currentTarget.value === r.inspection)
-                            drafts.current.delete(r.row);
+                        onChange={(status) => {
+                          if (!status || status === r.inspection) drafts.current.delete(r.row);
                           else
                             drafts.current.set(r.row, {
-                              status: e.currentTarget.value,
+                              status,
                               revision: r.revision,
                             });
                           setDraftVersion((v) => v + 1);
                         }}
-                      >
-                        <option value="" disabled>
-                          เลือกสถานะ
-                        </option>
-                        {dashboardStatuses.map((s) => (
-                          <option key={s}>{s}</option>
-                        ))}
-                      </select>
+                      />
                       <Button
+                        className="dash-save"
                         size="compact-xs"
                         disabled={saveStatusDraftsMutation.isPending || !drafts.current.has(r.row)}
                         onClick={() => saveStatusDraftsMutation.mutate(r.row)}
@@ -349,6 +364,7 @@ export function DashboardPage() {
                       variant="light"
                       disabled={saveStatusDraftsMutation.isPending}
                       onClick={() => setSelected(r.row)}
+                      color="#242525"
                     >
                       ดูข้อมูล
                     </Button>

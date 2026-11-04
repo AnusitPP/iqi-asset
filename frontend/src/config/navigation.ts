@@ -9,6 +9,7 @@ import {
   History,
   ShieldCheck,
   ListChecks,
+  Files,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -29,7 +30,13 @@ export type PortalModule = {
   tone: 'green' | 'blue' | 'violet' | 'amber';
   services: readonly PortalService[];
 };
-export const homeService: PortalService = { id: 'home', label: 'หน้าหลัก', href: '/', icon: Home };
+export const homeService: PortalService = {
+  id: 'home',
+  label: 'หน้าหลัก',
+  href: '/',
+  icon: Home,
+  permission: 'PORTAL_HOME_VIEW',
+};
 export const portalModules: readonly PortalModule[] = [
   {
     id: 'overview',
@@ -170,6 +177,13 @@ export const accountModule: PortalModule = {
     },
     { id: 'users', label: 'ผู้ใช้งาน', href: '/users', icon: UsersRound, permission: 'USER_VIEW' },
     { id: 'audit', label: 'Audit Log', href: '/audit', icon: History, permission: 'AUDIT_VIEW' },
+    {
+      id: 'sheets',
+      label: 'ไฟล์ Google Sheets',
+      href: '/sheets',
+      icon: Files,
+      permission: 'ADMIN_DASHBOARD_VIEW',
+    },
   ],
 };
 export const sidebarModules = [...portalModules, accountModule];
@@ -190,5 +204,5 @@ export function findPortalModule(path: string) {
   );
 }
 export function isServiceAllowed(service: PortalService, can: (permission: string) => boolean) {
-  return !service.permission || can(service.permission);
+  return can(service.permission ?? 'PORTAL_HOME_VIEW');
 }

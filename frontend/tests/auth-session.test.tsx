@@ -70,7 +70,7 @@ it('loads a Google user session, redirects staff to assets and clears private da
   );
   await waitFor(() => expect(screen.getByTestId('session').textContent).toBe('Staff User'));
   expect(screen.getByTestId('permission').textContent).toBe('false');
-  expect(navigation.replace).toHaveBeenCalledWith('/assets');
+  expect(navigation.replace).toHaveBeenCalledWith('/loans');
   await userEvent.setup().click(screen.getByRole('button', { name: 'test logout' }));
   await waitFor(() => expect(screen.getByTestId('session').textContent).toBe('anonymous'));
   expect(client.getQueryData(['users'])).toBeUndefined();

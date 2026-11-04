@@ -23,3 +23,6 @@ declare module '@shared/core/extensions/dates.js' {
 declare module '@shared/features/auth/profile.js' {
   export function googleProfileImageUrl(value: unknown): string;
 }
+declare module '@shared/features/auth/permissions.js' {
+  export function permissionsForRole(role: string): string[];
+}
