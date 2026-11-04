@@ -8,6 +8,7 @@ import { permissionsForRole } from '@shared/features/auth/permissions.js';
 import { canAccess, userSchema, type AccountRole } from '../src/types/account';
 import { ApiClient } from '../src/lib/api-client';
 import { AuthenticatedWorkspace } from '../src/components/layout/workspace';
+import { AuditPage } from '../src/features/audit/audit-page';
 import { PortalHomePage } from '../src/features/home/home-page';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 import { allPortalServices, findPortalService, findPortalModule } from '../src/config/navigation';
@@ -147,42 +148,48 @@ it('shows current service destinations and summary values from existing APIs', a
     '/returns',
   );
 });
-it('shows STAFF only borrowing, returning and own requests and blocks Home', async () => {
+it('shows STAFF assets, borrowing, returning and own requests and blocks Home', async () => {
   auth.role = 'STAFF';
   auth.permissions = permissionsForRole(auth.role);
   render(portal(<PortalHomePage />, createClient()));
   await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
   const nav = within(screen.getByRole('navigation', { name: 'หน้าข้อมูล' }));
   expect(nav.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+    '/assets',
     '/loans',
     '/returns',
     '/my-requests',
   ]);
   expect(screen.queryByRole('heading', { name: 'หน้าหลักระบบงานไอที' })).toBeNull();
-  expect(transport).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
+  );
+  expect(transport.mock.calls.every(([path]) => path === '/api/status')).toBe(true);
 });
-it('shows ADMIN all current menus except Audit Log', async () => {
+it('shows ADMIN operational menus including Audit without Home or user management', async () => {
   auth.role = 'ADMIN';
   auth.permissions = permissionsForRole(auth.role);
-  render(portal(<PortalHomePage />, createClient()));
+  navigation.path = '/dashboard';
+  render(portal(<p>Dashboard content</p>, createClient()));
   const nav = within(screen.getByRole('navigation', { name: 'หน้าข้อมูล' }));
   for (const name of [
-    'หน้าหลัก',
     'Dashboard',
     'ตรวจเช็คครุภัณฑ์',
     'ยืมครุภัณฑ์',
     'คืนครุภัณฑ์',
     'รายการของฉัน',
-    'ผู้ใช้งาน',
+    'Audit Log',
+    'ไฟล์ Google Sheets',
   ])
     expect(nav.getByRole('link', { name })).toBeTruthy();
-  expect(nav.queryByRole('link', { name: 'Audit Log' })).toBeNull();
+  expect(nav.queryByRole('link', { name: 'หน้าหลัก' })).toBeNull();
+  expect(nav.queryByRole('link', { name: 'ผู้ใช้งาน' })).toBeNull();
   await waitFor(() =>
-    expect(transport.mock.calls.some(([path]) => path === '/api/dashboard')).toBe(true),
+    expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
   );
-  expect(transport.mock.calls.some(([path]) => path === '/api/audit')).toBe(false);
+  expect(navigation.replace).not.toHaveBeenCalled();
 });
-it.each(['/assets', '/dashboard', '/users', '/audit'])(
+it.each(['/dashboard', '/users', '/audit', '/sheets'])(
   'blocks a direct %s URL for STAFF',
   async (path) => {
     auth.role = 'STAFF';
@@ -191,7 +198,10 @@ it.each(['/assets', '/dashboard', '/users', '/audit'])(
     render(portal(<p>Restricted content</p>, createClient()));
     await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
     expect(screen.queryByText('Restricted content')).toBeNull();
-    expect(transport).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
+    );
+    expect(transport.mock.calls.every(([path]) => path === '/api/status')).toBe(true);
   },
 );
 it('keeps every current menu visible for SUPER_ADMIN', () => {
@@ -200,13 +210,23 @@ it('keeps every current menu visible for SUPER_ADMIN', () => {
   expect(nav.getByRole('link', { name: 'Audit Log' })).toBeTruthy();
   expect(nav.getAllByRole('link')).toHaveLength(allPortalServices.length);
 });
-it('blocks a direct Audit URL for ADMIN before mounting its content', async () => {
+it('allows STAFF to open assets directly', () => {
+  auth.role = 'STAFF';
+  auth.permissions = permissionsForRole(auth.role);
+  navigation.path = '/assets';
+  render(portal(<p>Asset content</p>, createClient()));
+  expect(screen.getByText('Asset content')).toBeTruthy();
+  expect(navigation.replace).not.toHaveBeenCalled();
+});
+it('allows ADMIN to open Audit directly', async () => {
   auth.role = 'ADMIN';
   auth.permissions = permissionsForRole(auth.role);
   navigation.path = '/audit';
-  render(portal(<p>Private audit content</p>, createClient()));
-  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'));
-  expect(screen.queryByText('Private audit content')).toBeNull();
+  render(portal(<AuditPage />, createClient()));
+  expect(screen.getByRole('heading', { name: 'Audit Log' })).toBeTruthy();
+  await screen.findByText('Activity Fixture User');
+  expect(transport.mock.calls.some(([path]) => path === '/api/audit')).toBe(true);
+  expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('persists sidebar collapse and group state across route remounts', async () => {
   const client = createClient();

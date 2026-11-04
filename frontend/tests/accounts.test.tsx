@@ -199,17 +199,19 @@ it('filters users and edits role/status through their existing PATCH endpoints',
     transport.mock.calls.filter(([, options]) => options?.method === 'PATCH').map(([path]) => path),
   ).toEqual(['/api/admin/users/staff/role', '/api/admin/users/staff/status']);
 });
-it('lets ADMIN view users without offering role or status mutations', async () => {
+it('blocks ADMIN from opening user management without USER_VIEW', async () => {
   currentUser = makeUser('admin', 'ADMIN');
-  mount(<UsersPage />);
-  await screen.findByText('Staff Example');
-  expect(screen.queryByRole('button', { name: 'จัดการสิทธิ์' })).toBeNull();
-  const row = screen.getByText('Staff Example').closest('tr');
-  if (!row) throw new Error('Missing user row');
-  await userEvent.setup().click(within(row).getByRole('button', { name: 'รายละเอียด' }));
-  await screen.findByRole('dialog');
-  expect(screen.queryByLabelText('Role')).toBeNull();
-  expect(transport.mock.calls.some(([, options]) => options?.method === 'PATCH')).toBe(false);
+  navigation.path = '/users';
+  mount(
+    <AuthenticatedWorkspace>
+      <UsersPage />
+    </AuthenticatedWorkspace>,
+  );
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'));
+  expect(screen.queryByRole('heading', { name: 'ผู้ใช้งาน' })).toBeNull();
+  expect(transport.mock.calls.some(([path]) => String(path).startsWith('/api/admin/users'))).toBe(
+    false,
+  );
 });
 it('keeps the sole SUPER_ADMIN read-only', async () => {
   mount(<UsersPage />);
@@ -256,7 +258,7 @@ it('filters audit entries and shows before/after data as text', async () => {
   await screen.findByText('L-1');
   await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
   expect(await screen.findByText(/"status": "requested"/)).toBeTruthy();
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิด' }));
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิดหน้าต่าง' }));
   await user.type(screen.getByLabelText('ค้นหาประวัติ'), 'missing');
   expect(screen.getByText(/ไม่พบรายการที่ตรงกับตัวกรอง/)).toBeTruthy();
 });
@@ -289,7 +291,9 @@ it('paginates mobile audit cards, opens details and resets the page when filteri
     expect(screen.getByText(/ENTITY-10$/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
     expect(await screen.findByText(/"status": "requested"/)).toBeTruthy();
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิด' }));
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิดหน้าต่าง' }),
+    );
     await user.type(screen.getByLabelText('ค้นหาประวัติ'), 'ENTITY-0');
     expect(screen.getByText('หน้า 1 / 1')).toBeTruthy();
     expect(screen.getByText(/ENTITY-0$/)).toBeTruthy();
@@ -314,10 +318,13 @@ it('does not restore revoked capabilities from stale or overbroad cached grants'
     ...makeUser('staff'),
     permissions: ['ASSET_VIEW', 'LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE', '*'],
   };
-  expect(canAccess(staleStaff, 'ASSET_VIEW')).toBe(false);
+  expect(canAccess(staleStaff, 'ASSET_VIEW')).toBe(true);
+  expect(canAccess(staleStaff, 'AUDIT_VIEW')).toBe(false);
+  expect(canAccess(staleStaff, 'USER_MANAGE')).toBe(false);
   expect(canAccess(staleStaff, 'LOAN_CREATE')).toBe(true);
   const staleAdmin = { ...makeUser('admin', 'ADMIN'), permissions: ['*', 'AUDIT_VIEW'] };
-  expect(canAccess(staleAdmin, 'AUDIT_VIEW')).toBe(false);
+  expect(canAccess(staleAdmin, 'AUDIT_VIEW')).toBe(true);
   expect(canAccess(staleAdmin, 'USER_MANAGE')).toBe(false);
-  expect(canAccess(staleAdmin, 'USER_VIEW')).toBe(true);
+  expect(canAccess(staleAdmin, 'USER_VIEW')).toBe(false);
+  expect(canAccess(staleAdmin, 'PORTAL_HOME_VIEW')).toBe(false);
 });

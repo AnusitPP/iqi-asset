@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SheetSessionService } from '../../backend/src/features/auth/services/session.service.js';
 import { UserManagementService } from '../../backend/src/features/users/service.js';
 import { TestAuthStorage } from '../helpers/authStorage.js';
+import { permissionsForRole } from '../../shared/features/auth/permissions.js';
 
 test('only the bound bootstrap owner can hold SUPER_ADMIN, even under concurrent promotions', async () => {
   const storage = new TestAuthStorage();
@@ -38,7 +39,7 @@ test('only the bound bootstrap owner can hold SUPER_ADMIN, even under concurrent
   );
 });
 
-test('manual extra SUPER_ADMIN grant does not obtain owner permissions and config changes cannot bootstrap a second owner', async () => {
+test('manual extra SUPER_ADMIN grant resolves to ADMIN and cannot modify or create a bootstrap owner', async () => {
   const storage = new TestAuthStorage();
   const sessions = new SheetSessionService(storage, {
     bootstrapSuperAdminEmail: 'owner@step.cmu.ac.th',
@@ -65,7 +66,27 @@ test('manual extra SUPER_ADMIN grant does not obtain owner permissions and confi
       },
     },
   ]);
-  assert.equal((await next.read(token)).user.role, 'ADMIN');
-  assert.ok(!(await next.read(token)).user.permissions.includes('*'));
+  const admin = (await next.read(token)).user;
+  const owner = (await next.read(ownerToken)).user;
+  assert.equal(admin.role, 'ADMIN');
+  assert.deepEqual(admin.permissions, permissionsForRole('ADMIN'));
+  assert.equal(owner.role, 'SUPER_ADMIN');
+  const management = new UserManagementService(storage, {});
+  await assert.rejects(
+    management.update(admin, owner.id, 'role', 'STAFF'),
+    (error) => error.status === 403,
+  );
+  await assert.rejects(
+    management.update(admin, owner.id, 'status', 'DISABLED'),
+    (error) => error.status === 403,
+  );
+  await assert.rejects(
+    management.update(admin, admin.id, 'role', 'SUPER_ADMIN'),
+    (error) => error.status === 403,
+  );
+  assert.equal(
+    storage.tables.Admins.filter((grant) => grant.assigned_by === 'BOOTSTRAP').length,
+    1,
+  );
   assert.equal((await next.read(ownerToken)).user.role, 'SUPER_ADMIN');
 });

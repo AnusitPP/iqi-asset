@@ -30,7 +30,7 @@ const catalog = {
 };
 let submitted: unknown[] = [];
 beforeEach(() => {
-  authState.user = null;
+  authState.user = { name: 'ทดสอบ ผู้ยืม' };
   submitted = [];
   transport.mockReset();
   transport.mockImplementation(async (path, options) => {
@@ -60,7 +60,8 @@ function mountForm(
 }
 async function fillCommonFields() {
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText(/^ชื่อ - สกุล/), 'ทดสอบ ผู้ยืม');
+  expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', authState.user?.name);
+  expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('readOnly', true);
   await user.selectOptions(screen.getByLabelText(/^ทีม/), 'IQI');
   await user.type(screen.getByLabelText(/^ประเภทของครุภัณฑ์/), 'mouse');
   return user;
@@ -107,7 +108,7 @@ describe('loan and return migration', () => {
       notes: '',
     });
     expect(z.object({ requestId: z.string().uuid() }).parse(submitted[0]).requestId).toBeTruthy();
-    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', '');
+    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', 'ทดสอบ ผู้ยืม');
   });
   it('prevents duplicate clicks while a request is pending', async () => {
     let finishRequest: ((response: Response) => void) | undefined;
@@ -136,7 +137,7 @@ describe('loan and return migration', () => {
     mountForm('return');
     const user = await selectCatalogAsset();
     await user.click(screen.getByRole('button', { name: 'ล้างแบบฟอร์ม' }));
-    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', '');
+    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', 'ทดสอบ ผู้ยืม');
     expect(screen.getByLabelText(/^ประเภทของครุภัณฑ์/)).toHaveProperty('value', '');
     expect(screen.getByLabelText(/^เลขครุภัณฑ์/)).toHaveProperty('value', '');
   });
@@ -222,7 +223,7 @@ describe('loan and return migration', () => {
     loanPage.unmount();
 
     const returnPage = mountForm('return', client);
-    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', '');
+    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', 'ทดสอบ ผู้ยืม');
     expect(screen.getByLabelText(/^เลขครุภัณฑ์/)).toHaveProperty('value', '');
     expect(screen.queryByLabelText(/^เหตุผล/)).toBeNull();
     await selectCatalogAsset();

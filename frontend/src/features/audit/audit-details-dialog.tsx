@@ -27,6 +27,7 @@ export function AuditDetailsDialog({
       radius="lg"
       padding="lg"
       centered
+      closeButtonProps={{ 'aria-label': 'ปิดหน้าต่าง' }}
       styles={{ title: { fontSize: 18, fontWeight: 700 }, header: { paddingBottom: 24 } }}
     >
       <Stack gap="xl">

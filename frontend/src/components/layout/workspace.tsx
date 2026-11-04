@@ -107,7 +107,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
         <AppShell.Main>
           <Container className="portal-main" id="portal-main" tabIndex={-1}>
             <Group
-              hiddenFrom="64em"
+              hiddenFrom="sidebar"
               mb="md"
               py="xs"
               bg="var(--portal-bg)"

@@ -4,6 +4,12 @@ The Next.js frontend uses Mantine throughout its pages and shared components.
 `frontend/src/config/theme.ts` defines the palette, typography, radii and component
 defaults. `AppProviders` supplies this theme to every route.
 
+Import `@mantine/core/styles.layer.css` once in the root layout. The Mantine
+layer lets application styles retain precedence when Next.js orders production
+CSS chunks differently. Do not also import the non-layered `styles.css`.
+Use named theme breakpoints for responsive props: `sidebar` is 1024px and
+`compact` is 600px. `hiddenFrom` accepts breakpoint names, not raw CSS sizes.
+
 | Area                                | Components                                                |
 | ----------------------------------- | --------------------------------------------------------- |
 | Workspace and responsive navigation | AppShell, Container, Burger, Drawer                       |
