@@ -1,25 +1,46 @@
 'use client';
-import { Button, Group, Select, Text, TextInput } from '@mantine/core';
+import {
+  Accordion,
+  Progress,
+  Button,
+  Group,
+  Select,
+  Text,
+  TextInput,
+  UnstyledButton,
+  Box,
+  Title,
+  Paper,
+  SimpleGrid,
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { DashboardMobileCards } from './dashboard-mobile-cards';
+import { DashboardTable } from './dashboard-table';
 import { ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { useToast } from '@/providers/toast-provider';
 import { DashboardLoadingSkeleton } from '@/components/ui/dashboard-skeleton';
-import { useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardStatuses, type DashboardRecord } from '@/types/contracts';
 import { dashboardService, type DashboardData } from '@/services/dashboard.service';
-import { CopyableText, ErrorAlert } from '@/components/ui/feedback';
+import { ErrorAlert } from '@/components/ui/feedback';
 import { formatDashboardStatusLabel, getStatusColorClass } from '@/lib/display';
 import { DashboardRecordDialog } from './dashboard-details';
 import { saveStatusDraftsSequentially, type StatusDraft } from './save-drafts';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
 export function DashboardPage() {
+  const mobile = useMediaQuery('(max-width: 47.99em)', false);
   const { api } = useAuthSession(),
     client = useQueryClient();
   const data = useQuery({
     queryKey: ['dashboard'],
+    staleTime: Infinity,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: ({ signal }) => dashboardService.fetchDashboardData(api, signal),
   });
   const [inspection, setInspection] = useWorkspaceState('dashboard-inspection', ''),
@@ -32,7 +53,7 @@ export function DashboardPage() {
   const isSaveCurrent = useSessionTaskGuard();
   const { showToast } = useToast();
   const drafts = useRef(new Map<number, StatusDraft>()),
-    [, setDraftVersion] = useState(0);
+    [draftVersion, setDraftVersion] = useState(0);
   useUnsavedChangesGuard(drafts.current.size > 0);
   const reloadDashboardData = async () => {
     const fresh = await dashboardService.fetchDashboardData(api);
@@ -76,6 +97,68 @@ export function DashboardPage() {
       }
     },
   });
+  const deferredQuery = useDeferredValue(query);
+  const searchIndex = useMemo(
+    () =>
+      (data.data?.records ?? []).map((record) => ({
+        record,
+        values: record.values.map((value) => value.toLocaleLowerCase()),
+      })),
+    [data.data?.records],
+  );
+  const records = useMemo(() => {
+    const normalized = deferredQuery.trim().toLocaleLowerCase();
+    return searchIndex
+      .filter(
+        ({ record, values }) =>
+          (!inspection || record.inspection === inspection) &&
+          (!comparison || record.comparison === comparison) &&
+          (!teamFilter || record.team.trim() === teamFilter) &&
+          (!normalized || values.some((value) => value.includes(normalized))),
+      )
+      .map(({ record }) => record);
+  }, [searchIndex, deferredQuery, inspection, comparison, teamFilter]);
+  const teamOptions = useMemo(
+    () => [
+      { value: '', label: 'ผู้ถือครอง / ทีม · ทุกทีม' },
+      ...[
+        ...new Set((data.data?.records ?? []).map((record) => record.team.trim()).filter(Boolean)),
+      ]
+        .sort((a, b) => a.localeCompare(b, 'th'))
+        .map((team) => ({ value: team, label: team })),
+    ],
+    [data.data?.records],
+  );
+  const saveStatusDraft = useCallback(
+    (row: number) => saveStatusDraftsMutation.mutate(row),
+    [saveStatusDraftsMutation.mutate],
+  );
+  const updateStatusDraft = useCallback((record: DashboardRecord, status: string | null) => {
+    if (!status || status === record.inspection) drafts.current.delete(record.row);
+    else drafts.current.set(record.row, { status, revision: record.revision });
+    setDraftVersion((value) => value + 1);
+  }, []);
+  const renderTeamFilter = useCallback(
+    () => (
+      <Select
+        className="dash-team-filter"
+        mx="auto"
+        style={mobile ? { width: '100%' } : undefined}
+        classNames={{
+          input: 'dash-team-filter-input',
+          option: 'dash-status-option',
+        }}
+        aria-label="กรองตามทีม"
+        value={teamFilter}
+        onChange={(team) => setTeamFilter(team ?? '')}
+        allowDeselect={false}
+        rightSection={<ChevronDown size={16} className="dash-team-chevron" aria-hidden="true" />}
+        rightSectionPointerEvents="none"
+        data={teamOptions}
+      />
+    ),
+    [mobile, teamFilter, setTeamFilter, teamOptions],
+  );
   if (data.isPending) return <DashboardLoadingSkeleton />;
   if (!data.data)
     return (
@@ -90,15 +173,7 @@ export function DashboardPage() {
         </Button>
       </>
     );
-  const dashboard = data.data,
-    normalized = query.trim().toLocaleLowerCase();
-  const records = dashboard.records.filter(
-    (r) =>
-      (!inspection || r.inspection === inspection) &&
-      (!comparison || r.comparison === comparison) &&
-      (!teamFilter || r.team.trim() === teamFilter) &&
-      (!normalized || r.values.some((v) => v.toLocaleLowerCase().includes(normalized))),
-  );
+  const dashboard = data.data;
   const current = dashboard.records.find((r) => r.row === selected);
   const renderStatusFilterCard = (
     label: string,
@@ -106,7 +181,7 @@ export function DashboardPage() {
     selected: boolean,
     onClick: () => void,
   ) => (
-    <button
+    <UnstyledButton
       key={label}
       type="button"
       className={`dash-stat ${getStatusColorClass(label)} ${selected ? 'selected' : ''}`}
@@ -114,20 +189,25 @@ export function DashboardPage() {
       onClick={onClick}
     >
       <span className="dash-stat-label">{formatDashboardStatusLabel(label)}</span>
-      <strong>{count}</strong>
-      <span className="dash-stat-caption">รายการ</span>
-    </button>
+      <span className="dash-stat-total">
+        <strong>{count.toLocaleString('th-TH')}</strong>
+        <span className="dash-stat-caption">รายการ</span>
+      </span>
+    </UnstyledButton>
   );
   return (
-    <section aria-label="Dashboard ครุภัณฑ์ IQI">
-      <div className="dash-heading">
-        <div>
-          <div className="eyebrow">IQI · APPSCRIPTDATA</div>
-          <h1>Dashboard ครุภัณฑ์</h1>
-          <p>ผลตรวจจาก Apps Script และการเทียบข้อมูลกับ Google Sheets</p>
-        </div>
+    <Box component="section" aria-label="Dashboard ครุภัณฑ์ IQI">
+      <Group justify="space-between" align="center" className="dash-heading">
+        <Box>
+          <Box className="eyebrow">IQI · APPSCRIPTDATA</Box>
+          <Title order={1}>Dashboard ครุภัณฑ์</Title>
+          <Text component="p" className="portal-paragraph">
+            ผลตรวจจาก Apps Script และการเทียบข้อมูลกับ Google Sheets
+          </Text>
+        </Box>
         <Button
           variant="default"
+          fullWidth={mobile}
           disabled={saveStatusDraftsMutation.isPending}
           loading={data.isFetching}
           onClick={() => {
@@ -144,8 +224,8 @@ export function DashboardPage() {
         >
           โหลดข้อมูลล่าสุด
         </Button>
-      </div>
-      <div
+      </Group>
+      <Box
         className="dash-bulk-bar"
         hidden={!drafts.current.size && !saveStatusDraftsMutation.isPending}
       >
@@ -156,12 +236,13 @@ export function DashboardPage() {
         </span>
         <Button
           loading={saveStatusDraftsMutation.isPending}
+          fullWidth={mobile}
           disabled={!drafts.current.size}
           onClick={() => saveStatusDraftsMutation.mutate(undefined)}
         >
           บันทึกทั้งหมด ({drafts.current.size})
         </Button>
-      </div>
+      </Box>
       <ErrorAlert error={data.error} />
       <ErrorAlert error={saveStatusDraftsMutation.error} />
       {notice && (
@@ -169,54 +250,95 @@ export function DashboardPage() {
           {notice}
         </Text>
       )}
-      <section className="dash-progress">
-        <div className="dash-progress-head">
-          <h2>ความคืบหน้าการตรวจ</h2>
+      <Paper withBorder component="section" className="dash-progress">
+        <Box className="dash-progress-head">
+          <Title order={2}>ความคืบหน้าการตรวจ</Title>
           <strong>{dashboard.percent}%</strong>
-        </div>
-        <p>
+        </Box>
+        <Text component="p" className="portal-paragraph">
           ตรวจแล้ว {dashboard.completed} / {dashboard.total} รายการ
-        </p>
-        <progress
-          max={dashboard.total || 1}
-          value={dashboard.completed}
+        </Text>
+        <Progress
+          value={dashboard.percent}
           aria-label="ความคืบหน้าการตรวจครุภัณฑ์"
+          className="dash-inspection-progress"
+          size={15}
+          radius="xl"
         />
-        <p className="dash-hint">
+        <Text component="p" className="portal-paragraph dash-hint">
           นับตรวจแล้วจาก ดี + ชำรุด + หาไม่เจอ + อุปกรอื่นๆ + กล้องวงจรปิด ตามผลตรวจ Apps Script
-        </p>
-      </section>
-      <details
-        className="dash-filters"
-        open={filtersOpen}
-        onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+        </Text>
+      </Paper>
+      <Accordion
+        chevronSize={16}
+        radius={18}
+        styles={{
+          item: {
+            border: '1px solid var(--line)',
+            overflow: 'hidden',
+            backgroundColor: 'var(--mantine-color-white)',
+          },
+          control: {
+            minHeight: filtersOpen ? 44 : 60,
+            backgroundColor: 'var(--mantine-color-portalYellow-1)',
+            color: 'var(--mantine-color-black)',
+          },
+          label: { paddingBlock: 0, fontSize: 16, fontWeight: 700 },
+          chevron: { color: '#111827' },
+          content: { padding: 0 },
+        }}
+        value={filtersOpen ? 'filters' : null}
+        onChange={(value) => setFiltersOpen(value === 'filters')}
+        variant="separated"
+        my="md"
       >
-        <summary>ตัวกรองสถานะและการเทียบข้อมูล</summary>
-        <h2 className="dash-section-title">ผลตรวจ Apps Script</h2>
-        <div className="dash-stats">
-          {[...dashboardStatuses, ...(dashboard.inspection['ไม่ระบุ'] ? ['ไม่ระบุ'] : [])].map(
-            (s) =>
-              renderStatusFilterCard(s, dashboard.inspection[s] ?? 0, inspection === s, () =>
-                setInspection(inspection === s ? '' : s),
-              ),
-          )}
-        </div>
-        <h2 className="dash-section-title">ข้อมูล Apps Script เทียบกับ Google Sheets</h2>
-        <div className="dash-matches">
-          {Object.entries(dashboard.comparison).map(([s, count]) =>
-            renderStatusFilterCard(s, count, comparison === s, () =>
-              setComparison(comparison === s ? '' : s),
-            ),
-          )}
-        </div>
-        <p className="dash-hint">
-          “หาไม่เจอ” ในการเทียบข้อมูล หมายถึงไม่พบข้อมูลในชีตต้นฉบับ
-          เป็นคนละส่วนกับผลตรวจหาอุปกรณ์ไม่เจอ
-        </p>
-      </details>
+        <Accordion.Item value="filters">
+          <Accordion.Control p={{ base: 18, '37.5em': 24 }}>
+            ตัวกรองสถานะและการเทียบข้อมูล
+          </Accordion.Control>
+          <Accordion.Panel px={{ base: 18, '37.5em': 24 }} pb={{ base: 18, '37.5em': 24 }}>
+            <Title order={2} className="dash-section-title">
+              ผลตรวจ Apps Script
+            </Title>
+            <SimpleGrid
+              cols={{ base: 1, xs: 2, sm: 3, xl: 6 }}
+              spacing="sm"
+              className="dash-stats"
+              style={mobile ? { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } : undefined}
+            >
+              {[...dashboardStatuses, ...(dashboard.inspection['ไม่ระบุ'] ? ['ไม่ระบุ'] : [])].map(
+                (s) =>
+                  renderStatusFilterCard(s, dashboard.inspection[s] ?? 0, inspection === s, () =>
+                    setInspection(inspection === s ? '' : s),
+                  ),
+              )}
+            </SimpleGrid>
+            <Title order={2} className="dash-section-title">
+              ข้อมูล Apps Script เทียบกับ Google Sheets
+            </Title>
+            <SimpleGrid
+              cols={{ base: 1, sm: 2, lg: 3 }}
+              spacing="sm"
+              className="dash-matches"
+              style={mobile ? { gridTemplateColumns: 'minmax(0, 1fr)' } : undefined}
+            >
+              {Object.entries(dashboard.comparison).map(([s, count]) =>
+                renderStatusFilterCard(s, count, comparison === s, () =>
+                  setComparison(comparison === s ? '' : s),
+                ),
+              )}
+            </SimpleGrid>
+            <Text component="p" className="portal-paragraph dash-hint">
+              “หาไม่เจอ” ในการเทียบข้อมูล หมายถึงไม่พบข้อมูลในชีตต้นฉบับ
+              เป็นคนละส่วนกับผลตรวจหาอุปกรณ์ไม่เจอ
+            </Text>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
       <Group my="lg">
         <TextInput
-          style={{ flex: 1 }}
+          flex={mobile ? '1 1 100%' : 1}
+          miw={0}
           aria-label="ค้นหารายการ Dashboard"
           placeholder="ค้นหาเลขครุภัณฑ์ S/N อุปกรณ์ ผู้ถือครอง หรือหมายเหตุ"
           value={query}
@@ -234,152 +356,42 @@ export function DashboardPage() {
           ล้างตัวกรอง
         </Button>
       </Group>
-      <div className="dash-list-head">
+      {mobile && <Box mb="md">{renderTeamFilter()}</Box>}
+      <Box className="dash-list-head">
         <strong>
           แสดง {records.length} จาก {dashboard.total} รายการ
         </strong>
         <span>
           {[inspection, comparison, teamFilter].filter(Boolean).join(' · ') || 'ทุกรายการ'}
         </span>
-      </div>
-      <div className="dash-list">
-        {!records.length ? (
-          <p className="dash-empty">ไม่พบรายการตามตัวกรองที่เลือก</p>
-        ) : (
-          <table className="dash-table">
-            <thead>
-              <tr>
-                {[
-                  'เลขครุภัณฑ์ / อุปกรณ์',
-                  'S/N',
-                  'ผลตรวจ Apps Script',
-                  'การเทียบกับชีต',
-                  'ผู้ถือครอง / ทีม',
-                  'รายละเอียด',
-                ].map((title) => (
-                  <th key={title} scope="col">
-                    {title === 'ผู้ถือครอง / ทีม' ? (
-                      <Select
-                        className="dash-team-filter"
-                        classNames={{
-                          input: 'dash-team-filter-input',
-                          option: 'dash-status-option',
-                        }}
-                        aria-label="กรองตามทีม"
-                        value={teamFilter}
-                        onChange={(team) => setTeamFilter(team ?? '')}
-                        allowDeselect={false}
-                        rightSection={
-                          <ChevronDown size={16} className="dash-team-chevron" aria-hidden="true" />
-                        }
-                        rightSectionPointerEvents="none"
-                        data={[
-                          { value: '', label: 'ผู้ถือครอง / ทีม · ทุกทีม' },
-                          ...[
-                            ...new Set(
-                              dashboard.records.map((record) => record.team.trim()).filter(Boolean),
-                            ),
-                          ]
-                            .sort((a, b) => a.localeCompare(b, 'th'))
-                            .map((team) => ({ value: team, label: team })),
-                        ]}
-                      />
-                    ) : (
-                      title
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => (
-                <tr key={r.row} className={`dash-row ${getStatusColorClass(r.inspection)}`}>
-                  <td>
-                    <CopyableText value={r.asset} />
-                    <span className="dash-item-name">{r.name || 'ไม่ระบุชื่ออุปกรณ์'}</span>
-                  </td>
-                  <td>
-                    <CopyableText value={r.serial} />
-                  </td>
-                  <td>
-                    <div className="dash-status-controls">
-                      <Select
-                        rightSection={
-                          <ChevronDown
-                            size={16}
-                            className="dash-status-chevron"
-                            aria-hidden="true"
-                          />
-                        }
-                        rightSectionPointerEvents="none"
-                        aria-label={`สถานะ ${r.asset} ${r.serial}`}
-                        className={`dash-status-field ${getStatusColorClass(drafts.current.get(r.row)?.status ?? r.inspection)}`}
-                        classNames={{ input: 'dash-status-input', option: 'dash-status-option' }}
-                        placeholder="เลือกสถานะ"
-                        allowDeselect={false}
-                        data={dashboardStatuses.map((status) => ({
-                          value: status,
-                          label: formatDashboardStatusLabel(status),
-                        }))}
-                        value={
-                          drafts.current.get(r.row)?.status ??
-                          (r.inspection === 'ไม่ระบุ' ? null : r.inspection)
-                        }
-                        disabled={saveStatusDraftsMutation.isPending}
-                        onChange={(status) => {
-                          if (!status || status === r.inspection) drafts.current.delete(r.row);
-                          else
-                            drafts.current.set(r.row, {
-                              status,
-                              revision: r.revision,
-                            });
-                          setDraftVersion((v) => v + 1);
-                        }}
-                      />
-                      <Button
-                        className="dash-save"
-                        size="compact-xs"
-                        disabled={saveStatusDraftsMutation.isPending || !drafts.current.has(r.row)}
-                        onClick={() => saveStatusDraftsMutation.mutate(r.row)}
-                      >
-                        บันทึก
-                      </Button>
-                    </div>
-                    <div className="dash-updated-at">
-                      {r.updatedAt ? `อัปเดตล่าสุด ${r.updatedAt}` : 'ยังไม่มีวันที่อัปเดตจากเว็บ'}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`dash-badge ${getStatusColorClass(r.comparison)}`}>
-                      {r.comparison}
-                    </span>
-                  </td>
-                  <td>
-                    {r.owner || '—'}
-                    <span className="dash-item-name">{r.team}</span>
-                  </td>
-                  <td>
-                    <Button
-                      size="compact-xs"
-                      variant="light"
-                      disabled={saveStatusDraftsMutation.isPending}
-                      onClick={() => setSelected(r.row)}
-                      color="#242525"
-                    >
-                      ดูข้อมูล
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-      <p className="dash-updated">
+      </Box>
+      {mobile ? (
+        <DashboardMobileCards
+          records={records}
+          drafts={drafts.current}
+          draftVersion={draftVersion}
+          busy={saveStatusDraftsMutation.isPending}
+          onStatusChange={updateStatusDraft}
+          onSave={saveStatusDraft}
+          onSelect={setSelected}
+        />
+      ) : (
+        <DashboardTable
+          records={records}
+          drafts={drafts.current}
+          draftVersion={draftVersion}
+          busy={saveStatusDraftsMutation.isPending}
+          renderTeamFilter={renderTeamFilter}
+          onStatusChange={updateStatusDraft}
+          onSave={saveStatusDraft}
+          onSelect={setSelected}
+        />
+      )}
+      <Text component="p" className="portal-paragraph dash-updated">
         อ่านจากแท็บ Appscriptdata เมื่อ{' '}
         {new Date(dashboard.loadedAt).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })} ·
         แก้สถานะผ่านหน้านี้จะบันทึกลง Appscriptdata เท่านั้น
-      </p>
+      </Text>
       {current && (
         <DashboardRecordDialog
           key={current.row}
@@ -391,6 +403,6 @@ export function DashboardPage() {
           onSaved={updateCachedDashboardRecord}
         />
       )}
-    </section>
+    </Box>
   );
 }

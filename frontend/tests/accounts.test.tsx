@@ -144,6 +144,27 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+
+it('shows mobile user cards and opens account details without a wide table', async () => {
+  const originalMatchMedia = vi.mocked(window.matchMedia).getMockImplementation()!;
+  const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    ...originalMatchMedia(query),
+    matches: query === '(max-width: 47.99em)',
+  }));
+  const view = mount(<UsersPage />);
+  try {
+    const user = userEvent.setup();
+    await screen.findByText('Staff Example');
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getByText('staff@example.invalid')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'จัดการสิทธิ์' })).toHaveLength(1);
+    await user.click(screen.getAllByRole('button', { name: 'รายละเอียด' })[0]!);
+    expect(await screen.findByRole('dialog', { name: 'ข้อมูลผู้ใช้งาน' })).toBeTruthy();
+  } finally {
+    view.unmount();
+    media.mockImplementation(originalMatchMedia);
+  }
+});
 it('hides administrative menus for STAFF and redirects a forbidden direct route', async () => {
   currentUser = makeUser('staff');
   navigation.path = '/users';
@@ -170,7 +191,7 @@ it('filters users and edits role/status through their existing PATCH endpoints',
   const dialog = await screen.findByRole('dialog');
   await user.selectOptions(await within(dialog).findByLabelText('Role'), 'ADMIN');
   await user.selectOptions(within(dialog).getByLabelText('สถานะ'), 'DISABLED');
-  await user.click(within(dialog).getByRole('button', { name: 'บันทึกสิทธิ์' }));
+  await user.click(within(dialog).getByRole('button', { name: 'บันทึกการเปลี่ยนแปลง' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(users[0]?.role).toBe('ADMIN');
   expect(users[0]?.status).toBe('DISABLED');
@@ -219,7 +240,7 @@ it('stops user access changes and cache updates after leaving the session', asyn
   const dialog = await screen.findByRole('dialog');
   await user.selectOptions(await within(dialog).findByLabelText('Role'), 'ADMIN');
   await user.selectOptions(within(dialog).getByLabelText('สถานะ'), 'DISABLED');
-  await user.click(within(dialog).getByRole('button', { name: 'บันทึกสิทธิ์' }));
+  await user.click(within(dialog).getByRole('button', { name: 'บันทึกการเปลี่ยนแปลง' }));
   await waitFor(() => expect(finishRole).toBeDefined());
   view.unmount();
   view.client.removeQueries();
@@ -238,6 +259,44 @@ it('filters audit entries and shows before/after data as text', async () => {
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิด' }));
   await user.type(screen.getByLabelText('ค้นหาประวัติ'), 'missing');
   expect(screen.getByText(/ไม่พบรายการที่ตรงกับตัวกรอง/)).toBeTruthy();
+});
+it('paginates mobile audit cards, opens details and resets the page when filtering', async () => {
+  const originalMatchMedia = vi.mocked(window.matchMedia).getMockImplementation()!;
+  const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    ...originalMatchMedia(query),
+    matches: query === '(max-width: 47.99em)',
+  }));
+  const originalTransport = transport.getMockImplementation()!;
+  transport.mockImplementation(async (input, options) => {
+    const response = await originalTransport(input, options);
+    if (input !== '/api/audit') return response;
+    const data = await response.json();
+    return Response.json({
+      records: Array.from({ length: 11 }, (_, index) => ({
+        ...data.records[0],
+        id: `audit-${index}`,
+        entity_id: `ENTITY-${index}`,
+      })),
+    });
+  });
+  const view = mount(<AuditPage />);
+  try {
+    const user = userEvent.setup();
+    await screen.findByText(/ENTITY-0$/);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'ดูรายละเอียด' })).toHaveLength(10);
+    await user.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    expect(screen.getByText(/ENTITY-10$/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
+    expect(await screen.findByText(/"status": "requested"/)).toBeTruthy();
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ปิด' }));
+    await user.type(screen.getByLabelText('ค้นหาประวัติ'), 'ENTITY-0');
+    expect(screen.getByText('หน้า 1 / 1')).toBeTruthy();
+    expect(screen.getByText(/ENTITY-0$/)).toBeTruthy();
+  } finally {
+    view.unmount();
+    media.mockImplementation(originalMatchMedia);
+  }
 });
 it('loads own requests with the current API contract', async () => {
   currentUser = makeUser('staff');

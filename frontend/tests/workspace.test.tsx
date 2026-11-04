@@ -131,18 +131,24 @@ it('filters by team, retains filters across remount, and resets all filters toge
   const page = renderWorkspace(<DashboardPage />, client);
   const user = userEvent.setup();
   await screen.findByText('IT-001');
-  await user.selectOptions(screen.getByLabelText('กรองตามทีม'), 'IT');
+  await user.click(screen.getByRole('combobox', { name: 'กรองตามทีม' }));
+  await user.click(screen.getByRole('option', { name: 'IT' }));
   expect(screen.queryByText('GA-001')).toBeNull();
   expect(screen.getByText('IT-001')).toBeTruthy();
   await user.click(screen.getByText('ตัวกรองสถานะและการเทียบข้อมูล'));
-  await user.click(screen.getByRole('button', { name: /^ดี\s*1/ }));
+  await user.click(await screen.findByRole('button', { name: /^ดี\s*1/ }));
   await user.type(screen.getByLabelText('ค้นหารายการ Dashboard'), 'SN-IT');
   page.unmount();
   renderWorkspace(<DashboardPage />, client);
-  await waitFor(() => expect(screen.getByLabelText('กรองตามทีม')).toHaveProperty('value', 'IT'));
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'กรองตามทีม' })).toHaveProperty('value', 'IT'),
+  );
   expect(screen.getByLabelText('ค้นหารายการ Dashboard')).toHaveProperty('value', 'SN-IT');
   expect(screen.getByRole('button', { name: /^ดี\s*1/ }).getAttribute('aria-pressed')).toBe('true');
   await user.click(screen.getByRole('button', { name: 'ล้างตัวกรอง' }));
-  expect(screen.getByLabelText('กรองตามทีม')).toHaveProperty('value', '');
+  expect(screen.getByRole('combobox', { name: 'กรองตามทีม' })).toHaveProperty(
+    'value',
+    'ผู้ถือครอง / ทีม · ทุกทีม',
+  );
   expect(screen.getByText('GA-001')).toBeTruthy();
 });

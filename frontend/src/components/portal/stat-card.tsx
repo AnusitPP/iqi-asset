@@ -1,3 +1,4 @@
+import { Paper, Box } from '@mantine/core';
 import type { LucideIcon } from 'lucide-react';
 export function StatCard({
   label,
@@ -15,17 +16,18 @@ export function StatCard({
   state: 'ready' | 'loading' | 'error' | 'restricted';
 }) {
   return (
-    <article
+    <Paper
+      component="article"
       className={`portal-stat-card tone-${tone}`}
       aria-label={label}
       aria-busy={state === 'loading'}
     >
-      <div className="portal-stat-top">
+      <Box className="portal-stat-top">
         <span>{label}</span>
         <span className="portal-stat-icon">
           <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
         </span>
-      </div>
+      </Box>
       <strong className={`portal-stat-value${state === 'loading' ? ' is-loading' : ''}`}>
         {state === 'ready' && value !== undefined
           ? new Intl.NumberFormat('th-TH').format(value)
@@ -42,6 +44,6 @@ export function StatCard({
               ? 'กำลังอ่านข้อมูลล่าสุด'
               : caption}
       </span>
-    </article>
+    </Paper>
   );
 }

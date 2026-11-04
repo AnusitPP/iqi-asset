@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Tooltip } from '@mantine/core';
+import { Tooltip, Anchor, Box, UnstyledButton } from '@mantine/core';
 import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   homeService,
@@ -55,13 +55,13 @@ function SidebarItem({
       disabled={!collapsed}
     >
       {service.external ? (
-        <a href={service.href} target="_blank" rel="noreferrer" {...props}>
+        <Anchor href={service.href} target="_blank" rel="noreferrer" {...props}>
           {content}
-        </a>
+        </Anchor>
       ) : (
-        <Link href={service.href} onClick={navigate} {...props}>
+        <Anchor component={Link} href={service.href} onClick={navigate} {...props}>
           {content}
-        </Link>
+        </Anchor>
       )}
     </Tooltip>
   );
@@ -79,9 +79,10 @@ export function AppSidebar({
   const { can, user } = useAuthSession();
   const navigate = usePortalLinkHandler();
   return (
-    <div className={`portal-sidebar-inner${collapsed ? ' is-collapsed' : ''}`}>
-      <div className="portal-sidebar-brand-row">
-        <Link
+    <Box className={`portal-sidebar-inner${collapsed ? ' is-collapsed' : ''}`}>
+      <Box className="portal-sidebar-brand-row">
+        <Anchor
+          component={Link}
           href={isServiceAllowed(homeService, can) ? '/' : defaultWorkspacePath(user)}
           className="portal-brand"
           onClick={navigate}
@@ -92,10 +93,10 @@ export function AppSidebar({
             <strong>Asset Checker</strong>
             <small>IT SERVICE PORTAL</small>
           </span>
-        </Link>
+        </Anchor>
         {!mobile && (
           <Tooltip label={collapsed ? 'ขยายแถบเมนู' : 'ย่อแถบเมนู'} position="right">
-            <button
+            <UnstyledButton
               className="portal-icon-button portal-collapse-toggle"
               onClick={onToggleCollapse}
               aria-label={collapsed ? 'ขยายแถบเมนู' : 'ย่อแถบเมนู'}
@@ -103,11 +104,12 @@ export function AppSidebar({
               aria-controls="portal-desktop-navigation"
             >
               {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-            </button>
+            </UnstyledButton>
           </Tooltip>
         )}
-      </div>
-      <nav
+      </Box>
+      <Box
+        component="nav"
         className="portal-navigation"
         aria-label="หน้าข้อมูล"
         id={mobile ? 'portal-mobile-navigation' : 'portal-desktop-navigation'}
@@ -121,11 +123,16 @@ export function AppSidebar({
           const open = groups[module.id] ?? !['it-services', 'other'].includes(module.id);
           const id = `portal-${mobile ? 'mobile' : 'desktop'}-group-${module.id}`;
           return (
-            <section className="portal-nav-group" key={module.id} aria-label={module.title}>
+            <Box
+              component="section"
+              className="portal-nav-group"
+              key={module.id}
+              aria-label={module.title}
+            >
               {collapsed ? (
-                <div className="portal-nav-divider" />
+                <Box className="portal-nav-divider" />
               ) : (
-                <button
+                <UnstyledButton
                   className="portal-nav-group-button"
                   onClick={() => onToggleGroup(module.id)}
                   aria-expanded={open}
@@ -133,9 +140,9 @@ export function AppSidebar({
                 >
                   <span>{module.title}</span>
                   <ChevronDown size={14} className={open ? 'is-open' : ''} aria-hidden="true" />
-                </button>
+                </UnstyledButton>
               )}
-              <div id={id} hidden={!collapsed && !open}>
+              <Box id={id} hidden={!collapsed && !open}>
                 {services.map((service) => (
                   <SidebarItem
                     key={service.id}
@@ -144,23 +151,23 @@ export function AppSidebar({
                     collapsed={collapsed}
                   />
                 ))}
-              </div>
-            </section>
+              </Box>
+            </Box>
           );
         })}
-      </nav>
-      <div className="portal-sidebar-bottom">
+      </Box>
+      <Box className="portal-sidebar-bottom">
         {user && (
-          <div className="portal-sidebar-profile">
+          <Box className="portal-sidebar-profile">
             <UserAvatar name={user.name} url={user.avatar_url} />
-            <div className="portal-profile-copy">
+            <Box className="portal-profile-copy">
               <strong>{user.name}</strong>
               <span>{user.role}</span>
-            </div>
-          </div>
+            </Box>
+          </Box>
         )}
         <Tooltip label="ล็อกออก" position="right" disabled={!collapsed}>
-          <button
+          <UnstyledButton
             className="portal-logout"
             onClick={onLogout}
             disabled={leaving}
@@ -168,9 +175,9 @@ export function AppSidebar({
           >
             <LogOut size={18} aria-hidden="true" />
             <span className="portal-nav-label">{leaving ? 'กำลังออกจากระบบ…' : 'ล็อกออก'}</span>
-          </button>
+          </UnstyledButton>
         </Tooltip>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

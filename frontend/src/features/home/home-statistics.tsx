@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@mantine/core';
+import { Button, Box, SimpleGrid } from '@mantine/core';
 import { Package, CircleCheck, ClipboardClock, FileText } from 'lucide-react';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardService } from '@/services/dashboard.service';
@@ -38,8 +38,8 @@ export function HomeStatistics() {
         ? 'error'
         : 'ready';
   return (
-    <section aria-label="สรุปข้อมูลการใช้งาน" className="portal-statistics-section">
-      <div className="portal-statistics">
+    <Box component="section" aria-label="สรุปข้อมูลการใช้งาน" className="portal-statistics-section">
+      <SimpleGrid className="portal-statistics" cols={{ base: 2, lg: 4 }} spacing="md">
         <StatCard
           label="รายการครุภัณฑ์"
           value={dashboard.data?.total}
@@ -78,7 +78,7 @@ export function HomeStatistics() {
           tone="violet"
           state={requestState}
         />
-      </div>
+      </SimpleGrid>
       <ErrorAlert error={dashboard.error || requests.error} />
       {(dashboard.error || requests.error) && (
         <Button
@@ -92,6 +92,6 @@ export function HomeStatistics() {
           ลองโหลดข้อมูลสรุปอีกครั้ง
         </Button>
       )}
-    </section>
+    </Box>
   );
 }

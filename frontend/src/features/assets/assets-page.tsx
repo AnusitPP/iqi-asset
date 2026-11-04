@@ -1,5 +1,5 @@
 'use client';
-import { Button, Checkbox, Group, TextInput, Text } from '@mantine/core';
+import { Button, Checkbox, Group, TextInput, Text, Box, Title, Paper, Stack } from '@mantine/core';
 import { Heart, Search, Check } from 'lucide-react';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { useToast } from '@/providers/toast-provider';
@@ -41,19 +41,19 @@ export function AssetsPage() {
   const total = results.data?.groups.reduce((n, group) => n + group.count, 0) ?? 0;
   return (
     <>
-      <section className="intro">
-        <div className="eyebrow">IQI WORKSPACE</div>
-        <h1>
+      <Box component="section" className="intro">
+        <Box className="eyebrow">IQI WORKSPACE</Box>
+        <Title order={1}>
           ครุภัณฑ์ที่ต้องการ
           <br className="mobile-break" /> หาได้ในที่เดียว<span className="heading-dot">.</span>
-        </h1>
-        <p>
+        </Title>
+        <Text component="p" className="portal-paragraph">
           ค้นหา ตรวจสอบข้อมูล และอัปเดตครุภัณฑ์ IQI
           <br />
           จาก Google Sheets ของคุณ
-        </p>
-      </section>
-      <section className="search-card">
+        </Text>
+      </Box>
+      <Paper withBorder component="section" className="search-card">
         <form
           id="search-form"
           onSubmit={(event) => {
@@ -62,7 +62,7 @@ export function AssetsPage() {
             if (query.trim() === debounced) void results.refetch();
           }}
         >
-          <div className="search-row">
+          <Group align="end" className="search-row">
             <TextInput
               label="ค้นหาข้อมูลครุภัณฑ์"
               placeholder="ชื่อคน อุปกรณ์ ทีม เลขครุภัณฑ์ หรือ S/N"
@@ -77,51 +77,56 @@ export function AssetsPage() {
             <Button type="submit" loading={results.isFetching} disabled={!query.trim() && !pending}>
               ค้นหา
             </Button>
-          </div>
-          <p>ค้นหาทุกคอลัมน์ พิมพ์หลายคำได้ เช่น จอ IQI หรือชื่อคน</p>
+          </Group>
+          <Text component="p" className="portal-paragraph">
+            ค้นหาทุกคอลัมน์ พิมพ์หลายคำได้ เช่น จอ IQI หรือชื่อคน
+          </Text>
         </form>
-        <div className="source-strip">ค้นหาพร้อมกันใน · IQI · รายการทั้งหมด · all</div>
+        <Box className="source-strip">ค้นหาพร้อมกันใน · IQI · รายการทั้งหมด · all</Box>
         <Checkbox
           mt="md"
           label="แสดงเฉพาะรายการรอค้นหา"
           checked={pending}
           onChange={(e) => setPending(e.currentTarget.checked)}
         />
-      </section>
+      </Paper>
       <ErrorAlert error={results.error} />
       {notice && <Text role="status">{notice}</Text>}
-      <section aria-live="polite" aria-busy={results.isFetching}>
+      <Box component="section" aria-live="polite" aria-busy={results.isFetching}>
         {!debounced && !pending ? (
-          <div className="empty-start">
-            <h2>เริ่มต้นด้วยคำที่ต้องการค้นหา</h2>
-            <p>ข้อมูลครบทุกคอลัมน์ พร้อมแก้ไขรายการจาก IQI</p>
-          </div>
+          <Box className="empty-start">
+            <Title order={2}>เริ่มต้นด้วยคำที่ต้องการค้นหา</Title>
+            <Text component="p" className="portal-paragraph">
+              ข้อมูลครบทุกคอลัมน์ พร้อมแก้ไขรายการจาก IQI
+            </Text>
+          </Box>
         ) : results.isPending ? (
           <LoadingIndicator />
         ) : (
           results.data && (
             <>
-              <div className="results-heading">
-                <h2>
+              <Box className="results-heading">
+                <Title order={2}>
                   {!results.data.query && pending
                     ? 'รายการรอตรวจสอบทั้งหมด'
                     : `ผลการค้นหา “${results.data.query}”`}
-                </h2>
+                </Title>
                 <span>
                   {total} รายการ / {results.data.groups.length} กลุ่ม
                 </span>
-              </div>
-              <div className="result-groups">
+              </Box>
+              <Stack gap="lg" className="result-groups">
                 {results.data.groups
                   .filter((g) => !pending || g.count > 0)
                   .map((group) => (
-                    <section
+                    <Box
+                      component="section"
                       className={`result-group ${group.reviewGroup ? 'review-group' : ''}`}
                       key={group.sheet}
                     >
-                      <div className="group-header">
-                        <div>
-                          <h3>{group.label}</h3>
+                      <Box className="group-header">
+                        <Box>
+                          <Title order={3}>{group.label}</Title>
                           <span>
                             {group.reviewGroup
                               ? 'รายการในชีต IQI + IT'
@@ -129,15 +134,23 @@ export function AssetsPage() {
                                 ? 'อ่านและแก้ไขได้'
                                 : 'ดูอย่างเดียว'}
                           </span>
-                        </div>
+                        </Box>
                         <span>{group.count} รายการ</span>
-                      </div>
-                      {group.sheet !== group.label && <p>แท็บ: {group.sheet}</p>}
+                      </Box>
+                      {group.sheet !== group.label && (
+                        <Text component="p" className="portal-paragraph">
+                          แท็บ: {group.sheet}
+                        </Text>
+                      )}
                       {group.count > 0 && group.matchType === 'fallback' && (
-                        <p>พบจากเลขเก่า 2 ส่วนท้าย</p>
+                        <Text component="p" className="portal-paragraph">
+                          พบจากเลขเก่า 2 ส่วนท้าย
+                        </Text>
                       )}
                       {!group.count && (
-                        <p className="group-empty">ไม่พบข้อมูลที่ตรงกันใน Sheet นี้</p>
+                        <Text component="p" className="portal-paragraph group-empty">
+                          ไม่พบข้อมูลที่ตรงกันใน Sheet นี้
+                        </Text>
                       )}
                       {group.records.map((record) => (
                         <AssetSearchResultCard
@@ -160,20 +173,20 @@ export function AssetsPage() {
                           }}
                         />
                       ))}
-                    </section>
+                    </Box>
                   ))}
-              </div>
+              </Stack>
               {!total && (
-                <p>
+                <Text component="p" className="portal-paragraph">
                   {pending
                     ? 'ไม่พบรายการรอค้นหาที่ตรงกับตัวกรอง'
                     : 'ไม่พบเลขนี้ในทั้ง 3 Sheet ลองตรวจสอบตัวเลขและเครื่องหมายขีดอีกครั้ง'}
-                </p>
+                </Text>
               )}
             </>
           )
         )}
-      </section>
+      </Box>
       {detail && <AssetRecordDialog target={detail} onClose={() => setDetail(null)} />}
       {inspection && (
         <ReviewInspectionDialog
@@ -218,7 +231,8 @@ function AssetSearchResultCard({
     },
   });
   return (
-    <article
+    <Paper
+      component="article"
       data-inspection-status={record.inspectionStatus}
       className={`result-item ${record.inspected && record.pending ? 'is-inspected' : ''}`}
     >
@@ -237,17 +251,17 @@ function AssetSearchResultCard({
           </Button>
         )}
       </Group>
-      <div className="inspection-stamp">
+      <Box className="inspection-stamp">
         {age
           ? `${age.date} · ${age.days === 0 ? 'วันนี้' : age.days > 0 ? `${age.days} วัน` : `อีก ${Math.abs(age.days)} วัน`}`
           : record.inspectionDate
             ? 'วันที่ตรวจไม่ถูกต้อง'
             : 'ไม่ระบุวันที่ตรวจ'}
-      </div>
-      <p className="asset-description">
+      </Box>
+      <Text component="p" className="portal-paragraph asset-description">
         {[record.name || 'ไม่ระบุรายการ', record.brand].filter(Boolean).join(' · ')}
-      </p>
-      <div className="identity-line">
+      </Text>
+      <Box className="identity-line">
         {[
           record.owner,
           record.initials,
@@ -256,12 +270,12 @@ function AssetSearchResultCard({
         ].map((value, i) => (
           <span key={i}>{value || '-'}</span>
         ))}
-      </div>
+      </Box>
       {record.pending && (
-        <p>
+        <Text component="p" className="portal-paragraph">
           อยู่ในชีต {record.reviewSheet}
           {record.inspected && ` · บันทึกผลตรวจแล้ว: ${record.inspectionStatus}`}
-        </p>
+        </Text>
       )}
       <ErrorAlert error={reviewSelectionMutation.error} />
       <Group mt="sm">
@@ -274,6 +288,6 @@ function AssetSearchResultCard({
           </Button>
         )}
       </Group>
-    </article>
+    </Paper>
   );
 }

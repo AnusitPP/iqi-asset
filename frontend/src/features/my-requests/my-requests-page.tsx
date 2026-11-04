@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Paper, Stack, Text, Badge } from '@mantine/core';
+import { Button, Paper, Stack, Text, Badge, Box, Group, Title } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { myRequestsService } from '@/services/my-requests.service';
 import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
@@ -12,9 +12,9 @@ export function MyRequestsPage() {
     enabled: can('LOAN_VIEW_OWN'),
   });
   return (
-    <section>
-      <div className="dash-heading">
-        <h1>รายการของฉัน</h1>
+    <Box component="section">
+      <Group justify="space-between" align="center" className="dash-heading">
+        <Title order={1}>รายการของฉัน</Title>
         <Button
           loading={requests.isFetching}
           onClick={() => {
@@ -23,7 +23,7 @@ export function MyRequestsPage() {
         >
           โหลดรายการล่าสุด
         </Button>
-      </div>
+      </Group>
       <ErrorAlert error={requests.error} />
       {requests.isPending ? (
         <LoadingIndicator />
@@ -47,6 +47,6 @@ export function MyRequestsPage() {
           ))}
         </Stack>
       )}
-    </section>
+    </Box>
   );
 }

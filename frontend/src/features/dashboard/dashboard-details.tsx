@@ -1,6 +1,16 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Modal, NativeSelect, Textarea, Stack, Text } from '@mantine/core';
+import {
+  Button,
+  Group,
+  Modal,
+  NativeSelect,
+  Textarea,
+  Stack,
+  Text,
+  SimpleGrid,
+  Box,
+} from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -81,16 +91,16 @@ export function DashboardRecordDialog({
       />
       <form
         onSubmit={form.handleSubmit(async (values) => {
-          await saveTeamAndNotesMutation.mutateAsync(values).catch(() => {});
+          await saveTeamAndNotesMutation.mutateAsync(values).catch(() => { });
         })}
       >
         <Stack>
           <ErrorAlert error={saveTeamAndNotesMutation.error} />
           <Text role="status">{notice}</Text>
-          <div className="fields">
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" className="fields">
             {headers.map((header, i) =>
               photoHeaders.includes(header) || header === 'รูปครุภัณฑ์' ? null : (
-                <div className="field" key={i}>
+                <Stack gap={0} className="field" key={i}>
                   {header === 'ทีม' ? (
                     <NativeSelect
                       label="ทีม"
@@ -102,6 +112,9 @@ export function DashboardRecordDialog({
                       ]}
                       {...form.register('team')}
                       disabled={busy}
+                      styles={{
+                        input: { backgroundColor: '#fefefe' },
+                      }}
                     />
                   ) : header === 'หมายเหตุ' ? (
                     <Textarea
@@ -111,27 +124,37 @@ export function DashboardRecordDialog({
                       {...form.register('notes')}
                       error={form.formState.errors.notes?.message}
                       disabled={busy}
+                      styles={{
+                        input: { backgroundColor: '#fefefe' },
+                      }}
                     />
                   ) : (
                     <>
-                      <div className="field-label">{header}</div>
-                      <div className="field-value">{record.values[i] || '—'}</div>
+                      <Box className="field-label">{header}</Box>
+                      <Box className="field-value">{record.values[i] || '—'}</Box>
                     </>
                   )}
-                </div>
+                </Stack>
               ),
             )}
-          </div>
-          <Button
-            type="submit"
-            loading={saveTeamAndNotesMutation.isPending}
-            disabled={!form.formState.isDirty || uploading}
-          >
-            บันทึกทีมและหมายเหตุ
-          </Button>
-          <Button variant="default" disabled={busy} onClick={confirmAndCloseDashboardRecord}>
-            ปิด
-          </Button>
+          </SimpleGrid>
+          <Group justify="center" gap="md">
+            <Button
+              type="submit"
+              loading={saveTeamAndNotesMutation.isPending}
+              disabled={!form.formState.isDirty || uploading}
+            >
+              บันทึกทีมและหมายเหตุ
+            </Button>
+            <Button
+              color="red"
+              variant="filled"
+              disabled={busy}
+              onClick={confirmAndCloseDashboardRecord}
+            >
+              ยกเลิก
+            </Button>
+          </Group>
         </Stack>
       </form>
     </Modal>
