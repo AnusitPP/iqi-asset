@@ -293,10 +293,10 @@ export function DashboardPage() {
         my="md"
       >
         <Accordion.Item value="filters">
-          <Accordion.Control p={{ base: 18, '37.5em': 24 }}>
+          <Accordion.Control p={{ base: 18, compact: 24 }}>
             ตัวกรองสถานะและการเทียบข้อมูล
           </Accordion.Control>
-          <Accordion.Panel px={{ base: 18, '37.5em': 24 }} pb={{ base: 18, '37.5em': 24 }}>
+          <Accordion.Panel px={{ base: 18, compact: 24 }} pb={{ base: 18, compact: 24 }}>
             <Title order={2} className="dash-section-title">
               ผลตรวจ Apps Script
             </Title>

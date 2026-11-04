@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 
 export const portalTheme = createTheme({
+  breakpoints: { sidebar: '64em', compact: '37.5em' },
   primaryColor: 'portalGreen',
   primaryShade: 6,
   colors: {
