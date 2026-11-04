@@ -1,6 +1,6 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Alert, Button, Loader } from '@mantine/core';
+import { Alert, Button, Loader, Group } from '@mantine/core';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { Copy } from 'lucide-react';
 import { useState } from 'react';
@@ -14,9 +14,9 @@ export function ErrorAlert({ error }: { error: unknown }) {
 }
 export function LoadingIndicator() {
   return (
-    <div className="loading" role="status">
+    <Group justify="center" gap="sm" py="xl" role="status">
       <Loader size="sm" /> กำลังอ่านข้อมูลล่าสุด…
-    </div>
+    </Group>
   );
 }
 export function CopyableText({ value }: { value: string }) {

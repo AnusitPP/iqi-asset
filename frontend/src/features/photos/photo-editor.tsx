@@ -1,6 +1,6 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Text, Group, Progress } from '@mantine/core';
+import { Button, Text, Group, Progress, FileInput, Image, Box, Title, Anchor } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -87,9 +87,9 @@ export function AssetPhotoEditor({
     },
   });
   return (
-    <section className="dash-photo-section">
-      <h3>รูปครุภัณฑ์ · {photos.length}/3</h3>
-      <div className="dash-photo-gallery">
+    <Box component="section" className="dash-photo-section">
+      <Title order={3}>รูปครุภัณฑ์ · {photos.length}/3</Title>
+      <Box className="dash-photo-gallery">
         {photos.map((photo, index) => (
           <DrivePhotoPreview
             key={photo.id}
@@ -98,19 +98,19 @@ export function AssetPhotoEditor({
             label={`รูป${index + 1} ${record.asset}`}
           />
         ))}
-      </div>
+      </Box>
       {remaining ? (
         <>
           <Text size="sm">เลือกพร้อมกันได้อีก {remaining} รูป · ไม่เกิน 25 MB/รูป</Text>
-          <input
+          <FileInput
             key={inputKey}
-            type="file"
+            value={files}
+            placeholder="เลือกไฟล์รูปภาพ"
             multiple
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
             aria-label={`เลือกรูปครุภัณฑ์ ${record.asset}`}
             disabled={busy || uploadPhotosMutation.isPending}
-            onChange={(e) => {
-              const selected = Array.from(e.currentTarget.files ?? []);
+            onChange={(selected) => {
               try {
                 validatePhotoUploadSelection(selected, remaining);
                 setFiles(selected);
@@ -121,11 +121,11 @@ export function AssetPhotoEditor({
               }
             }}
           />
-          <div className="dash-photo-gallery">
+          <Box className="dash-photo-gallery">
             {previews.map((p) => (
-              <img key={p.url} src={p.url} alt={p.name} />
+              <Image key={p.url} src={p.url} alt={p.name} />
             ))}
-          </div>
+          </Box>
           <Group>
             <Button
               disabled={!files.length || !config.data || busy}
@@ -156,7 +156,7 @@ export function AssetPhotoEditor({
       <Text role="status" size="sm">
         {notice}
       </Text>
-    </section>
+    </Box>
   );
 }
 function DrivePhotoPreview({
@@ -170,17 +170,17 @@ function DrivePhotoPreview({
 }) {
   const [failed, setFailed] = useState(false);
   return (
-    <a href={photo.url} target="_blank" rel="noopener noreferrer">
+    <Anchor href={photo.url} target="_blank" rel="noopener noreferrer">
       {failed ? (
         `เปิด${label}ใน Drive`
       ) : (
-        <img
+        <Image
           src={photosService.buildPhotoPreviewUrl(row, photo.id)}
           alt={label}
           loading="lazy"
           onError={() => setFailed(true)}
         />
       )}
-    </a>
+    </Anchor>
   );
 }

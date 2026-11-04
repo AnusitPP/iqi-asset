@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -147,7 +147,9 @@ describe('migrated interactions', () => {
     renderWithAppProviders(<DashboardPage />);
     const user = userEvent.setup();
     await screen.findByText('IQI-001');
-    await user.selectOptions(screen.getByLabelText('สถานะ IQI-001 SN1'), 'ดี');
+    fireEvent.change(screen.getByRole('combobox', { name: 'สถานะ IQI-001 SN1' }), {
+      target: { value: 'ดี' },
+    });
     await user.type(screen.getByLabelText('ค้นหารายการ Dashboard'), 'no-match');
     expect(screen.queryByText('IQI-001')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'บันทึกทั้งหมด (1)' }));
@@ -275,7 +277,7 @@ describe('forms and photos', () => {
       />,
     );
     const user = userEvent.setup();
-    await user.upload(screen.getByLabelText('เลือกรูปครุภัณฑ์ IQI-001'), [
+    await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, [
       new File(['a'], 'one.heic', { type: 'image/heic' }),
       new File(['b'], 'two.heic', { type: 'image/heic' }),
     ]);

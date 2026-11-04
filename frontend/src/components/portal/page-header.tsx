@@ -1,3 +1,4 @@
+import { Box, Title, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 export function PageHeader({
   title,
@@ -11,13 +12,15 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="portal-page-heading">
-      <div>
+    <Box component="header" className="portal-page-heading">
+      <Box>
         {eyebrow && <span className="portal-eyebrow">{eyebrow}</span>}
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
-      {action && <div className="portal-page-action">{action}</div>}
-    </header>
+        <Title order={1}>{title}</Title>
+        <Text component="p" className="portal-paragraph">
+          {description}
+        </Text>
+      </Box>
+      {action && <Box className="portal-page-action">{action}</Box>}
+    </Box>
   );
 }

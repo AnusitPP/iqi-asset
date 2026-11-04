@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
+  Code,
   Button,
   Group,
   Modal,
@@ -12,6 +13,8 @@ import {
   Table,
   Text,
   TextInput,
+  Box,
+  Title,
 } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { auditService } from '@/services/audit.service';
@@ -50,9 +53,9 @@ export function AuditPage() {
   const actions = [...new Set(records.map((entry) => entry.action).filter(Boolean))].sort();
   const types = [...new Set(records.map((entry) => entry.entity_type).filter(Boolean))].sort();
   return (
-    <section>
-      <div className="dash-heading">
-        <h1>Audit Log</h1>
+    <Box component="section">
+      <Group justify="space-between" align="center" className="dash-heading">
+        <Title order={1}>Audit Log</Title>
         <Button
           loading={audit.isFetching}
           onClick={() => {
@@ -61,7 +64,7 @@ export function AuditPage() {
         >
           โหลดประวัติล่าสุด
         </Button>
-      </div>
+      </Group>
       <Paper withBorder p="lg" radius="lg">
         <Group align="end">
           <TextInput
@@ -130,10 +133,10 @@ export function AuditPage() {
                             name={entry.actor_name_snapshot || 'ไม่ระบุตัวตน'}
                             url={entry.actor_avatar_url}
                           />
-                          <div>
+                          <Box>
                             <Text>{entry.actor_name_snapshot || 'ไม่ระบุตัวตน'}</Text>
                             <Text size="xs">{entry.actor_email_snapshot}</Text>
-                          </div>
+                          </Box>
                         </Group>
                       </Table.Td>
                       <Table.Td>
@@ -186,19 +189,19 @@ export function AuditPage() {
             <Text>วันและเวลา: {formatAccountTimestamp(selected.created_at)}</Text>
             <Text>Audit ID: {selected.id}</Text>
             <Text fw={700}>ก่อนเปลี่ยนแปลง</Text>
-            <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            <Code block style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
               {readableAuditData(selected.before_data)}
-            </pre>
+            </Code>
             <Text fw={700}>หลังเปลี่ยนแปลง</Text>
-            <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            <Code block style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
               {readableAuditData(selected.after_data)}
-            </pre>
+            </Code>
             <Button variant="default" onClick={() => setSelected(null)}>
               ปิด
             </Button>
           </Stack>
         )}
       </Modal>
-    </section>
+    </Box>
   );
 }

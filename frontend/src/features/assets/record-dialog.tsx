@@ -1,6 +1,6 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Group, Modal, Select, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Select, Stack, Text, Textarea, TextInput, Box } from '@mantine/core';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -163,17 +163,17 @@ function AssetRecordEditor({
           ) : (
             <Text>ไม่พบคอลัมน์วันที่ตรวจสอบที่ชัดเจน</Text>
           ))}
-        <div className={`fields ${editing ? 'editing' : ''}`}>
+        <Box className={`fields ${editing ? 'editing' : ''}`}>
           {record.headers.map((header, index) => {
             const rule = record.dropdowns[index],
               value = record.values[index] ?? '',
               label = header || `คอลัมน์ ${index + 1} (ไม่มีชื่อ header)`;
             return (
-              <div className="field" key={index}>
+              <Stack gap={0} className="field" key={index}>
                 {!editing ? (
                   <>
-                    <div className="field-label">{label}</div>
-                    <div className="field-value">{formatAssetFieldValue(header, value) || '-'}</div>
+                    <Box className="field-label">{label}</Box>
+                    <Box className="field-value">{formatAssetFieldValue(header, value) || '-'}</Box>
                   </>
                 ) : rule?.strict ? (
                   <Select
@@ -233,10 +233,10 @@ function AssetRecordEditor({
                       : 'เลือกจาก Google Sheets หรือกรอกค่าอื่นได้ตามกฎในชีต'}
                   </Text>
                 )}
-              </div>
+              </Stack>
             );
           })}
-        </div>
+        </Box>
         <Group justify="flex-end">
           <Button
             variant="default"

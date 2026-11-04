@@ -1,5 +1,5 @@
 'use client';
-import { Notification } from '@mantine/core';
+import { Notification, Affix } from '@mantine/core';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 const ToastContext = createContext<{ showToast: (message: string) => void }>({
   showToast: () => {},
@@ -17,11 +17,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     >
       {children}
       {toast && (
-        <div className="workspace-toast">
+        <Affix position={{ bottom: 20, right: 20 }} zIndex={1000}>
           <Notification role="status" onClose={() => setToast(null)}>
             {toast.message}
           </Notification>
-        </div>
+        </Affix>
       )}
     </ToastContext.Provider>
   );

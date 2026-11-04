@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Button, Drawer } from '@mantine/core';
+import { AppShell, Burger, Button, Container, Drawer, Group, Box, Anchor } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -76,10 +76,10 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   if (auth.loading || (!auth.authenticated && !auth.error)) return <LoadingIndicator />;
   if (auth.error)
     return (
-      <main className="container">
+      <Container component="main" size="sm" py="xl">
         <ErrorAlert error={auth.error} />
         <Button onClick={auth.retrySessionLookup}>ลองอีกครั้ง</Button>
-      </main>
+      </Container>
     );
   const sidebarProps = {
     path,
@@ -93,15 +93,26 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   };
   return (
     <PortalNavigationProvider onNavigate={() => setMenuOpen(false)}>
-      <div className={`portal-shell${collapsed ? ' is-collapsed' : ''}`}>
-        <a className="portal-skip-link" href="#portal-main">
+      <AppShell
+        navbar={{ width: collapsed ? 72 : 254, breakpoint: 1024, collapsed: { mobile: true } }}
+        padding={0}
+        className={`portal-shell${collapsed ? ' is-collapsed' : ''}`}
+      >
+        <Anchor className="portal-skip-link" href="#portal-main">
           ข้ามไปยังเนื้อหา
-        </a>
-        <aside className="portal-sidebar" aria-label="เมนูหลัก">
+        </Anchor>
+        <AppShell.Navbar component="aside" aria-label="เมนูหลัก">
           <AppSidebar {...sidebarProps} collapsed={collapsed} />
-        </aside>
-        <div className="portal-body">
-          <main className="portal-main container" id="portal-main" tabIndex={-1}>
+        </AppShell.Navbar>
+        <AppShell.Main>
+          <Container size={1700} className="portal-main" id="portal-main" tabIndex={-1}>
+            <Group hiddenFrom="64em" mb="md">
+              <Burger
+                opened={menuOpen}
+                onClick={() => setMenuOpen((value) => !value)}
+                aria-label="เปิดเมนู"
+              />
+            </Group>
             <ErrorAlert error={error} />
             <ErrorAlert error={canReadStatus ? status.error : null} />
             {canReadStatus && status.error && (
@@ -115,12 +126,12 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               </Button>
             )}
             {allowed ? children : <LoadingIndicator />}
-            <footer className="portal-footer">
+            <Box component="footer" className="portal-footer">
               <span>IQI · IT Service Portal</span>
               <span>Asset Checker · ข้อมูลจาก Google Sheets</span>
-            </footer>
-          </main>
-        </div>
+            </Box>
+          </Container>
+        </AppShell.Main>
         <Drawer
           id="workspace-mobile-menu"
           opened={menuOpen}
@@ -133,7 +144,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
         >
           <AppSidebar {...sidebarProps} mobile collapsed={false} />
         </Drawer>
-      </div>
+      </AppShell>
     </PortalNavigationProvider>
   );
 }

@@ -1,5 +1,19 @@
 'use client';
-import { Button, Group, Select, Text, TextInput } from '@mantine/core';
+import {
+  Accordion,
+  Progress,
+  Button,
+  Group,
+  Select,
+  Text,
+  TextInput,
+  UnstyledButton,
+  Box,
+  Title,
+  Paper,
+  SimpleGrid,
+  Table,
+} from '@mantine/core';
 import { ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
@@ -106,7 +120,7 @@ export function DashboardPage() {
     selected: boolean,
     onClick: () => void,
   ) => (
-    <button
+    <UnstyledButton
       key={label}
       type="button"
       className={`dash-stat ${getStatusColorClass(label)} ${selected ? 'selected' : ''}`}
@@ -114,18 +128,22 @@ export function DashboardPage() {
       onClick={onClick}
     >
       <span className="dash-stat-label">{formatDashboardStatusLabel(label)}</span>
-      <strong>{count}</strong>
-      <span className="dash-stat-caption">รายการ</span>
-    </button>
+      <span className="dash-stat-total">
+        <strong>{count.toLocaleString('th-TH')}</strong>
+        <span className="dash-stat-caption">รายการ</span>
+      </span>
+    </UnstyledButton>
   );
   return (
-    <section aria-label="Dashboard ครุภัณฑ์ IQI">
-      <div className="dash-heading">
-        <div>
-          <div className="eyebrow">IQI · APPSCRIPTDATA</div>
-          <h1>Dashboard ครุภัณฑ์</h1>
-          <p>ผลตรวจจาก Apps Script และการเทียบข้อมูลกับ Google Sheets</p>
-        </div>
+    <Box component="section" aria-label="Dashboard ครุภัณฑ์ IQI">
+      <Group justify="space-between" align="center" className="dash-heading">
+        <Box>
+          <Box className="eyebrow">IQI · APPSCRIPTDATA</Box>
+          <Title order={1}>Dashboard ครุภัณฑ์</Title>
+          <Text component="p" className="portal-paragraph">
+            ผลตรวจจาก Apps Script และการเทียบข้อมูลกับ Google Sheets
+          </Text>
+        </Box>
         <Button
           variant="default"
           disabled={saveStatusDraftsMutation.isPending}
@@ -144,8 +162,8 @@ export function DashboardPage() {
         >
           โหลดข้อมูลล่าสุด
         </Button>
-      </div>
-      <div
+      </Group>
+      <Box
         className="dash-bulk-bar"
         hidden={!drafts.current.size && !saveStatusDraftsMutation.isPending}
       >
@@ -161,7 +179,7 @@ export function DashboardPage() {
         >
           บันทึกทั้งหมด ({drafts.current.size})
         </Button>
-      </div>
+      </Box>
       <ErrorAlert error={data.error} />
       <ErrorAlert error={saveStatusDraftsMutation.error} />
       {notice && (
@@ -169,51 +187,67 @@ export function DashboardPage() {
           {notice}
         </Text>
       )}
-      <section className="dash-progress">
-        <div className="dash-progress-head">
-          <h2>ความคืบหน้าการตรวจ</h2>
+      <Paper withBorder component="section" className="dash-progress">
+        <Box className="dash-progress-head">
+          <Title order={2}>ความคืบหน้าการตรวจ</Title>
           <strong>{dashboard.percent}%</strong>
-        </div>
-        <p>
+        </Box>
+        <Text component="p" className="portal-paragraph">
           ตรวจแล้ว {dashboard.completed} / {dashboard.total} รายการ
-        </p>
-        <progress
-          max={dashboard.total || 1}
-          value={dashboard.completed}
+        </Text>
+        <Progress
+          value={dashboard.percent}
           aria-label="ความคืบหน้าการตรวจครุภัณฑ์"
+          className="dash-inspection-progress"
+          size={15}
+          radius="xl"
         />
-        <p className="dash-hint">
+        <Text component="p" className="portal-paragraph dash-hint">
           นับตรวจแล้วจาก ดี + ชำรุด + หาไม่เจอ + อุปกรอื่นๆ + กล้องวงจรปิด ตามผลตรวจ Apps Script
-        </p>
-      </section>
-      <details
-        className="dash-filters"
-        open={filtersOpen}
-        onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+        </Text>
+      </Paper>
+      <Accordion
+        classNames={{
+          item: 'dash-filter-item',
+          control: 'dash-filter-control',
+          content: 'dash-filter-content',
+        }}
+        value={filtersOpen ? 'filters' : null}
+        onChange={(value) => setFiltersOpen(value === 'filters')}
+        variant="separated"
+        my="md"
       >
-        <summary>ตัวกรองสถานะและการเทียบข้อมูล</summary>
-        <h2 className="dash-section-title">ผลตรวจ Apps Script</h2>
-        <div className="dash-stats">
-          {[...dashboardStatuses, ...(dashboard.inspection['ไม่ระบุ'] ? ['ไม่ระบุ'] : [])].map(
-            (s) =>
-              renderStatusFilterCard(s, dashboard.inspection[s] ?? 0, inspection === s, () =>
-                setInspection(inspection === s ? '' : s),
-              ),
-          )}
-        </div>
-        <h2 className="dash-section-title">ข้อมูล Apps Script เทียบกับ Google Sheets</h2>
-        <div className="dash-matches">
-          {Object.entries(dashboard.comparison).map(([s, count]) =>
-            renderStatusFilterCard(s, count, comparison === s, () =>
-              setComparison(comparison === s ? '' : s),
-            ),
-          )}
-        </div>
-        <p className="dash-hint">
-          “หาไม่เจอ” ในการเทียบข้อมูล หมายถึงไม่พบข้อมูลในชีตต้นฉบับ
-          เป็นคนละส่วนกับผลตรวจหาอุปกรณ์ไม่เจอ
-        </p>
-      </details>
+        <Accordion.Item value="filters">
+          <Accordion.Control>ตัวกรองสถานะและการเทียบข้อมูล</Accordion.Control>
+          <Accordion.Panel>
+            <Title order={2} className="dash-section-title">
+              ผลตรวจ Apps Script
+            </Title>
+            <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, xl: 6 }} spacing="sm" className="dash-stats">
+              {[...dashboardStatuses, ...(dashboard.inspection['ไม่ระบุ'] ? ['ไม่ระบุ'] : [])].map(
+                (s) =>
+                  renderStatusFilterCard(s, dashboard.inspection[s] ?? 0, inspection === s, () =>
+                    setInspection(inspection === s ? '' : s),
+                  ),
+              )}
+            </SimpleGrid>
+            <Title order={2} className="dash-section-title">
+              ข้อมูล Apps Script เทียบกับ Google Sheets
+            </Title>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm" className="dash-matches">
+              {Object.entries(dashboard.comparison).map(([s, count]) =>
+                renderStatusFilterCard(s, count, comparison === s, () =>
+                  setComparison(comparison === s ? '' : s),
+                ),
+              )}
+            </SimpleGrid>
+            <Text component="p" className="portal-paragraph dash-hint">
+              “หาไม่เจอ” ในการเทียบข้อมูล หมายถึงไม่พบข้อมูลในชีตต้นฉบับ
+              เป็นคนละส่วนกับผลตรวจหาอุปกรณ์ไม่เจอ
+            </Text>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
       <Group my="lg">
         <TextInput
           style={{ flex: 1 }}
@@ -234,21 +268,23 @@ export function DashboardPage() {
           ล้างตัวกรอง
         </Button>
       </Group>
-      <div className="dash-list-head">
+      <Box className="dash-list-head">
         <strong>
           แสดง {records.length} จาก {dashboard.total} รายการ
         </strong>
         <span>
           {[inspection, comparison, teamFilter].filter(Boolean).join(' · ') || 'ทุกรายการ'}
         </span>
-      </div>
-      <div className="dash-list">
+      </Box>
+      <Table.ScrollContainer minWidth={850} className="dash-list">
         {!records.length ? (
-          <p className="dash-empty">ไม่พบรายการตามตัวกรองที่เลือก</p>
+          <Text component="p" className="portal-paragraph dash-empty">
+            ไม่พบรายการตามตัวกรองที่เลือก
+          </Text>
         ) : (
-          <table className="dash-table">
-            <thead>
-              <tr>
+          <Table className="dash-table">
+            <Table.Thead>
+              <Table.Tr>
                 {[
                   'เลขครุภัณฑ์ / อุปกรณ์',
                   'S/N',
@@ -257,7 +293,7 @@ export function DashboardPage() {
                   'ผู้ถือครอง / ทีม',
                   'รายละเอียด',
                 ].map((title) => (
-                  <th key={title} scope="col">
+                  <Table.Th key={title} scope="col">
                     {title === 'ผู้ถือครอง / ทีม' ? (
                       <Select
                         className="dash-team-filter"
@@ -287,22 +323,22 @@ export function DashboardPage() {
                     ) : (
                       title
                     )}
-                  </th>
+                  </Table.Th>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {records.map((r) => (
-                <tr key={r.row} className={`dash-row ${getStatusColorClass(r.inspection)}`}>
-                  <td>
+                <Table.Tr key={r.row} className={`dash-row ${getStatusColorClass(r.inspection)}`}>
+                  <Table.Td>
                     <CopyableText value={r.asset} />
                     <span className="dash-item-name">{r.name || 'ไม่ระบุชื่ออุปกรณ์'}</span>
-                  </td>
-                  <td>
+                  </Table.Td>
+                  <Table.Td>
                     <CopyableText value={r.serial} />
-                  </td>
-                  <td>
-                    <div className="dash-status-controls">
+                  </Table.Td>
+                  <Table.Td>
+                    <Box className="dash-status-controls">
                       <Select
                         rightSection={
                           <ChevronDown
@@ -344,21 +380,21 @@ export function DashboardPage() {
                       >
                         บันทึก
                       </Button>
-                    </div>
-                    <div className="dash-updated-at">
+                    </Box>
+                    <Box className="dash-updated-at">
                       {r.updatedAt ? `อัปเดตล่าสุด ${r.updatedAt}` : 'ยังไม่มีวันที่อัปเดตจากเว็บ'}
-                    </div>
-                  </td>
-                  <td>
+                    </Box>
+                  </Table.Td>
+                  <Table.Td>
                     <span className={`dash-badge ${getStatusColorClass(r.comparison)}`}>
                       {r.comparison}
                     </span>
-                  </td>
-                  <td>
+                  </Table.Td>
+                  <Table.Td>
                     {r.owner || '—'}
                     <span className="dash-item-name">{r.team}</span>
-                  </td>
-                  <td>
+                  </Table.Td>
+                  <Table.Td>
                     <Button
                       size="compact-xs"
                       variant="light"
@@ -368,18 +404,18 @@ export function DashboardPage() {
                     >
                       ดูข้อมูล
                     </Button>
-                  </td>
-                </tr>
+                  </Table.Td>
+                </Table.Tr>
               ))}
-            </tbody>
-          </table>
+            </Table.Tbody>
+          </Table>
         )}
-      </div>
-      <p className="dash-updated">
+      </Table.ScrollContainer>
+      <Text component="p" className="portal-paragraph dash-updated">
         อ่านจากแท็บ Appscriptdata เมื่อ{' '}
         {new Date(dashboard.loadedAt).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })} ·
         แก้สถานะผ่านหน้านี้จะบันทึกลง Appscriptdata เท่านั้น
-      </p>
+      </Text>
       {current && (
         <DashboardRecordDialog
           key={current.row}
@@ -391,6 +427,6 @@ export function DashboardPage() {
           onSaved={updateCachedDashboardRecord}
         />
       )}
-    </section>
+    </Box>
   );
 }

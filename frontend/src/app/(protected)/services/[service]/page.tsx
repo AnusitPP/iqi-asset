@@ -1,3 +1,4 @@
+import { Box, Paper, Badge, Title, Text, Button } from '@mantine/core';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { portalModules } from '@/config/navigation';
@@ -20,21 +21,21 @@ export default async function ServicePage({ params }: { params: Promise<{ servic
   if (!service) notFound();
   const Icon = service.icon;
   return (
-    <section className="portal-coming-soon">
+    <Box component="section" className="portal-coming-soon">
       <PageHeader title={service.label} description="บริการด้านไอทีและครุภัณฑ์" />
-      <div className="portal-coming-soon-card">
+      <Paper withBorder p="xl" radius="lg" className="portal-coming-soon-card">
         <span className="portal-coming-soon-icon">
           <Icon size={40} strokeWidth={1.5} aria-hidden="true" />
         </span>
-        <span className="portal-coming-soon-badge">อยู่ระหว่างพัฒนา</span>
-        <h2>เตรียมพบกับบริการ{service.label}</h2>
-        <p>
+        <Badge variant="light">อยู่ระหว่างพัฒนา</Badge>
+        <Title order={2}>เตรียมพบกับบริการ{service.label}</Title>
+        <Text>
           บริการนี้ยังไม่เปิดให้ใช้งาน คุณยังสามารถใช้บริการอื่นที่เปิดให้บริการแล้วได้จากหน้าหลัก
-        </p>
-        <Link href="/" className="portal-primary-link">
+        </Text>
+        <Button component={Link} href="/" mt="lg">
           กลับหน้าหลัก
-        </Link>
-      </div>
-    </section>
+        </Button>
+      </Paper>
+    </Box>
   );
 }

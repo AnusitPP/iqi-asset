@@ -1,5 +1,5 @@
 'use client';
-import { Anchor, List, Paper, Text } from '@mantine/core';
+import { Anchor, List, Paper, Text, Box } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { systemService } from '@/services/system.service';
@@ -19,7 +19,7 @@ export function SheetsPage() {
   ].filter((link) => link.url);
 
   return (
-    <section>
+    <Box component="section">
       <PageHeader
         title="ไฟล์ Google Sheets"
         description="เลือกไฟล์ที่ต้องการเปิด ลิงก์จะเปิดในแท็บใหม่"
@@ -45,6 +45,6 @@ export function SheetsPage() {
           </Text>
         )}
       </Paper>
-    </section>
+    </Box>
   );
 }

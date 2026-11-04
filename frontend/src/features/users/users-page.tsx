@@ -12,6 +12,8 @@ import {
   Text,
   Modal,
   Badge,
+  Box,
+  Title,
 } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { usersService } from '@/services/users.service';
@@ -53,9 +55,9 @@ export function UsersPage() {
     setPage(0);
   };
   return (
-    <section>
-      <div className="dash-heading">
-        <h1>ผู้ใช้งาน</h1>
+    <Box component="section">
+      <Group justify="space-between" align="center" className="dash-heading">
+        <Title order={1}>ผู้ใช้งาน</Title>
         <Button
           loading={users.isFetching}
           onClick={() => {
@@ -64,7 +66,7 @@ export function UsersPage() {
         >
           โหลดผู้ใช้งานล่าสุด
         </Button>
-      </div>
+      </Group>
       <Paper withBorder p="lg" radius="lg">
         <form
           onSubmit={(event) => {
@@ -135,10 +137,10 @@ export function UsersPage() {
                     <Table.Td>
                       <Group wrap="nowrap">
                         <UserAvatar name={user.name} url={user.avatar_url} />
-                        <div>
+                        <Box>
                           <Text fw={600}>{user.name}</Text>
                           <Text size="sm">{user.email}</Text>
-                        </div>
+                        </Box>
                       </Group>
                     </Table.Td>
                     <Table.Td>{user.role}</Table.Td>
@@ -199,7 +201,7 @@ export function UsersPage() {
           onClose={() => setSelected(null)}
         />
       )}
-    </section>
+    </Box>
   );
 }
 function UserDetails({
@@ -298,10 +300,10 @@ function UserAccessEditor({
     <Stack>
       <Group>
         <UserAvatar name={user.name} url={user.avatar_url} />
-        <div>
+        <Box>
           <Text fw={700}>{user.name}</Text>
           <Text>{user.email}</Text>
-        </div>
+        </Box>
       </Group>
       <Text>
         Role: {user.role} · สถานะ: {user.status}

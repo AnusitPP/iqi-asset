@@ -1,5 +1,5 @@
 'use client';
-import { Button, Paper, Stack, Title, Text } from '@mantine/core';
+import { Button, Container, Paper, Stack, Title, Text } from '@mantine/core';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthSession } from './auth-provider';
@@ -13,7 +13,7 @@ export function LoginPage() {
   }, [auth.authenticated, auth.user, router]);
   if (auth.loading) return <LoadingIndicator />;
   return (
-    <main className="login-container">
+    <Container component="main" size={480} py="xl" mt="10vh">
       <Paper withBorder p="xl" radius="lg">
         <Stack>
           <Title order={2}>เข้าใช้งาน IQI Asset Checker</Title>
@@ -29,6 +29,6 @@ export function LoginPage() {
           </Button>
         </Stack>
       </Paper>
-    </main>
+    </Container>
   );
 }

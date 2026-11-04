@@ -8,6 +8,8 @@ import {
   Text,
   Textarea,
   TextInput,
+  Box,
+  Title,
 } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { FORM_TEAMS } from '@shared/features/lending/formConstants.js';
@@ -45,10 +47,10 @@ export function LendingRequestForm({
     handleSubmitLendingRequest,
   } = request;
   return (
-    <section>
-      <div className="dash-heading">
-        <h1>{title}</h1>
-      </div>
+    <Box component="section">
+      <Group justify="space-between" align="center" className="dash-heading">
+        <Title order={1}>{title}</Title>
+      </Group>
       <Paper withBorder radius="lg" p="lg">
         <form noValidate onSubmit={form.handleSubmit(handleSubmitLendingRequest)}>
           <Stack>
@@ -112,6 +114,6 @@ export function LendingRequestForm({
           </Stack>
         </form>
       </Paper>
-    </section>
+    </Box>
   );
 }

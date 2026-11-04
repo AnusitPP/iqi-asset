@@ -59,6 +59,30 @@
   border-radius: 18px;
   padding: 24px;
 }
+.dash-inspection-progress {
+  margin: 12px 0 14px;
+  background: #edf0f2;
+}
+.dash-inspection-progress .mantine-Progress-section {
+  background: #40866a;
+}
+.dash-filter-item {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.dash-filter-control {
+  padding: 0;
+  min-height: 24px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.dash-filter-control:hover {
+  background: transparent;
+}
+.dash-filter-content {
+  padding: 0;
+}
 .dash-progress-head {
   display: flex;
   justify-content: space-between;
@@ -114,10 +138,15 @@
   margin-bottom: 10px;
 }
 .dash-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 10px;
   background: #fff;
-  padding: 18px 20px;
+  padding: 10px 12px;
   text-align: left;
   font: inherit;
   color: var(--ink);
@@ -126,10 +155,19 @@
   display: block;
   font-size: 12px;
 }
+.dash-stat-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
 .dash-stat strong {
   display: block;
-  font-size: 30px;
-  line-height: 1.5;
+  font-size: 20px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 .dash-stat-caption {
   font-size: 10px;

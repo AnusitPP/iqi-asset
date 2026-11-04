@@ -1,6 +1,6 @@
 'use client';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Modal, NativeSelect, Textarea, Stack, Text } from '@mantine/core';
+import { Button, Modal, NativeSelect, Textarea, Stack, Text, SimpleGrid, Box } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -87,10 +87,10 @@ export function DashboardRecordDialog({
         <Stack>
           <ErrorAlert error={saveTeamAndNotesMutation.error} />
           <Text role="status">{notice}</Text>
-          <div className="fields">
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" className="fields">
             {headers.map((header, i) =>
               photoHeaders.includes(header) || header === 'รูปครุภัณฑ์' ? null : (
-                <div className="field" key={i}>
+                <Stack gap={0} className="field" key={i}>
                   {header === 'ทีม' ? (
                     <NativeSelect
                       label="ทีม"
@@ -114,14 +114,14 @@ export function DashboardRecordDialog({
                     />
                   ) : (
                     <>
-                      <div className="field-label">{header}</div>
-                      <div className="field-value">{record.values[i] || '—'}</div>
+                      <Box className="field-label">{header}</Box>
+                      <Box className="field-value">{record.values[i] || '—'}</Box>
                     </>
                   )}
-                </div>
+                </Stack>
               ),
             )}
-          </div>
+          </SimpleGrid>
           <Button
             type="submit"
             loading={saveTeamAndNotesMutation.isPending}

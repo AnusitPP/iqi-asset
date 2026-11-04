@@ -1,5 +1,5 @@
 'use client';
-import { Button, Combobox, InputBase, Text, useCombobox } from '@mantine/core';
+import { Button, Combobox, InputBase, Text, useCombobox, Box } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { useState } from 'react';
@@ -36,7 +36,7 @@ export function LendingCatalogPicker({
   const matches = matchCatalog(catalog.data?.records ?? [], query);
   const sheetName = mode === 'loan' ? 'พร้อมยืม' : 'รายการยืมครุภัณฑ์';
   return (
-    <div>
+    <Box>
       <Combobox
         store={combobox}
         onOptionSubmit={(value) => {
@@ -109,6 +109,6 @@ export function LendingCatalogPicker({
           ลองโหลดอุปกรณ์อีกครั้ง
         </Button>
       )}
-    </div>
+    </Box>
   );
 }

@@ -1,4 +1,6 @@
 'use client';
+import { Anchor } from '@mantine/core';
+
 import Link from 'next/link';
 import { ChevronRight, ExternalLink } from 'lucide-react';
 import type { PortalService } from '@/config/navigation';
@@ -21,12 +23,12 @@ export function ServiceLink({ service }: { service: PortalService }) {
     </>
   );
   return service.external ? (
-    <a className="portal-service-link" href={service.href} target="_blank" rel="noreferrer">
+    <Anchor className="portal-service-link" href={service.href} target="_blank" rel="noreferrer">
       {content}
-    </a>
+    </Anchor>
   ) : (
-    <Link className="portal-service-link" href={service.href} onClick={navigate}>
+    <Anchor component={Link} className="portal-service-link" href={service.href} onClick={navigate}>
       {content}
-    </Link>
+    </Anchor>
   );
 }

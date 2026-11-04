@@ -1,4 +1,6 @@
 'use client';
+import { Box, Paper, Title, Text, Stack } from '@mantine/core';
+
 import type { PortalModule } from '@/config/navigation';
 import { isServiceAllowed } from '@/config/navigation';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -9,24 +11,30 @@ export function ModuleCard({ module }: { module: PortalModule }) {
   if (!services.length) return null;
   const Icon = module.icon;
   return (
-    <section
+    <Paper
+      withBorder
+      component="section"
       className={`portal-module-card tone-${module.tone}`}
       aria-labelledby={`module-${module.id}`}
     >
-      <div className="portal-module-heading">
+      <Box className="portal-module-heading">
         <span className="portal-category-icon">
           <Icon size={24} strokeWidth={1.8} aria-hidden="true" />
         </span>
-        <div>
-          <h3 id={`module-${module.id}`}>{module.title}</h3>
-          <p>{module.description}</p>
-        </div>
-      </div>
-      <div className="portal-service-list">
+        <Box>
+          <Title order={3} id={`module-${module.id}`}>
+            {module.title}
+          </Title>
+          <Text component="p" className="portal-paragraph">
+            {module.description}
+          </Text>
+        </Box>
+      </Box>
+      <Stack gap={0} className="portal-service-list">
         {services.map((service) => (
           <ServiceLink key={service.id} service={service} />
         ))}
-      </div>
-    </section>
+      </Stack>
+    </Paper>
   );
 }
