@@ -12,22 +12,21 @@ import {
   Title,
   Paper,
   SimpleGrid,
-  Table,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { DashboardMobileCards } from './dashboard-mobile-cards';
-import { DashboardStatusEditor } from './dashboard-status-editor';
+import { DashboardTable } from './dashboard-table';
 import { ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { useToast } from '@/providers/toast-provider';
 import { DashboardLoadingSkeleton } from '@/components/ui/dashboard-skeleton';
-import { useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardStatuses, type DashboardRecord } from '@/types/contracts';
 import { dashboardService, type DashboardData } from '@/services/dashboard.service';
-import { CopyableText, ErrorAlert } from '@/components/ui/feedback';
+import { ErrorAlert } from '@/components/ui/feedback';
 import { formatDashboardStatusLabel, getStatusColorClass } from '@/lib/display';
 import { DashboardRecordDialog } from './dashboard-details';
 import { saveStatusDraftsSequentially, type StatusDraft } from './save-drafts';
@@ -38,6 +37,10 @@ export function DashboardPage() {
     client = useQueryClient();
   const data = useQuery({
     queryKey: ['dashboard'],
+    staleTime: Infinity,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: ({ signal }) => dashboardService.fetchDashboardData(api, signal),
   });
   const [inspection, setInspection] = useWorkspaceState('dashboard-inspection', ''),
@@ -50,7 +53,7 @@ export function DashboardPage() {
   const isSaveCurrent = useSessionTaskGuard();
   const { showToast } = useToast();
   const drafts = useRef(new Map<number, StatusDraft>()),
-    [, setDraftVersion] = useState(0);
+    [draftVersion, setDraftVersion] = useState(0);
   useUnsavedChangesGuard(drafts.current.size > 0);
   const reloadDashboardData = async () => {
     const fresh = await dashboardService.fetchDashboardData(api);
@@ -94,6 +97,68 @@ export function DashboardPage() {
       }
     },
   });
+  const deferredQuery = useDeferredValue(query);
+  const searchIndex = useMemo(
+    () =>
+      (data.data?.records ?? []).map((record) => ({
+        record,
+        values: record.values.map((value) => value.toLocaleLowerCase()),
+      })),
+    [data.data?.records],
+  );
+  const records = useMemo(() => {
+    const normalized = deferredQuery.trim().toLocaleLowerCase();
+    return searchIndex
+      .filter(
+        ({ record, values }) =>
+          (!inspection || record.inspection === inspection) &&
+          (!comparison || record.comparison === comparison) &&
+          (!teamFilter || record.team.trim() === teamFilter) &&
+          (!normalized || values.some((value) => value.includes(normalized))),
+      )
+      .map(({ record }) => record);
+  }, [searchIndex, deferredQuery, inspection, comparison, teamFilter]);
+  const teamOptions = useMemo(
+    () => [
+      { value: '', label: 'ผู้ถือครอง / ทีม · ทุกทีม' },
+      ...[
+        ...new Set((data.data?.records ?? []).map((record) => record.team.trim()).filter(Boolean)),
+      ]
+        .sort((a, b) => a.localeCompare(b, 'th'))
+        .map((team) => ({ value: team, label: team })),
+    ],
+    [data.data?.records],
+  );
+  const saveStatusDraft = useCallback(
+    (row: number) => saveStatusDraftsMutation.mutate(row),
+    [saveStatusDraftsMutation.mutate],
+  );
+  const updateStatusDraft = useCallback((record: DashboardRecord, status: string | null) => {
+    if (!status || status === record.inspection) drafts.current.delete(record.row);
+    else drafts.current.set(record.row, { status, revision: record.revision });
+    setDraftVersion((value) => value + 1);
+  }, []);
+  const renderTeamFilter = useCallback(
+    () => (
+      <Select
+        className="dash-team-filter"
+        mx="auto"
+        style={mobile ? { width: '100%' } : undefined}
+        classNames={{
+          input: 'dash-team-filter-input',
+          option: 'dash-status-option',
+        }}
+        aria-label="กรองตามทีม"
+        value={teamFilter}
+        onChange={(team) => setTeamFilter(team ?? '')}
+        allowDeselect={false}
+        rightSection={<ChevronDown size={16} className="dash-team-chevron" aria-hidden="true" />}
+        rightSectionPointerEvents="none"
+        data={teamOptions}
+      />
+    ),
+    [mobile, teamFilter, setTeamFilter, teamOptions],
+  );
   if (data.isPending) return <DashboardLoadingSkeleton />;
   if (!data.data)
     return (
@@ -108,15 +173,7 @@ export function DashboardPage() {
         </Button>
       </>
     );
-  const dashboard = data.data,
-    normalized = query.trim().toLocaleLowerCase();
-  const records = dashboard.records.filter(
-    (r) =>
-      (!inspection || r.inspection === inspection) &&
-      (!comparison || r.comparison === comparison) &&
-      (!teamFilter || r.team.trim() === teamFilter) &&
-      (!normalized || r.values.some((v) => v.toLocaleLowerCase().includes(normalized))),
-  );
+  const dashboard = data.data;
   const current = dashboard.records.find((r) => r.row === selected);
   const renderStatusFilterCard = (
     label: string,
@@ -137,34 +194,6 @@ export function DashboardPage() {
         <span className="dash-stat-caption">รายการ</span>
       </span>
     </UnstyledButton>
-  );
-  const updateStatusDraft = (record: DashboardRecord, status: string | null) => {
-    if (!status || status === record.inspection) drafts.current.delete(record.row);
-    else drafts.current.set(record.row, { status, revision: record.revision });
-    setDraftVersion((value) => value + 1);
-  };
-  const renderTeamFilter = () => (
-    <Select
-      className="dash-team-filter"
-      mx="auto"
-      style={mobile ? { width: '100%' } : undefined}
-      classNames={{
-        input: 'dash-team-filter-input',
-        option: 'dash-status-option',
-      }}
-      aria-label="กรองตามทีม"
-      value={teamFilter}
-      onChange={(team) => setTeamFilter(team ?? '')}
-      allowDeselect={false}
-      rightSection={<ChevronDown size={16} className="dash-team-chevron" aria-hidden="true" />}
-      rightSectionPointerEvents="none"
-      data={[
-        { value: '', label: 'ผู้ถือครอง / ทีม · ทุกทีม' },
-        ...[...new Set(dashboard.records.map((record) => record.team.trim()).filter(Boolean))]
-          .sort((a, b) => a.localeCompare(b, 'th'))
-          .map((team) => ({ value: team, label: team })),
-      ]}
-    />
   );
   return (
     <Box component="section" aria-label="Dashboard ครุภัณฑ์ IQI">
@@ -340,98 +369,23 @@ export function DashboardPage() {
         <DashboardMobileCards
           records={records}
           drafts={drafts.current}
+          draftVersion={draftVersion}
           busy={saveStatusDraftsMutation.isPending}
           onStatusChange={updateStatusDraft}
-          onSave={(row) => saveStatusDraftsMutation.mutate(row)}
+          onSave={saveStatusDraft}
           onSelect={setSelected}
         />
       ) : (
-        <Table.ScrollContainer minWidth={850} className="dash-list">
-          {!records.length ? (
-            <Text component="p" className="portal-paragraph dash-empty">
-              ไม่พบรายการตามตัวกรองที่เลือก
-            </Text>
-          ) : (
-            <Table
-              className="dash-table"
-              styles={{
-                th: { textAlign: 'center' },
-                td: { textAlign: 'center', verticalAlign: 'middle' },
-              }}
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  {[
-                    'เลขครุภัณฑ์ / อุปกรณ์',
-                    'S/N',
-                    'ผลตรวจ Apps Script',
-                    'การเทียบกับชีต',
-                    'ผู้ถือครอง / ทีม',
-                    'รายละเอียด',
-                  ].map((title) => (
-                    <Table.Th
-                      key={title}
-                      scope="col"
-                      style={title === 'เลขครุภัณฑ์ / อุปกรณ์' ? { textAlign: 'left' } : undefined}
-                    >
-                      {title === 'ผู้ถือครอง / ทีม' ? renderTeamFilter() : title}
-                    </Table.Th>
-                  ))}
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {records.map((r) => (
-                  <Table.Tr key={r.row} className={`dash-row ${getStatusColorClass(r.inspection)}`}>
-                    <Table.Td style={{ textAlign: 'left', verticalAlign: 'top' }}>
-                      <CopyableText value={r.asset} />
-                      <span className="dash-item-name">{r.name || 'ไม่ระบุชื่ออุปกรณ์'}</span>
-                    </Table.Td>
-                    <Table.Td>
-                      <CopyableText value={r.serial} />
-                    </Table.Td>
-                    <Table.Td>
-                      <DashboardStatusEditor
-                        record={r}
-                        draft={drafts.current.get(r.row)}
-                        busy={saveStatusDraftsMutation.isPending}
-                        onChange={(status) => updateStatusDraft(r, status)}
-                        onSave={() => saveStatusDraftsMutation.mutate(r.row)}
-                      />
-                      <Box className="dash-updated-at">
-                        {r.updatedAt
-                          ? `อัปเดตล่าสุด ${r.updatedAt}`
-                          : 'ยังไม่มีวันที่อัปเดตจากเว็บ'}
-                      </Box>
-                    </Table.Td>
-                    <Table.Td>
-                      <span className={`dash-badge ${getStatusColorClass(r.comparison)}`}>
-                        {r.comparison}
-                      </span>
-                    </Table.Td>
-                    <Table.Td>
-                      {r.owner || '—'}
-                      <span className="dash-item-name">{r.team}</span>
-                    </Table.Td>
-                    <Table.Td>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        radius={8}
-                        h={36}
-                        px={20}
-                        fw={600}
-                        disabled={saveStatusDraftsMutation.isPending}
-                        onClick={() => setSelected(r.row)}
-                      >
-                        ดูข้อมูล
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Table.ScrollContainer>
+        <DashboardTable
+          records={records}
+          drafts={drafts.current}
+          draftVersion={draftVersion}
+          busy={saveStatusDraftsMutation.isPending}
+          renderTeamFilter={renderTeamFilter}
+          onStatusChange={updateStatusDraft}
+          onSave={saveStatusDraft}
+          onSelect={setSelected}
+        />
       )}
       <Text component="p" className="portal-paragraph dash-updated">
         อ่านจากแท็บ Appscriptdata เมื่อ{' '}

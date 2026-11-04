@@ -1,4 +1,5 @@
 'use client';
+import { memo } from 'react';
 import { Badge, Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { CopyableText } from '@/components/ui/feedback';
 import { getStatusColorClass } from '@/lib/display';
@@ -15,7 +16,7 @@ const statusBackgrounds: Record<string, string> = {
   todo: 'white',
 };
 
-export function DashboardMobileCards({
+export const DashboardMobileCards = memo(function DashboardMobileCards({
   records,
   drafts,
   busy,
@@ -25,6 +26,7 @@ export function DashboardMobileCards({
 }: {
   records: DashboardRecord[];
   drafts: ReadonlyMap<number, StatusDraft>;
+  draftVersion: number;
   busy: boolean;
   onStatusChange: (record: DashboardRecord, status: string | null) => void;
   onSave: (row: number) => void;
@@ -123,4 +125,4 @@ export function DashboardMobileCards({
       ))}
     </Stack>
   );
-}
+});

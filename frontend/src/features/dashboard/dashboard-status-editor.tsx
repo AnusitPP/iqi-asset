@@ -4,6 +4,10 @@ import { ChevronDown } from 'lucide-react';
 import { dashboardStatuses, type DashboardRecord } from '@/types/contracts';
 import { formatDashboardStatusLabel, getStatusColorClass } from '@/lib/display';
 import type { StatusDraft } from './save-drafts';
+const statusOptions = dashboardStatuses.map((status) => ({
+  value: status,
+  label: formatDashboardStatusLabel(status),
+}));
 export function DashboardStatusEditor({
   record: r,
   draft,
@@ -31,10 +35,7 @@ export function DashboardStatusEditor({
         styles={fullWidth ? { input: { height: 40 } } : undefined}
         placeholder="เลือกสถานะ"
         allowDeselect={false}
-        data={dashboardStatuses.map((status) => ({
-          value: status,
-          label: formatDashboardStatusLabel(status),
-        }))}
+        data={statusOptions}
         value={draft?.status ?? (r.inspection === 'ไม่ระบุ' ? null : r.inspection)}
         disabled={busy}
         onChange={onChange}

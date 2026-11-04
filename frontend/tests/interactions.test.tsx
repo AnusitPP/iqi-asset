@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  focusManager,
+  onlineManager,
+} from '@tanstack/react-query';
 import { AssetRecordDialog } from '../src/features/assets/record-dialog';
 import { ReviewInspectionDialog } from '../src/features/inspections/inspection-dialog';
 import { AssetPhotoEditor } from '../src/features/photos/photo-editor';
@@ -69,16 +74,15 @@ const dashboard = {
   comparison: { ตรงกัน: 1 },
   loadedAt: '2026-10-29T00:00:00.000Z',
 };
-function renderWithAppProviders(component: React.ReactNode) {
+function renderWithAppProviders(
+  component: React.ReactNode,
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  }),
+) {
   return render(
     <MantineProvider>
-      <QueryClientProvider
-        client={
-          new QueryClient({
-            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-          })
-        }
-      >
+      <QueryClientProvider client={client}>
         <UnsavedChangesProvider>{component}</UnsavedChangesProvider>
       </QueryClientProvider>
     </MantineProvider>,
@@ -168,6 +172,34 @@ describe('migrated interactions', () => {
       '/api/auth/google',
     );
     expect(screen.queryByLabelText('รหัสผ่าน')).toBeNull();
+  });
+  it('keeps dashboard data during filtering and reconnects, and reloads on request or remount', async () => {
+    mocks.request.mockResolvedValue(dashboard);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = renderWithAppProviders(<DashboardPage />, client);
+    const user = userEvent.setup();
+    await screen.findByText('IQI-001');
+    const dashboardReads = () =>
+      mocks.request.mock.calls.filter(([path]) => path === '/api/dashboard').length;
+    expect(dashboardReads()).toBe(1);
+    await user.type(screen.getByLabelText('ค้นหารายการ Dashboard'), 'IQI');
+    fireEvent.change(screen.getByRole('combobox', { name: 'กรองตามทีม' }), {
+      target: { value: 'IT' },
+    });
+    await act(async () => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    });
+    expect(dashboardReads()).toBe(1);
+    await user.click(screen.getByRole('button', { name: 'โหลดข้อมูลล่าสุด' }));
+    await waitFor(() => expect(dashboardReads()).toBe(2));
+    view.unmount();
+    renderWithAppProviders(<DashboardPage />, client);
+    await screen.findByText('IQI-001');
+    await waitFor(() => expect(dashboardReads()).toBe(3));
+    focusManager.setFocused(undefined);
   });
   it('shows dashboard mobile cards and saves a status with the original revision', async () => {
     const originalMatchMedia = vi.mocked(window.matchMedia).getMockImplementation()!;
