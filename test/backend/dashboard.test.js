@@ -17,6 +17,101 @@ test('dashboard recognizes other-equipment spelling variants from Sheets', async
   assert.equal(data.completed, 3);
 });
 
+test('dashboard adds a unique IQI asset using Appscriptdata headers and refuses duplicates', async () => {
+  const { DashboardEditor } = await import('../../backend/src/features/dashboard/editor.js');
+  const headers = [
+    'ลำดับ',
+    'ผลตรวจ Apps Script',
+    'สถานะการเทียบ',
+    'เลขครุภัณฑ์ Apps Script',
+    'ชื่ออุปกรณ์ Apps Script',
+    'S/N Apps Script',
+    'เลขครุภัณฑ์ในชีต',
+    'ชื่ออุปกรณ์ในชีต',
+    'ยี่ห้อ',
+    'รุ่น',
+    'S/N ในชีต',
+    'ชื่อผู้ถือครอง',
+    'ชื่อย่อ',
+    'ชื่อเล่น',
+    'ทีม',
+    'รายละเอียดในชีต',
+    'สภาพในชีต',
+    'หมายเหตุเดิมในชีต',
+    'ประวัติการถือครอง',
+    'ประวัติการซ่อม',
+    'ผลตรวจในชีต',
+    'วันที่แก้ไขผลตรวจ',
+    'แท็บรอตรวจที่พบ',
+    'แหล่งข้อมูลต้นฉบับ',
+    'หมายเหตุการเทียบข้อมูล',
+  ];
+  const source = {
+    sheet: 'IQI',
+    headers: [
+      'ชื่อ - นามสกุล',
+      'ชื่อย่อ',
+      'ชื่อเล่น',
+      'ทีม',
+      'รายการ',
+      'ยี่ห้อ',
+      'Serial Number (S/N)',
+      'รุ่น',
+      'เลขครุภัณฑ์',
+      'รายละเอียด',
+      'สภาพ',
+      'หมายเหตุ',
+    ],
+    assetIndex: 8,
+    records: [
+      {
+        row: 93,
+        values: [
+          'IT',
+          'IT',
+          'IT',
+          'IQI',
+          'คอมพิวเตอร์พกพา (Laptop Computer)',
+          'ACER',
+          'SN41',
+          'ACER SWIFT',
+          'STeP61-107-041',
+          '',
+          '',
+          'วันที่ตรวจสอบ 14/5/2569',
+        ],
+      },
+    ],
+  };
+  const grid = [headers];
+  const adapter = {
+    read: async () => [structuredClone(source)],
+    readDashboard: async () => structuredClone(grid),
+    appendDashboardRow: async (row) => grid.push(row),
+  };
+  const editor = new DashboardEditor(adapter);
+  assert.deepEqual(await editor.findIqiAsset('step61–107–041'), {
+    row: 93,
+    asset: 'STeP61-107-041',
+    name: 'คอมพิวเตอร์พกพา (Laptop Computer)',
+    brand: 'ACER',
+    model: 'ACER SWIFT',
+    serial: 'SN41',
+    owner: 'IT',
+    team: 'IQI',
+    details: '',
+    condition: '',
+    note: 'วันที่ตรวจสอบ 14/5/2569',
+  });
+  await editor.addFromIqi('STeP61-107-041');
+  assert.equal(grid.length, 2);
+  assert.equal(grid[1][6], 'STeP61-107-041');
+  assert.equal(grid[1][10], 'SN41');
+  assert.equal(grid[1][1], '');
+  await assert.rejects(editor.addFromIqi('STeP61-107-041'), /มีอยู่/);
+  assert.equal(grid.length, 2);
+});
+
 test('Apps Script other-equipment status saves and counts as inspected', async () => {
   const { dashboardData, DashboardEditor } =
     await import('../../backend/src/features/dashboard/editor.js');

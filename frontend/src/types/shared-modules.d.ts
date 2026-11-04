@@ -26,3 +26,6 @@ declare module '@shared/features/auth/profile.js' {
 declare module '@shared/features/auth/permissions.js' {
   export function permissionsForRole(role: string): string[];
 }
+declare module '@shared/features/records/dashboardFields.js' {
+  export const editableDashboardHeaders: string[];
+}

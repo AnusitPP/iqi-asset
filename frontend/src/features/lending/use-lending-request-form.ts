@@ -11,6 +11,7 @@ import {
   type LendingFormValues,
 } from '@/types/lending';
 import type { ApiClient } from '@/lib/api-client';
+import { ApiError } from '@/lib/api-client';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
@@ -55,7 +56,10 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     submitting = useRef(false);
   const form = useForm<FormValues>({
     mode: 'onBlur',
-    defaultValues: initial?.values ?? { ...emptyValues, mode, borrower: user?.name ?? '' },
+    defaultValues: {
+      ...(initial?.values ?? { ...emptyValues, mode }),
+      borrower: user?.name ?? initial?.values.borrower ?? '',
+    },
     resolver: zodResolver(lendingFormSchema),
   });
   const busy = form.formState.isSubmitting;
@@ -78,15 +82,21 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
       requestId: requestId.current,
     });
   }, [selected, client, mode, form]);
-  const resetLendingRequestForm = () => {
+  const resetLendingRequestForm = (keepSelection = false) => {
     form.reset({ ...emptyValues, mode, borrower: user?.name ?? '' });
-    setSelected(null);
+    if (!keepSelection) setSelected(null);
     setSelectionError('');
     setError(null);
     setNotice('');
     requestId.current = crypto.randomUUID();
-    setPickerVersion((value) => value + 1);
+    if (!keepSelection) setPickerVersion((value) => value + 1);
     client.removeQueries({ queryKey: ['workspace-state', `${mode}-form`], exact: true });
+    if (keepSelection)
+      client.setQueryData(['workspace-state', `${mode}-form`], {
+        values: form.getValues(),
+        selected,
+        requestId: requestId.current,
+      });
     client.removeQueries({ queryKey: ['workspace-state', `${mode}-catalog-query`], exact: true });
   };
   const handleSubmitLendingRequest = async (values: FormValues) => {
@@ -116,11 +126,23 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
       await client.invalidateQueries({ queryKey: ['my-requests'] });
     } catch (caught) {
       setError(caught);
+      if (caught instanceof ApiError && caught.status === 409) {
+        await client.invalidateQueries({ queryKey: ['loan-catalog'] });
+      }
     } finally {
       submitting.current = false;
     }
   };
   const selectLendingAsset = (record: CatalogRecord | null) => {
+    if (mode === 'loan' && record && !form.getValues('start')) {
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+      form.setValue('start', today, { shouldDirty: true });
+    }
     requestId.current = crypto.randomUUID();
     setSelected(record);
     setSelectionError('');

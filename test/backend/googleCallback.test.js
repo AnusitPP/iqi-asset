@@ -132,3 +132,21 @@ test('callback URI is environment-specific and ignores untrusted request hosts',
   );
   assert.throws(() => loadGoogleAuthConfig({ ...env, APP_URL: 'http://evil.example' }), /APP_URL/);
 });
+
+test('exact email allowlist accepts verified Gmail but rejects other or unverified accounts', async () => {
+  const settings = { ...config, allowedEmails: ['tester@gmail.com'] };
+  const identity = { ...payload, email: 'tester@gmail.com', hd: undefined };
+  assert.equal(
+    (await completeGoogleLogin(settings, request, client(identity))).email,
+    identity.email,
+  );
+  for (const rejected of [
+    { ...identity, email: 'other@gmail.com' },
+    { ...identity, email_verified: false },
+    { ...identity, nonce: 'wrong' },
+  ]) {
+    await assert.rejects(() => completeGoogleLogin(settings, request, client(rejected)), {
+      status: 403,
+    });
+  }
+});

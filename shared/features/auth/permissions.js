@@ -1,8 +1,10 @@
 export const ROLES = Object.freeze(['STAFF', 'ADMIN', 'SUPER_ADMIN']);
 export const USER_STATUSES = Object.freeze(['ACTIVE', 'DISABLED']);
-const STAFF = ['ASSET_VIEW', 'LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE'];
+const STAFF = ['LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE'];
 const ADMIN = [
   ...STAFF,
+  'PORTAL_HOME_VIEW',
+  'ASSET_VIEW',
   'ASSET_EDIT',
   'ADMIN_DASHBOARD_VIEW',
   'LOAN_VIEW_ALL',
@@ -10,7 +12,7 @@ const ADMIN = [
   'LOAN_REJECT',
   'RESPONSIBLE_ASSIGN',
   'RETURN_ACCEPT',
-  'AUDIT_VIEW',
+  'USER_VIEW',
 ];
 const ROLE_PERMISSIONS = Object.freeze({ STAFF, ADMIN, SUPER_ADMIN: ['*'] });
 export function permissionsForRole(role) {

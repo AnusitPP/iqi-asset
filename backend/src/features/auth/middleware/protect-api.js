@@ -6,6 +6,8 @@ export function protectApi(req, res, next) {
   let permission;
   if (/^\/api\/admin\/users(?:\/|$)/.test(path))
     permission = req.method === 'GET' ? 'USER_VIEW' : 'USER_MANAGE';
+  else if (path.startsWith('/api/approval-requests'))
+    permission = req.method === 'GET' ? 'LOAN_VIEW_ALL' : 'LOAN_APPROVE';
   else if (path === '/api/audit') permission = 'AUDIT_VIEW';
   else if (req.method === 'GET') {
     if (path === '/api/my-requests') permission = 'LOAN_VIEW_OWN';
@@ -13,9 +15,11 @@ export function protectApi(req, res, next) {
       permission = 'LOAN_CREATE';
     else if (path === '/api/return-catalog') permission = 'RETURN_CREATE';
     else if (path === '/api/loans') permission = 'LOAN_VIEW_ALL';
-    else if (path === '/api/dashboard') permission = 'ADMIN_DASHBOARD_VIEW';
+    else if (path.startsWith('/api/dashboard')) permission = 'ADMIN_DASHBOARD_VIEW';
     else permission = 'ASSET_VIEW';
-  } else if (path === '/api/loans' && req.method === 'POST') permission = 'LOAN_CREATE';
+  } else if (req.method === 'POST' && path.startsWith('/api/dashboard'))
+    permission = 'ADMIN_DASHBOARD_VIEW';
+  else if (path === '/api/loans' && req.method === 'POST') permission = 'LOAN_CREATE';
   else if (path === '/api/returns' && req.method === 'POST') permission = 'RETURN_CREATE';
   else permission = 'ASSET_EDIT';
   if (!hasPermission(req.user, permission))

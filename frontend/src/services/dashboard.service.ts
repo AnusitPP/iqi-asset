@@ -1,10 +1,20 @@
 import type { ApiClient } from '@/lib/api-client';
-import { dashboardSchema, dashboardSaveSchema } from '@/types/contracts';
+import {
+  dashboardAddSchema,
+  dashboardSchema,
+  dashboardSaveSchema,
+  iqiAssetSchema,
+} from '@/types/contracts';
 import type { z } from 'zod';
 
 export type DashboardData = z.infer<typeof dashboardSchema>;
 export type SaveDashboardStatusInput = { status: string; revision: string };
-export type SaveDashboardDetailsInput = { revision: string; team?: string; notes?: string };
+export type SaveDashboardDetailsInput = {
+  revision: string;
+  team?: string;
+  notes?: string;
+  fields?: Record<string, string>;
+};
 
 export const dashboardService = {
   fetchDashboardData(api: ApiClient, signal?: AbortSignal) {
@@ -21,5 +31,17 @@ export const dashboardService = {
       method: 'PUT',
       body,
     });
+  },
+  addFromIqi(api: ApiClient, asset: string, row: number) {
+    return api.request('/api/dashboard/from-iqi', dashboardAddSchema, {
+      method: 'POST',
+      body: { asset, row },
+    });
+  },
+  findIqiAsset(api: ApiClient, asset: string) {
+    return api.request(
+      `/api/dashboard/from-iqi?asset=${encodeURIComponent(asset)}`,
+      iqiAssetSchema,
+    );
   },
 };

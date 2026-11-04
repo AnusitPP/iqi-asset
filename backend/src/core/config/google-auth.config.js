@@ -14,6 +14,10 @@ export function loadGoogleAuthConfig(env = process.env) {
     clientId: env.GOOGLE_CLIENT_ID.trim(),
     clientSecret: env.GOOGLE_CLIENT_SECRET,
     allowedDomain,
+    allowedEmails: (env.GOOGLE_ALLOWED_EMAILS || '')
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean),
     redirectUri: `${applicationOrigin(env)}/api/auth/google/callback`,
   };
 }

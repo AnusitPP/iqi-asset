@@ -158,6 +158,30 @@ export class GoogleSheets {
       ).data.values || []
     );
   }
+  async appendDashboardRow(row) {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const sheet = data.sheets.find((s) => s.properties.title === 'Appscriptdata')?.properties;
+    if (!sheet) throw Object.assign(new Error('ไม่พบ Appscriptdata'), { status: 404 });
+    await this.api.spreadsheets.batchUpdate({
+      spreadsheetId: this.config.spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            appendCells: {
+              sheetId: sheet.sheetId,
+              rows: [
+                { values: row.map((value) => ({ userEnteredValue: { stringValue: value } })) },
+              ],
+              fields: 'userEnteredValue',
+            },
+          },
+        ],
+      },
+    });
+  }
   async readReadyToBorrow() {
     const { data } = await this.api.spreadsheets.values.get({
       spreadsheetId: this.config.spreadsheetId,
@@ -182,6 +206,43 @@ export class GoogleSheets {
     });
     return { loans: data.valueRanges[0].values || [], returns: data.valueRanges[1].values || [] };
   }
+  async updateReturnStatus(id, status, responsible, condition) {
+    const grid = await this.readLoanSheets();
+    const matches = grid.returns.flatMap((row, index) => (row[0] === id ? [index] : []));
+    if (matches.length !== 1 || matches[0] < 1)
+      throw Object.assign(new Error('ไม่พบรายการคืนหรือรหัสซ้ำ'), { status: 409 });
+    const index = matches[0];
+    const updates = [
+      {
+        range: `'รายการคืนครุภัณฑ์'!N${index + 1}:P${index + 1}`,
+        values: [[condition || grid.returns[index][13] || '', status, responsible]],
+      },
+    ];
+    if (status === 'เสร็จสิ้น') {
+      const loans = grid.loans.flatMap((row, i) =>
+        row[0] === grid.returns[index][1] && row[1] === grid.returns[index][2] ? [i] : [],
+      );
+      if (loans.length !== 1 || loans[0] < 1)
+        throw Object.assign(new Error('ไม่พบรายการยืมที่เชื่อมกับคำขอคืน'), { status: 409 });
+      updates.push({ range: `'รายการยืมครุภัณฑ์'!O${loans[0] + 1}`, values: [['เสร็จสิ้น']] });
+    }
+    await this.api.spreadsheets.values.batchUpdate({
+      spreadsheetId: this.config.spreadsheetId,
+      requestBody: { valueInputOption: 'RAW', data: updates },
+    });
+  }
+  async updateLoanStatus(id, status, responsible) {
+    const data = await this.readLoanSheets();
+    const indexes = data.loans.flatMap((row, index) => (row[0] === id ? [index + 1] : []));
+    if (indexes.length !== 1)
+      throw Object.assign(new Error('รายการยืมเปลี่ยนไป กรุณาโหลดใหม่'), { status: 409 });
+    await this.api.spreadsheets.values.update({
+      spreadsheetId: this.config.spreadsheetId,
+      range: `'รายการยืมครุภัณฑ์'!O${indexes[0]}:P${indexes[0]}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[status, responsible]] },
+    });
+  }
   async appendLoanRows(kind, rows) {
     const title = kind === 'loans' ? 'รายการยืมครุภัณฑ์' : 'รายการคืนครุภัณฑ์';
     const { data } = await this.api.spreadsheets.get({
@@ -195,13 +256,29 @@ export class GoogleSheets {
       const loanSheet = data.sheets.find((s) => s.properties.title === 'รายการยืมครุภัณฑ์')
         ?.properties.sheetId;
       const grid = (await this.readLoanSheets()).loans;
-      for (const row of rows.filter((r) => r[14] === LENDING_STATUS.RETURN_RECEIVED)) {
+      for (const row of rows.filter(
+        (r) =>
+          r[2] && [LENDING_STATUS.RETURN_RECEIVED, LENDING_STATUS.RETURN_PENDING].includes(r[14]),
+      )) {
         const index = grid.findIndex((r) => r[1] === row[2]);
         if (index < 1 || loanSheet === undefined) throw new Error('ไม่พบรายการยืมสำหรับรับคืน');
         statusUpdates.push({
           updateCells: {
             start: { sheetId: loanSheet, rowIndex: index, columnIndex: 14 },
-            rows: [{ values: [{ userEnteredValue: { stringValue: LENDING_STATUS.RETURNED } }] }],
+            rows: [
+              {
+                values: [
+                  {
+                    userEnteredValue: {
+                      stringValue:
+                        row[14] === LENDING_STATUS.RETURN_RECEIVED
+                          ? LENDING_STATUS.RETURNED
+                          : 'รอดำเนินการคืน',
+                    },
+                  },
+                ],
+              },
+            ],
             fields: 'userEnteredValue',
           },
         });

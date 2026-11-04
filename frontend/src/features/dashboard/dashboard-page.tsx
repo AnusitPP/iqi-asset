@@ -13,6 +13,7 @@ import {
   Paper,
   SimpleGrid,
 } from '@mantine/core';
+import { Modal } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { DashboardMobileCards } from './dashboard-mobile-cards';
 import { DashboardTable } from './dashboard-table';
@@ -47,7 +48,12 @@ export function DashboardPage() {
     [comparison, setComparison] = useWorkspaceState('dashboard-comparison', ''),
     [query, setQuery] = useWorkspaceState('dashboard-query', ''),
     [notice, setNotice] = useState(''),
-    [selected, setSelected] = useState<number | null>(null);
+    [selected, setSelected] = useState<number | null>(null),
+    [addOpen, setAddOpen] = useState(false),
+    [addAsset, setAddAsset] = useState(''),
+    [iqiPreview, setIqiPreview] = useState<Awaited<
+      ReturnType<typeof dashboardService.findIqiAsset>
+    > | null>(null);
   const [teamFilter, setTeamFilter] = useWorkspaceState('dashboard-team', '');
   const [filtersOpen, setFiltersOpen] = useWorkspaceState('dashboard-filters-open', false);
   const isSaveCurrent = useSessionTaskGuard();
@@ -159,6 +165,21 @@ export function DashboardPage() {
     ),
     [mobile, teamFilter, setTeamFilter, teamOptions],
   );
+  const addFromIqiMutation = useMutation({
+    mutationFn: ({ asset, row }: { asset: string; row: number }) =>
+      dashboardService.addFromIqi(api, asset, row),
+    onSuccess: async ({ asset }) => {
+      setNotice(`เพิ่ม ${asset} จาก IQI แล้ว`);
+      showToast(`เพิ่ม ${asset} แล้ว`);
+      setAddOpen(false);
+      setAddAsset('');
+      await reloadDashboardData();
+    },
+  });
+  const findIqiMutation = useMutation({
+    mutationFn: (asset: string) => dashboardService.findIqiAsset(api, asset),
+    onSuccess: setIqiPreview,
+  });
   if (data.isPending) return <DashboardLoadingSkeleton />;
   if (!data.data)
     return (
@@ -205,25 +226,36 @@ export function DashboardPage() {
             ผลตรวจจาก Apps Script และการเทียบข้อมูลกับ Google Sheets
           </Text>
         </Box>
-        <Button
-          variant="default"
-          fullWidth={mobile}
-          disabled={saveStatusDraftsMutation.isPending}
-          loading={data.isFetching}
-          onClick={() => {
-            if (
-              drafts.current.size &&
-              !window.confirm('โหลดข้อมูลล่าสุดและยกเลิกสถานะที่ยังไม่บันทึก?')
-            )
-              return;
-            drafts.current.clear();
-            setDraftVersion((v) => v + 1);
-            setNotice('');
-            void data.refetch();
-          }}
-        >
-          โหลดข้อมูลล่าสุด
-        </Button>
+        <Group>
+          <Button
+            onClick={() => {
+              addFromIqiMutation.reset();
+              findIqiMutation.reset();
+              setIqiPreview(null);
+              setAddOpen(true);
+            }}
+          >
+            เพิ่มจาก IQI
+          </Button>
+          <Button
+            variant="default"
+            disabled={saveStatusDraftsMutation.isPending}
+            loading={data.isFetching}
+            onClick={() => {
+              if (
+                drafts.current.size &&
+                !window.confirm('โหลดข้อมูลล่าสุดและยกเลิกสถานะที่ยังไม่บันทึก?')
+              )
+                return;
+              drafts.current.clear();
+              setDraftVersion((v) => v + 1);
+              setNotice('');
+              void data.refetch();
+            }}
+          >
+            โหลดข้อมูลล่าสุด
+          </Button>
+        </Group>
       </Group>
       <Box
         className="dash-bulk-bar"
@@ -245,6 +277,8 @@ export function DashboardPage() {
       </Box>
       <ErrorAlert error={data.error} />
       <ErrorAlert error={saveStatusDraftsMutation.error} />
+      <ErrorAlert error={addFromIqiMutation.error} />
+      <ErrorAlert error={findIqiMutation.error} />
       {notice && (
         <Text className="dash-save-success" role="status">
           {notice}
@@ -403,6 +437,56 @@ export function DashboardPage() {
           onSaved={updateCachedDashboardRecord}
         />
       )}
+      <Modal opened={addOpen} onClose={() => setAddOpen(false)} title="เพิ่มรายการจาก IQI" centered>
+        <Text size="sm" mb="sm">
+          ค้นหาข้อมูลใน IQI และตรวจรายละเอียดก่อนเพิ่มลง Appscriptdata
+        </Text>
+        <Group align="end">
+          <TextInput
+            style={{ flex: 1 }}
+            label="เลขครุภัณฑ์"
+            placeholder="เช่น STeP61-107-041"
+            value={addAsset}
+            onChange={(event) => {
+              setAddAsset(event.currentTarget.value);
+              setIqiPreview(null);
+            }}
+            maxLength={200}
+            autoFocus
+          />
+          <Button
+            loading={findIqiMutation.isPending}
+            disabled={!addAsset.trim()}
+            onClick={() => findIqiMutation.mutate(addAsset.trim())}
+          >
+            ค้นหา
+          </Button>
+        </Group>
+        {iqiPreview && (
+          <>
+            <Text mt="md" fw={600}>
+              {iqiPreview.asset} · {iqiPreview.name || 'ไม่ระบุชนิด'}
+            </Text>
+            <Text size="sm">
+              ยี่ห้อ/รุ่น: {[iqiPreview.brand, iqiPreview.model].filter(Boolean).join(' ') || '—'} ·
+              S/N: {iqiPreview.serial || '—'}
+            </Text>
+            <Text size="sm">
+              ผู้ถือครอง: {iqiPreview.owner || '—'} · ทีม: {iqiPreview.team || '—'} · รายละเอียด:{' '}
+              {iqiPreview.details || '—'}
+            </Text>
+            <Button
+              mt="md"
+              loading={addFromIqiMutation.isPending}
+              onClick={() =>
+                addFromIqiMutation.mutate({ asset: iqiPreview.asset, row: iqiPreview.row })
+              }
+            >
+              ยืนยันเพิ่มลง Appscriptdata
+            </Button>
+          </>
+        )}
+      </Modal>
     </Box>
   );
 }

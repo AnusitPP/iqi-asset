@@ -175,6 +175,13 @@ export const accountModule: PortalModule = {
       icon: ListChecks,
       permission: 'LOAN_VIEW_OWN',
     },
+    {
+      id: 'approval-requests',
+      label: 'คำขออนุมัติ',
+      href: '/approval-requests',
+      icon: ListChecks,
+      permission: 'LOAN_VIEW_ALL',
+    },
     { id: 'users', label: 'ผู้ใช้งาน', href: '/users', icon: UsersRound, permission: 'USER_VIEW' },
     { id: 'audit', label: 'Audit Log', href: '/audit', icon: History, permission: 'AUDIT_VIEW' },
     {

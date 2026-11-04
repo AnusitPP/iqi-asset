@@ -10,7 +10,16 @@ function parseCatalogRows(values, sheetName) {
     const get = (name) => String(row[headers.indexOf(name)] ?? '').trim();
     const asset = get('เลขครุภัณฑ์');
     if (!asset) return [];
-    return [{ row: index + 2, asset, serial: get('S/N'), name: get('ชื่ออุปกรณ์') }];
+    const photo = get('รูป (ลิงก์)');
+    return [
+      {
+        row: index + 2,
+        asset,
+        serial: get('S/N'),
+        name: get('ชื่ออุปกรณ์'),
+        ...(photo ? { photo } : {}),
+      },
+    ];
   });
   return { records };
 }

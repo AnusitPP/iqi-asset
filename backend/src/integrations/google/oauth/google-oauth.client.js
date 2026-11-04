@@ -10,7 +10,7 @@ export function buildGoogleAuthorizationUrl(config, { state, nonce }) {
     state,
     nonce,
     // Domain hint only; the callback must verify the ID token's hd claim.
-    hd: config.allowedDomain,
+    ...(config.allowedEmails?.length ? {} : { hd: config.allowedDomain }),
     prompt: 'select_account',
   }).toString();
   return url.toString();

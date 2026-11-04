@@ -7,6 +7,7 @@ import {
   NativeSelect,
   Select,
   Textarea,
+  Modal,
   createTheme,
 } from '@mantine/core';
 
@@ -30,6 +31,7 @@ export const portalTheme = createTheme({
   },
   black: '#111827',
   defaultRadius: 'md',
+  radius: { xs: '6px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
   fontFamily: 'Noto Sans Thai, Tahoma, sans-serif',
   headings: {
     fontFamily: 'Noto Sans Thai, Tahoma, sans-serif',
@@ -43,6 +45,7 @@ export const portalTheme = createTheme({
     Anchor: Anchor.extend({ defaultProps: { underline: 'never' } }),
     Button: Button.extend({ defaultProps: { radius: 'md' } }),
     Paper: Paper.extend({ defaultProps: { radius: 'lg' } }),
+    Modal: Modal.extend({ defaultProps: { radius: 'xl' } }),
     Table: Table.extend({ defaultProps: { highlightOnHover: false } }),
     TextInput: TextInput.extend({ defaultProps: { size: 'sm' } }),
     NativeSelect: NativeSelect.extend({ defaultProps: { size: 'sm' } }),

@@ -2,13 +2,9 @@ import { assetIdentityKey } from '../../../../shared/features/catalog/search.js'
 import {
   LENDING_REQUEST_TYPE,
   LENDING_STATUS,
-  MAX_LOAN_DAYS,
 } from '../../../../shared/features/lending/status.js';
 import { randomUUID } from 'node:crypto';
-import {
-  formatBangkokTimestamp as currentBangkokTimestamp,
-  calendarDaysBetween,
-} from '../../../../shared/core/extensions/dates.js';
+import { formatBangkokTimestamp as currentBangkokTimestamp } from '../../../../shared/core/extensions/dates.js';
 import { throwHttpError } from '../../core/errors/errors.js';
 import {
   validateRequiredText as validateText,
@@ -28,11 +24,7 @@ export class LoanRequestService {
         start: validateIsoDate(body.start),
         due: validateIsoDate(body.due),
       };
-      if (
-        requestData.due < requestData.start ||
-        calendarDaysBetween(requestData.start, requestData.due) > MAX_LOAN_DAYS
-      )
-        throwHttpError(400, 'กำหนดคืนต้องไม่ก่อนวันที่ยืมและไม่เกิน 7 วัน');
+      if (requestData.due < requestData.start) throwHttpError(400, 'กำหนดคืนต้องไม่ก่อนวันที่ยืม');
       await this.ledger.resolveCatalogSelection(body, requestData);
       const hash = fingerprintRequest(requestData),
         ledgerState = await this.ledger.readLedger(),

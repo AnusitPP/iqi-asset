@@ -30,7 +30,9 @@ test('original loan form accepts manual identifier and preserves selected type',
   await service.borrowForm(form);
   assert.equal(grids.loans.length, 2);
   await assert.rejects(() => service.borrowForm({ ...form, team: 'fake' }), { status: 400 });
-  await assert.rejects(() => service.borrowForm({ ...form, due: '2026-11-20' }), { status: 400 });
+  await assert.rejects(() => service.borrowForm({ ...form, due: '2026-10-28' }), { status: 400 });
+  await service.borrowForm({ ...form, requestId: 'long-loan', due: '2026-11-20' });
+  assert.equal(grids.loans.length, 3);
 });
 test('original return form accepts external asset without staff/condition and awaits inspection', async () => {
   const { service, grids } = make();

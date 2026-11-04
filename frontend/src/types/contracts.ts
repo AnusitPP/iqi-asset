@@ -128,6 +128,20 @@ export const dashboardSaveSchema = z.object({
   record: dashboardRecordSchema,
   unchanged: z.boolean(),
 });
+export const dashboardAddSchema = z.object({ asset: z.string(), row: z.number().int() });
+export const iqiAssetSchema = z.object({
+  row: z.number().int(),
+  asset: z.string(),
+  name: z.string(),
+  brand: z.string(),
+  model: z.string(),
+  serial: z.string(),
+  owner: z.string(),
+  team: z.string(),
+  details: z.string(),
+  condition: z.string(),
+  note: z.string(),
+});
 export const photoResultSchema = z.object({
   url: safeLink,
   bytes: z.number(),

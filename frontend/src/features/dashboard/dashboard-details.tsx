@@ -17,16 +17,16 @@ import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useState } from 'react';
 import { useAuthSession } from '@/features/auth/auth-provider';
-import { dashboardDetailFormSchema, type DashboardRecord } from '@/types/contracts';
+import { type DashboardRecord } from '@/types/contracts';
 import { dashboardService } from '@/services/dashboard.service';
 import { ErrorAlert } from '@/components/ui/feedback';
 import { AssetPhotoEditor } from '@/features/photos/photo-editor';
+import { editableDashboardHeaders } from '@shared/features/records/dashboardFields.js';
 import { photoHeaders } from '@/features/photos/photo-utils';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
 export function DashboardRecordDialog({
   record,
   headers,
-  teams,
   onClose,
   onRefresh,
   onSaved,
@@ -42,23 +42,37 @@ export function DashboardRecordDialog({
   const { showToast } = useToast();
   const [uploading, setUploading] = useState(false),
     [notice, setNotice] = useState('');
+  const dashboardDetailFormSchema = z.object({
+    fields: z.record(z.string(), z.string().max(5000)),
+  });
+  const initialFields = Object.fromEntries(
+    headers
+      .filter((h) => editableDashboardHeaders.includes(h))
+      .map((h) => [h, record.values[headers.indexOf(h)] || '']),
+  );
+  initialFields['ทีม'] = record.team;
   const form = useForm<z.infer<typeof dashboardDetailFormSchema>>({
     resolver: zodResolver(dashboardDetailFormSchema),
     mode: 'onBlur',
-    defaultValues: { team: record.team, notes: record.editableNotes },
+    defaultValues: { fields: initialFields },
   });
   const saveTeamAndNotesMutation = useMutation({
     mutationFn: (values: z.infer<typeof dashboardDetailFormSchema>) =>
       dashboardService.updateTeamAndNotes(api, record.row, {
         revision: record.revision,
-        ...(values.team !== record.team ? { team: values.team } : {}),
-        ...(values.notes !== record.editableNotes ? { notes: values.notes } : {}),
+        fields: values.fields,
       }),
     onSuccess: (result) => {
       onSaved(result.record);
-      form.reset({ team: result.record.team, notes: result.record.editableNotes });
-      setNotice('บันทึกทีมและหมายเหตุแล้ว');
-      showToast('บันทึกทีมและหมายเหตุแล้ว');
+      form.reset({
+        fields: Object.fromEntries(
+          headers
+            .filter((h) => editableDashboardHeaders.includes(h))
+            .map((h) => [h, result.record.values[headers.indexOf(h)] || '']),
+        ),
+      });
+      setNotice('บันทึกข้อมูลแล้ว');
+      showToast('บันทึกข้อมูลแล้ว');
     },
   });
   const busy = uploading || saveTeamAndNotesMutation.isPending;
@@ -106,27 +120,27 @@ export function DashboardRecordDialog({
                       label="ทีม"
                       data={[
                         { value: '', label: 'ไม่ระบุทีม' },
-                        ...[...new Set([record.team, ...teams])]
+                        ...[record.team]
                           .filter(Boolean)
                           .map((value) => ({ value, label: value })),
                       ]}
-                      {...form.register('team')}
+                      {...form.register('fields.ทีม')}
                       disabled={busy}
                       styles={{
                         input: { backgroundColor: '#fefefe' },
                       }}
                     />
-                  ) : header === 'หมายเหตุ' ? (
+                  ) : editableDashboardHeaders.includes(header) ? (
                     <Textarea
-                      label="หมายเหตุ"
-                      rows={3}
+                      label={header}
+                      rows={2}
                       maxLength={5000}
-                      {...form.register('notes')}
-                      error={form.formState.errors.notes?.message}
+                      {...form.register(`fields.${header}`)}
                       disabled={busy}
                       styles={{
                         input: { backgroundColor: '#fefefe' },
                       }}
+                      error={form.formState.errors.fields?.[header]?.message}
                     />
                   ) : (
                     <>

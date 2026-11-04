@@ -46,7 +46,7 @@ export function createApp(service, config) {
     if (service.ready) await service.ready();
     next();
   });
-  registerCatalogRoutes(app, { service });
+  registerCatalogRoutes(app, { service, lendingLedger });
   registerLoansRoutes(app, { lendingLedger, loanRequests });
   registerReturnsRoutes(app, { returnRequests });
   registerDashboardRoutes(app, { dashboardEditor, service });

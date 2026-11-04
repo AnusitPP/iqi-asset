@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { FORM_TEAMS } from '@shared/features/lending/formConstants.js';
-import { MAX_LOAN_DAYS } from '@shared/features/lending/status.js';
-import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/dates.js';
+import { isIsoCalendarDate } from '@shared/core/extensions/dates.js';
 
 export const catalogRecordSchema = z.object({
   row: z.number().int(),
   asset: z.string().min(1),
   serial: z.string(),
   name: z.string(),
+  photo: z.string().optional(),
 });
 export const catalogSchema = z.object({ records: z.array(catalogRecordSchema) });
 export type CatalogRecord = z.infer<typeof catalogRecordSchema>;
@@ -29,12 +29,12 @@ export const loanFormSchema = z
     if (
       isIsoCalendarDate(values.start) &&
       isIsoCalendarDate(values.due) &&
-      (values.due < values.start || calendarDaysBetween(values.start, values.due) > MAX_LOAN_DAYS)
+      values.due < values.start
     )
       context.addIssue({
         code: 'custom',
         path: ['due'],
-        message: 'กำหนดคืนต้องไม่ก่อนวันที่ยืมและไม่เกิน 7 วัน',
+        message: 'กำหนดคืนต้องไม่ก่อนวันที่ยืม',
       });
   });
 export const returnFormSchema = z.object({ ...commonFields, date: calendarDate });

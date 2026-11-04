@@ -29,12 +29,15 @@ export async function completeGoogleLogin(
     !identity ||
     !matchesOAuthValue(identity.nonce, nonce) ||
     identity.email_verified !== true ||
-    identity.hd !== config.allowedDomain ||
     typeof identity.sub !== 'string' ||
     !identity.sub ||
     typeof identity.email !== 'string' ||
     identity.email.split('@').length !== 2 ||
-    identity.email.split('@')[1].toLowerCase() !== config.allowedDomain
+    !(
+      (identity.hd === config.allowedDomain &&
+        identity.email.split('@')[1].toLowerCase() === config.allowedDomain) ||
+      (config.allowedEmails || []).includes(identity.email.toLowerCase())
+    )
   )
     throwHttpError(403, 'บัญชี Google ไม่ผ่านการยืนยันหรือไม่ใช่โดเมนที่อนุญาต');
   const avatar = googleProfileImageUrl(identity.picture);

@@ -2,6 +2,8 @@ import { formatBangkokInspectionTimestamp } from '../../../../shared/core/extens
 import { throwHttpError as fail } from '../../core/errors/errors.js';
 import { writeLocked } from '../../core/state/stateStore.js';
 import { dashboardData, DASHBOARD_DATE_HEADER } from './data.js';
+import { normalizeAsset } from '../records/search.js';
+import { editableDashboardHeaders } from '../../../../shared/features/records/dashboardFields.js';
 export { dashboardData, DASHBOARD_DATE_HEADER } from './data.js';
 export class DashboardEditor {
   constructor(adapter) {
@@ -22,6 +24,112 @@ export class DashboardEditor {
     this.queue = work.catch(() => {});
     return work;
   }
+  findIqiAsset(asset) {
+    if (typeof asset !== 'string' || !asset.trim() || asset.length > 200)
+      fail(400, 'กรุณาระบุเลขครุภัณฑ์ไม่เกิน 200 ตัวอักษร');
+    return this.adapter.read(['IQI']).then(([table]) => {
+      const assetColumns = table.headers.flatMap((header, index) =>
+        header.trim() === 'เลขครุภัณฑ์' ? [index] : [],
+      );
+      if (assetColumns.length !== 1) fail(422, 'IQI ต้องมีคอลัมน์เลขครุภัณฑ์เพียงคอลัมน์เดียว');
+      const matches = table.records.filter(
+        (record) => normalizeAsset(record.values[assetColumns[0]]) === normalizeAsset(asset),
+      );
+      if (!matches.length) fail(404, 'ไม่พบเลขครุภัณฑ์นี้ใน IQI');
+      if (matches.length !== 1) fail(409, 'พบเลขครุภัณฑ์ซ้ำใน IQI กรุณาตรวจสอบแถวต้นทาง');
+      const source = matches[0].values;
+      const get = (name) => {
+        const indices = table.headers.flatMap((header, index) =>
+          header.trim() === name ? [index] : [],
+        );
+        return indices.length === 1 ? source[indices[0]] || '' : '';
+      };
+      return {
+        row: matches[0].row,
+        asset: source[assetColumns[0]].trim(),
+        name: get('รายการ'),
+        brand: get('ยี่ห้อ'),
+        model: get('รุ่น'),
+        serial: get('Serial Number (S/N)'),
+        owner: get('ชื่อ - นามสกุล') || get('ชื่อเล่น') || 'IT',
+        team: get('ทีม'),
+        details: get('รายละเอียด'),
+        condition: get('สภาพ'),
+        note: get('หมายเหตุ'),
+      };
+    });
+  }
+  addFromIqi(asset, expectedRow) {
+    const work = this.queue.then(() =>
+      writeLocked(this.adapter, async () => {
+        const values = await this.adapter.readDashboard();
+        const source = await this.findIqiAsset(asset);
+        if (expectedRow !== undefined && source.row !== expectedRow)
+          fail(409, 'ข้อมูล IQI เปลี่ยนไป กรุณาค้นหารายการนี้ใหม่');
+        const headers = values[0] || [];
+        const required = [
+          'เลขครุภัณฑ์ในชีต',
+          'ชื่ออุปกรณ์ในชีต',
+          'ยี่ห้อ',
+          'รุ่น',
+          'S/N ในชีต',
+          'ชื่อผู้ถือครอง',
+          'ชื่อย่อ',
+          'ชื่อเล่น',
+          'ทีม',
+          'รายละเอียดในชีต',
+          'สภาพในชีต',
+          'หมายเหตุเดิมในชีต',
+          'แหล่งข้อมูลต้นฉบับ',
+        ];
+        if (required.some((name) => headers.filter((h) => h === name).length !== 1))
+          fail(422, 'Appscriptdata ไม่มีคอลัมน์ที่ต้องใช้ครบถ้วน หรือมีชื่อคอลัมน์ซ้ำ');
+        const targetAsset = source.asset;
+        const assetColumn = headers.indexOf('เลขครุภัณฑ์ในชีต');
+        const sourceColumn = headers.indexOf('แหล่งข้อมูลต้นฉบับ');
+        if (
+          values
+            .slice(1)
+            .some((row) =>
+              [3, assetColumn].some(
+                (index) => normalizeAsset(row[index]) === normalizeAsset(targetAsset),
+              ),
+            )
+        )
+          fail(409, 'เลขครุภัณฑ์นี้มีอยู่ใน Appscriptdata แล้ว');
+        const mapping = {
+          เลขครุภัณฑ์ในชีต: targetAsset,
+          ชื่ออุปกรณ์ในชีต: source.name,
+          ยี่ห้อ: source.brand,
+          รุ่น: source.model,
+          'S/N ในชีต': source.serial,
+          ชื่อผู้ถือครอง: source.owner,
+          ทีม: source.team,
+          รายละเอียดในชีต: source.details,
+          สภาพในชีต: source.condition,
+          หมายเหตุเดิมในชีต: source.note,
+          แหล่งข้อมูลต้นฉบับ: `IQI!แถว ${source.row}`,
+        };
+        const newRow = headers.map((header) => mapping[header] || '');
+        if (!this.adapter.appendDashboardRow) fail(501, 'ยังไม่รองรับการเพิ่มแถวใน Appscriptdata');
+        await this.adapter.appendDashboardRow(newRow);
+        const fresh = await this.adapter.readDashboard();
+        if (
+          !fresh
+            .slice(1)
+            .some(
+              (row) =>
+                row[assetColumn] === targetAsset &&
+                row[sourceColumn] === mapping['แหล่งข้อมูลต้นฉบับ'],
+            )
+        )
+          fail(409, 'ส่งข้อมูลแล้วแต่ยืนยันผลไม่ได้ กรุณาโหลด Dashboard ใหม่ก่อนลองอีกครั้ง');
+        return { asset: targetAsset };
+      }),
+    );
+    this.queue = work.catch(() => {});
+    return work;
+  }
   async performDetails(row, body) {
     if (!Number.isInteger(row) || row < 2 || row > 5000) fail(400, 'เลขแถวไม่ถูกต้อง');
     const data = dashboardData(await this.adapter.readDashboard());
@@ -33,6 +141,19 @@ export class DashboardEditor {
     )
       fail(409, 'พบข้อมูลแถวซ้ำ กรุณาตรวจสอบก่อนบันทึก');
     const changes = [];
+    if (body.fields !== undefined) {
+      if (!body.fields || typeof body.fields !== 'object' || Array.isArray(body.fields))
+        fail(400, 'รูปแบบข้อมูลไม่ถูกต้อง');
+      for (const [header, value] of Object.entries(body.fields)) {
+        if (!editableDashboardHeaders.includes(header)) fail(400, `ไม่อนุญาตให้แก้ไข ${header}`);
+        if (typeof value !== 'string' || value.length > 5000)
+          fail(400, 'ข้อมูลต้องไม่เกิน 5,000 ตัวอักษร');
+        const column = data.headers.indexOf(header);
+        if (column < 0 || data.headers.lastIndexOf(header) !== column)
+          fail(422, `คอลัมน์ ${header} ไม่ถูกต้อง`);
+        if (record.values[column] !== value) changes.push({ column, value });
+      }
+    }
     for (const [key, header] of [
       ['team', 'ทีม'],
       ['notes', 'หมายเหตุ'],
@@ -48,7 +169,11 @@ export class DashboardEditor {
         fail(422, `ไม่พบคอลัมน์ ${header} หรือมีคอลัมน์ซ้ำ`);
       if (record.values[column] !== value) changes.push({ column, value });
     }
-    if (!Object.hasOwn(body, 'team') && !Object.hasOwn(body, 'notes'))
+    if (
+      !Object.hasOwn(body, 'team') &&
+      !Object.hasOwn(body, 'notes') &&
+      !Object.hasOwn(body, 'fields')
+    )
       fail(400, 'ไม่พบข้อมูลที่ต้องการแก้ไข');
     if (!changes.length) return { record, unchanged: true };
     await this.adapter.writeDashboardDetails(row, changes);

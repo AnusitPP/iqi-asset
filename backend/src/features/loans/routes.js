@@ -1,5 +1,6 @@
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
+import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
   app.get('/api/ready-to-borrow', async (req, res, next) => {
     try {
@@ -8,7 +9,11 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
       next(error);
     }
   });
-  app.get('/api/my-requests', async (req, res) => {
+  const listRequests = async (req, res) => {
+    const admin = req.originalUrl?.split('?')[0] === '/api/approval-requests';
+    if (admin && !['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
+      return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดำเนินการนี้' });
+    res.set('Cache-Control', 'private, no-store');
     if (!req.user) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
     const [ledger, tables] = await Promise.all([
       lendingLedger.readLedger(),
@@ -21,6 +26,15 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
           ['LOAN_CREATED', 'RETURN_CREATED'].includes(entry.action),
       ).map((entry) => entry.entity_id),
     );
+    const catalog = lendingLedger.adapter?.readReadyToBorrow
+      ? readyToBorrowData(await lendingLedger.adapter.readReadyToBorrow()).records
+      : [];
+    const photo = (asset, serial) =>
+      catalog.find((record) => record.asset === asset && record.serial === (serial || ''))?.photo ||
+      '';
+    const returned = new Set(
+      ledger.returns.filter((row) => row[14] === 'เสร็จสิ้น').map((row) => row[2]),
+    );
     res.json({
       records: [
         ...ledger.loans.map((row) => ({
@@ -30,6 +44,14 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
           name: row[9],
           date: row[11],
           status: row[14],
+          serial: row[8] || '',
+          due: row[12] || '',
+          purpose: row[10] || '',
+          notes: row[13] || '',
+          team: row[4] || '',
+          borrower: row[3] || '',
+          photo: photo(row[7], row[8]),
+          completed: returned.has(row[1]),
         })),
         ...ledger.returns.map((row) => ({
           id: row[0],
@@ -38,9 +60,67 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
           name: row[10],
           date: row[11],
           status: row[14],
+          serial: row[9] || '',
+          due: '',
+          purpose: '',
+          notes: row[12] || '',
+          team: row[5] || '',
+          borrower: row[4] || '',
+          photo: photo(row[8], row[9]),
+          completed: true,
         })),
-      ].filter((record) => own.has(record.id)),
+      ].filter((record) => admin || own.has(record.id)),
     });
+  };
+  app.get('/api/my-requests', listRequests);
+  app.get('/api/approval-requests', listRequests);
+  app.patch('/api/approval-requests/:id', async (req, res, next) => {
+    try {
+      if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
+        return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดำเนินการนี้' });
+      const returning = req.body?.kind === 'คืน';
+      const statuses = returning
+        ? ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
+        : ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก', 'กำลังยืม'];
+      if (!statuses.includes(req.body?.status))
+        return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
+      await lendingLedger.withWriteLock(async () => {
+        const state = await lendingLedger.readLedger();
+        const matches = (returning ? state.returns : state.loans).filter(
+          (row) => row[0] === req.params.id,
+        );
+        if (matches.length !== 1)
+          throw Object.assign(new Error('ไม่พบรายการยืมหรือรหัสซ้ำ'), { status: 409 });
+        if (returning) {
+          if (req.body.status === 'เสร็จสิ้น' && !['ดี', 'ชำรุด'].includes(req.body.condition))
+            throw Object.assign(new Error('กรุณาระบุสภาพหลังคืน'), { status: 400 });
+          await lendingLedger.adapter.updateReturnStatus(
+            req.params.id,
+            req.body.status,
+            req.user.name,
+            req.body.condition,
+          );
+        } else
+          await lendingLedger.adapter.updateLoanStatus(
+            req.params.id,
+            req.body.status,
+            req.user.name,
+          );
+        await req.authStorage.write([
+          auditEntry(
+            req.user,
+            returning ? 'RETURN_STATUS_UPDATED' : 'LOAN_STATUS_UPDATED',
+            returning ? 'Return' : 'Loan',
+            req.params.id,
+            { status: matches[0][14] },
+            { status: req.body.status },
+          ),
+        ]);
+      });
+      res.json({ id: req.params.id });
+    } catch (error) {
+      next(error);
+    }
   });
   app.get('/api/loans', async (req, res, next) => {
     try {

@@ -30,7 +30,10 @@ export class LendingLedger {
     return {
       loans,
       returns,
-      active: loans.filter((sourceRecord) => !returned.has(sourceRecord[1])),
+      active: loans.filter(
+        (sourceRecord) =>
+          !returned.has(sourceRecord[1]) && !['ไม่อนุมัติ', 'ยกเลิก'].includes(sourceRecord[14]),
+      ),
     };
   }
   async readAvailableAssets() {

@@ -1,9 +1,9 @@
 export const MAX_LOAN_DAYS = 7;
 export const LENDING_STATUS = {
   LOAN_PENDING: 'รอดำเนินการ',
-  RETURN_PENDING: 'รอรับคืน',
-  RETURN_RECEIVED: 'รับคืนแล้ว',
-  RETURNED: 'คืนแล้ว',
+  RETURN_PENDING: 'รอดำเนินการ',
+  RETURN_RECEIVED: 'เสร็จสิ้น',
+  RETURNED: 'เสร็จสิ้น',
   GOOD: 'ดี',
   DAMAGED: 'ชำรุด',
 };
