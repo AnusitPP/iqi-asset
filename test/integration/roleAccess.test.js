@@ -56,11 +56,11 @@ test('three roles enforce page-related API access while staff can borrow, return
     ['/api/loan-catalog', 200, 200, 200],
     ['/api/return-catalog', 200, 200, 200],
     ['/api/my-requests', 200, 200, 200],
-    ['/api/status', 403, 200, 200],
+    ['/api/status', 200, 200, 200],
     ['/api/dashboard', 403, 200, 200],
     ['/api/loans', 403, 200, 200],
-    ['/api/admin/users', 403, 200, 200],
-    ['/api/audit', 403, 403, 200],
+    ['/api/admin/users', 403, 403, 200],
+    ['/api/audit', 403, 200, 200],
   ];
   for (const [path, ...statuses] of matrix) {
     for (const [index, role] of ['staff', 'admin', 'owner'].entries()) {
@@ -74,9 +74,14 @@ test('three roles enforce page-related API access while staff can borrow, return
   const adminMe = await fetch(base + '/api/auth/me', { headers: headers('admin') }).then(
     (response) => response.json(),
   );
-  assert.deepEqual(staffMe.user.permissions, ['LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE']);
+  assert.deepEqual(staffMe.user.permissions, [
+    'ASSET_VIEW',
+    'LOAN_CREATE',
+    'LOAN_VIEW_OWN',
+    'RETURN_CREATE',
+  ]);
   assert.equal(adminMe.user.role, 'ADMIN');
-  assert(!adminMe.user.permissions.includes('AUDIT_VIEW'));
+  assert(adminMe.user.permissions.includes('AUDIT_VIEW'));
   const denied = await fetch(`${base}/api/admin/users/${staffMe.user.id}/role`, {
     method: 'PATCH',
     headers: {

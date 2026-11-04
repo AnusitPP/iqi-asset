@@ -8,6 +8,12 @@
 
 ## เปิดใช้งาน
 
+Git hook ที่ [.githooks/pre-push](.githooks/pre-push) จะรัน `npm run lint`,
+`npm run lint:web`, `npm test` และ `npm run test:web` ก่อน push ทุกครั้ง
+ถ้าคำสั่งใดไม่ผ่านจะหยุด push โดยไม่แก้ไฟล์ให้อัตโนมัติ
+เมื่อตั้งค่า clone ใหม่ ให้รัน `git config core.hooksPath .githooks` หนึ่งครั้ง
+และรันตรวจด้วยตัวเองได้ด้วย `sh .githooks/pre-push`
+
 ```powershell
 npm install
 # ครั้งแรกเท่านั้น ถ้ายังไม่มี .env:
