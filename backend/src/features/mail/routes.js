@@ -1,7 +1,7 @@
 import { hasPermission } from '../../../../shared/features/auth/permissions.js';
 import { mailSettings, createMailer } from './mailer.js';
 import { buildDailySummary } from './daily-summary.js';
-import { mailErrorMessage } from './errors.js';
+import { mailErrorMessage, mailErrorDiagnostic } from './errors.js';
 
 export function registerMailRoutes(
   app,
@@ -25,18 +25,24 @@ export function registerMailRoutes(
     try {
       const settings = mailSettings(env, email.trim());
       stage = 'sheets';
-      const message = buildDailySummary(await lendingLedger.readLedger(), new Date(), type);
+      const message = buildDailySummary(await lendingLedger.readLedger(), new Date(), type, env);
       stage = 'smtp';
       await factory(settings).send(message);
       res.json({ sent: true });
     } catch (error) {
+      const diagnostic = stage === 'smtp' ? mailErrorDiagnostic(error) : {};
       const reason =
         stage === 'sheets'
           ? 'อ่านข้อมูลชีตยืม–คืนไม่สำเร็จ กรุณาตรวจสิทธิ์ ชื่อแท็บ และหัวคอลัมน์ชีต'
           : mailErrorMessage(error);
+      const suffix = Object.values(diagnostic).length
+        ? ` (${Object.values(diagnostic).join(' / ')})`
+        : '';
+      process.stderr.write(`Mail send failed (${stage}): ${reason}${suffix}\n`);
       res.status(502).json({
-        error: `ส่งอีเมลไม่สำเร็จ: ${reason}${stage === 'smtp' ? ' หาก SMTP รับข้อความไปแล้วอาจได้รับเมล กรุณาตรวจสอบก่อนส่งซ้ำ' : ''}`,
+        error: `ส่งอีเมลไม่สำเร็จ: ${reason}${suffix}${stage === 'smtp' ? ' หาก SMTP รับข้อความไปแล้วอาจได้รับเมล กรุณาตรวจสอบก่อนส่งซ้ำ' : ''}`,
         stage,
+        ...diagnostic,
       });
     }
   });

@@ -21,7 +21,8 @@
     "test:proxy": "node frontend/scripts/verify-proxy.mjs",
     "mail:preview": "node backend/scripts/daily-mail.js --preview",
     "mail:verify": "node backend/scripts/daily-mail.js --verify",
-    "mail:send": "node backend/scripts/daily-mail.js --send"
+    "mail:send": "node backend/scripts/daily-mail.js --send",
+    "mail:templates": "node backend/scripts/preview-mail-templates.js"
   },
   "engines": {
     "node": ">=22.12"

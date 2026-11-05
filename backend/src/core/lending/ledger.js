@@ -81,11 +81,8 @@ export class LendingLedger {
     };
   }
   withWriteLock(work) {
-    if (this.config.hosted)
-      throwHttpError(
-        503,
-        'การบันทึกยืม–คืนต้องใช้เซิร์ฟเวอร์เดียว ขณะนี้เปิดให้บันทึกผ่าน localhost เท่านั้น',
-      );
+    // Serialize within this instance, including Vercel. Other instances and
+    // external Sheets writers do not share this queue.
     const job = this.queue.catch(() => {}).then(work);
     this.queue = job.catch(() => {});
     return job;

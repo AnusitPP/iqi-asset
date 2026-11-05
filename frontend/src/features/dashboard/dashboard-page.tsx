@@ -38,11 +38,12 @@ export function DashboardPage() {
     client = useQueryClient();
   const data = useQuery({
     queryKey: ['dashboard'],
-    staleTime: Infinity,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    queryFn: ({ signal }) => dashboardService.fetchDashboardData(api, signal),
+    // Keep this cacheable read running across navigation and Strict Mode cleanup.
+    queryFn: () => dashboardService.fetchDashboardData(api),
   });
   const [inspection, setInspection] = useWorkspaceState('dashboard-inspection', ''),
     [comparison, setComparison] = useWorkspaceState('dashboard-comparison', ''),

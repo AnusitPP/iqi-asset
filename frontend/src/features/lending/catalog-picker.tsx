@@ -45,10 +45,11 @@ export function LendingCatalogPicker({
   const [view, setView] = useState('grid');
   const catalog = useQuery({
     queryKey: [mode === 'loan' ? 'loan-catalog' : 'return-catalog', user?.id],
-    queryFn: ({ signal }) =>
+    // Let remounts reuse the in-flight read instead of aborting and restarting it.
+    queryFn: () =>
       mode === 'loan'
-        ? catalogService.fetchLoanCatalog(api, signal)
-        : catalogService.fetchReturnCatalog(api, signal),
+        ? catalogService.fetchLoanCatalog(api)
+        : catalogService.fetchReturnCatalog(api),
     enabled: !!user,
   });
   const matches = matchCatalog(catalog.data?.records ?? [], mode === 'loan' ? query : '');

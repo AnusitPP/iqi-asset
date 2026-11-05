@@ -76,4 +76,8 @@ Automated tests ใช้ fixtures ไม่อ่านหรือเขีย
 
 Sheet-backed sessions และ role/status checks ยังอยู่ใน Express ไม่ใช่ frontend; session หมดอายุตาม 30 นาทีเดิม Client ซ่อนเมนู/ปุ่มตาม permissions และล้าง query/draft เมื่อ logout หรือ API ตอบ 401
 
-ข้อจำกัดเดิมของ backend ยังมีอยู่: hosted uploads จำกัด 4 MiB, local originals จำกัด 25 MiB และการเขียนฟอร์มยืม–คืนบน hosted mode ตอบ 503 เพราะ write lock รองรับ single server เท่านั้น การย้าย Next.js ไม่เปลี่ยนข้อจำกัดการเขียนข้อมูลนี้
+Hosted uploads จำกัด 4 MiB และ local originals จำกัด 25 MiB
+
+การบันทึกยืม–คืนและเปลี่ยนสถานะเปิดใช้งานบน Vercel ได้โดยใช้ Google Sheets เดิม ไม่ต้องตั้งค่า Redis หรือเพิ่ม env สำหรับ lock การตรวจสิทธิ์ ตรวจความพร้อมอุปกรณ์ และตรวจ requestId ซ้ำยังทำงานตามเดิม
+
+คิวการเขียนป้องกันคำขอซ้อนเฉพาะภายใน instance เดียว ไม่ได้เป็น distributed lock: หากหลาย Vercel instances เขียนพร้อมกัน ยังมีโอกาสยืมอุปกรณ์เดียวกันซ้ำหรือเปลี่ยนสถานะชนกันได้ รวมถึงการเขียนชีตจากภายนอก ระบบยังไม่มี transaction ข้าม Google Sheets และ audit log จึงควรตรวจรายการก่อนส่งซ้ำเมื่อคำขอผิดพลาด การใช้งานที่ต้องรับประกันไม่ให้เขียนชนกันข้าม instance ต้องเพิ่มกลไกประสานการเขียนร่วมกันในอนาคต

@@ -173,7 +173,7 @@ describe('migrated interactions', () => {
     );
     expect(screen.queryByLabelText('รหัสผ่าน')).toBeNull();
   });
-  it('keeps dashboard data during filtering and reconnects, and reloads on request or remount', async () => {
+  it('reuses fresh dashboard data on remount and reloads on request or stale remount', async () => {
     mocks.request.mockResolvedValue(dashboard);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const view = renderWithAppProviders(<DashboardPage />, client);
@@ -196,6 +196,11 @@ describe('migrated interactions', () => {
     await user.click(screen.getByRole('button', { name: 'โหลดข้อมูลล่าสุด' }));
     await waitFor(() => expect(dashboardReads()).toBe(2));
     view.unmount();
+    const remounted = renderWithAppProviders(<DashboardPage />, client);
+    await screen.findByText('IQI-001');
+    expect(dashboardReads()).toBe(2);
+    remounted.unmount();
+    client.setQueryData(['dashboard'], dashboard, { updatedAt: Date.now() - 31_000 });
     renderWithAppProviders(<DashboardPage />, client);
     await screen.findByText('IQI-001');
     await waitFor(() => expect(dashboardReads()).toBe(3));
