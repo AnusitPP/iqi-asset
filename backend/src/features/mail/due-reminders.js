@@ -1,5 +1,6 @@
 import { inspectionAge } from '../../../../shared/core/extensions/dates.js';
 import { LENDING_STATUS } from '../../../../shared/features/lending/status.js';
+import { renderMailTemplate, loanMailItem } from './templates.js';
 
 const emailPattern = /^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/;
 const sourceError = (message) => Object.assign(new Error(message), { code: 'EMAIL_SOURCE' });
@@ -42,7 +43,7 @@ export async function readLoanEmails(adapter, env = process.env) {
   });
 }
 
-export function buildDueReminders({ active }, emails, now = new Date()) {
+export function buildDueReminders({ active }, emails, now = new Date(), env = process.env) {
   const groups = new Map();
   const ids = new Set();
   let missingEmails = 0,
@@ -74,11 +75,30 @@ export function buildDueReminders({ active }, emails, now = new Date()) {
     messages: [...groups.values()].map(({ email, rows }) => ({
       email,
       subject: '[IQI Asset] แจ้งเตือนคืนครุภัณฑ์ล่วงหน้า 1 วัน',
+      html: renderMailTemplate({
+        title: 'ครุภัณฑ์ของคุณครบกำหนดคืนพรุ่งนี้',
+        label: 'แจ้งเตือนล่วงหน้า 1 วัน',
+        intro: `มี ${rows.length} รายการที่จะครบกำหนดคืนในอีก 1 วัน กรุณาตรวจสอบรายละเอียดและเตรียมส่งคืน`,
+        sections: [
+          {
+            title: 'รายการที่ใกล้ครบกำหนด',
+            items: rows.map(({ row, date }) => {
+              const item = loanMailItem(row);
+              item.badge = `กำหนดคืน ${date}`;
+              return item;
+            }),
+          },
+        ],
+        notice:
+          'หากคืนครุภัณฑ์แล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อปรับสถานะในระบบ ขอบคุณที่ช่วยดูแลอุปกรณ์ส่วนกลาง',
+        actionPath: '/my-requests',
+        actionLabel: 'ตรวจสอบรายการยืม',
+        env,
+      }),
       text: [
         'รายการต่อไปนี้จะครบกำหนดคืนในอีก 1 วัน',
         ...rows.map(
-          ({ row, date }) =>
-            `ผู้ยืม: ${row[3]} | ${row[7]} | ${row[9] || '-'} | กำหนดคืน ${date}`,
+          ({ row, date }) => `ผู้ยืม: ${row[3]} | ${row[7]} | ${row[9] || '-'} | กำหนดคืน ${date}`,
         ),
         'กรุณาดำเนินการคืนครุภัณฑ์ตามกำหนด หากคืนแล้วโปรดติดต่อเจ้าหน้าที่เพื่อปรับสถานะ',
       ].join('\n\n'),
@@ -89,10 +109,10 @@ export function buildDueReminders({ active }, emails, now = new Date()) {
 export async function deliverDueReminders(plan, factory, report = () => {}) {
   let sent = 0,
     failed = 0;
-  for (const { email, subject, text } of plan.messages) {
+  for (const { email, subject, text, html } of plan.messages) {
     try {
       // Only one recipient per message; never fall back to a global recipient.
-      await factory(email).send({ subject, text });
+      await factory(email).send({ subject, text, ...(html ? { html } : {}) });
       sent++;
     } catch (error) {
       failed++;

@@ -22,4 +22,5 @@ frontend/dist/
 **/.next/
 **/out/
 *.tsbuildinfo
+docs/mail-previews/
 !tsconfig.json
