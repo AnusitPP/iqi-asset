@@ -84,7 +84,7 @@ test('cron rejects overlapping calls in one instance and surfaces partial failur
   assert.deepEqual(first.data, { sent: 1, failed: 1 });
 });
 
-test('cron runner reads live rows, sends only two-day reminders and isolates each recipient', async () => {
+test('cron runner reads live rows, sends only one-day reminders and isolates each recipient', async () => {
   const headers = [...LOAN_HEADERS.slice(0, 4), 'email', ...LOAN_HEADERS.slice(4)];
   const row = (id, email, due) => {
     const values = Array(19).fill('');
@@ -93,9 +93,9 @@ test('cron runner reads live rows, sends only two-day reminders and isolates eac
   };
   const loans = [
     headers,
-    row('A', 'a@example.com', '2026-11-7'),
-    row('B', 'b@example.com', '2026-11-07'),
-    row('TOMORROW', 'c@example.com', '2026-11-6'),
+    row('A', 'a@example.com', '2026-11-6'),
+    row('B', 'b@example.com', '2026-11-06'),
+    row('TWO_DAYS', 'c@example.com', '2026-11-7'),
   ];
   const adapter = {
     config: { spreadsheetId: 'fixture' },
@@ -124,6 +124,6 @@ test('cron runner reads live rows, sends only two-day reminders and isolates eac
     sent.map((mail) => mail.settings.to),
     [['a@example.com'], ['b@example.com']],
   );
-  assert.doesNotMatch(sent[0].message.text, /ASSET-B|TOMORROW/);
-  assert.doesNotMatch(sent[1].message.text, /ASSET-A|TOMORROW/);
+  assert.doesNotMatch(sent[0].message.text, /ASSET-B|TWO_DAYS/);
+  assert.doesNotMatch(sent[1].message.text, /ASSET-A|TWO_DAYS/);
 });

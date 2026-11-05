@@ -25,16 +25,16 @@ test('reminders use Bangkok calendar dates, group by email and keep other recipi
   const plan = buildDueReminders(
     {
       active: [
-        loan('A', '2026-11-07'),
-        loan('B', '7/11/2569'),
-        loan('C', '2026-11-07'),
+        loan('A', '2026-11-06'),
+        loan('B', '6/11/2569'),
+        loan('C', '2026-11-06'),
         loan('TODAY', '2026-11-05'),
-        loan('TOMORROW', '2026-11-06'),
+        loan('TWO_DAYS', '2026-11-07'),
         loan('LATER', '2026-11-08'),
         loan('OVERDUE', '2026-11-04'),
-        loan('MISSING', '2026-11-07'),
+        loan('MISSING', '2026-11-06'),
         loan('INVALID', 'oops'),
-        Object.assign(loan('RETURNED', '2026-11-07'), { 14: LENDING_STATUS.RETURNED }),
+        Object.assign(loan('RETURNED', '2026-11-06'), { 14: LENDING_STATUS.RETURNED }),
       ],
     },
     new Map([
@@ -49,7 +49,9 @@ test('reminders use Bangkok calendar dates, group by email and keep other recipi
   assert.equal(plan.invalidDates, 1);
   assert.match(plan.messages[0].text, /ASSET-A/);
   assert.match(plan.messages[0].text, /ASSET-B/);
-  assert.doesNotMatch(plan.messages[0].text, /ASSET-C|bob@|TODAY|TOMORROW|LATER|OVERDUE|RETURNED/);
+  assert.doesNotMatch(plan.messages[0].text, /ASSET-C|bob@|TODAY|TWO_DAYS|LATER|OVERDUE|RETURNED/);
+  assert.match(plan.messages[0].subject, /ล่วงหน้า 1 วัน/);
+  assert.match(plan.messages[0].text, /อีก 1 วัน/);
   assert.match(plan.messages[1].text, /ASSET-C/);
   assert.doesNotMatch(plan.messages[1].text, /ASSET-A|ASSET-B|alice@/);
 });
@@ -77,7 +79,7 @@ test('email source matches IDs across reordered rows and rejects ambiguous heade
   assert.throws(
     () =>
       buildDueReminders(
-        { active: [loan('A', '2026-11-07')] },
+        { active: [loan('A', '2026-11-06')] },
         new Map([['A', 'a@example.com,b@example.com']]),
         new Date('2026-11-05T01:00:00Z'),
       ),

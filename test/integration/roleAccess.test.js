@@ -81,19 +81,18 @@ test('three roles enforce page-related API access while staff can borrow, return
   const adminMe = await fetch(base + '/api/auth/me', { headers: headers('admin') }).then(
     (response) => response.json(),
   );
-  assert.deepEqual(staffMe.user.permissions, [
-    'LOAN_CREATE',
-    'LOAN_VIEW_OWN',
-    'RETURN_CREATE',
-  ]);
+  assert.deepEqual(staffMe.user.permissions, ['LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE']);
   assert.equal(adminMe.user.role, 'ADMIN');
   assert(!adminMe.user.permissions.includes('AUDIT_VIEW'));
   assert(adminMe.user.permissions.includes('USER_VIEW'));
   for (const [role, csrf, status] of [
-    ['staff', staffMe.csrf, 403], ['admin', adminMe.csrf, 400], ['owner', adminMe.csrf, 400],
+    ['staff', staffMe.csrf, 403],
+    ['admin', adminMe.csrf, 400],
+    ['owner', adminMe.csrf, 400],
   ]) {
     const response = await fetch(base + '/api/mail/send', {
-      method: 'POST', headers: { ...headers(role), 'Content-Type': 'application/json', 'X-IQI-Request': csrf },
+      method: 'POST',
+      headers: { ...headers(role), 'Content-Type': 'application/json', 'X-IQI-Request': csrf },
       body: JSON.stringify({ email: 'invalid', type: 'summary' }),
     });
     assert.equal(response.status, status, `${role}: mail access`);
@@ -122,14 +121,24 @@ test('three roles enforce page-related API access while staff can borrow, return
   ]) {
     if (path === '/api/returns') {
       const pendingReturn = await fetch(base + path, {
-        method: 'POST', headers: { ...headers('staff'), 'Content-Type': 'application/json', 'X-IQI-Request': staffMe.csrf },
+        method: 'POST',
+        headers: {
+          ...headers('staff'),
+          'Content-Type': 'application/json',
+          'X-IQI-Request': staffMe.csrf,
+        },
         body: JSON.stringify({ ...input, ...values, requestId: randomUUID() }),
       });
       assert.equal(pendingReturn.status, 409);
       assert.equal(ledger.returns.length, 1, 'pending loans must not create a return');
       const loanId = ledger.loans[1][0];
       const approval = await fetch(`${base}/api/approval-requests/${loanId}`, {
-        method: 'PATCH', headers: { ...headers('admin'), 'Content-Type': 'application/json', 'X-IQI-Request': adminMe.csrf },
+        method: 'PATCH',
+        headers: {
+          ...headers('admin'),
+          'Content-Type': 'application/json',
+          'X-IQI-Request': adminMe.csrf,
+        },
         body: JSON.stringify({ status: 'กำลังยืม', kind: 'ยืม' }),
       });
       assert.equal(approval.status, 200, await approval.text());
