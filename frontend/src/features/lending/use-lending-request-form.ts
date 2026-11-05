@@ -32,7 +32,7 @@ export type SubmitLendingRequest = (
   api: ApiClient,
   values: LendingFormValues,
   selection: LendingSelection,
-) => Promise<{ id: string }>;
+) => Promise<{ id: string; mailNotification?: 'sent' | 'failed' }>;
 
 type LendingRequestOptions = {
   mode: 'loan' | 'return';
@@ -118,7 +118,13 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
       const result = await submitRequest(api, values, selection);
       if (!isSubmitCurrent()) return;
       resetLendingRequestForm();
-      const message = `ส่ง${requestName}สำเร็จ · ${result.id} · รอเจ้าหน้าที่ดำเนินการ`;
+      const mailNotice =
+        result.mailNotification === 'sent'
+          ? ' · ส่งอีเมลยืนยันแล้ว'
+          : result.mailNotification === 'failed'
+            ? ' · บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ ไม่ต้องส่งคำขอซ้ำ'
+            : '';
+      const message = `ส่ง${requestName}สำเร็จ · ${result.id} · รอเจ้าหน้าที่ดำเนินการ${mailNotice}`;
       setNotice(message);
       showToast(message);
       await client.invalidateQueries({ queryKey: ['loan-catalog'] });

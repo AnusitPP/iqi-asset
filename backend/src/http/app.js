@@ -19,6 +19,8 @@ import { LoanRequestService } from '../features/loans/service.js';
 import { ReturnRequestService } from '../features/returns/service.js';
 import { PhotoStore } from '../integrations/google/photoStorage.js';
 import { DashboardPhotos } from '../features/photos/service.js';
+import { registerMailRoutes } from '../features/mail/routes.js';
+import { registerMailCron } from '../features/mail/cron.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
@@ -33,6 +35,7 @@ export function createApp(service, config) {
   const dashboardEditor = new DashboardEditor(service.adapter);
   const photos = new DashboardPhotos(service.adapter, new PhotoStore(config), dashboardEditor);
   configureRequestSecurity(app, config, csrf);
+  registerMailCron(app, { adapter: service.adapter });
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
   app.use('/api', (req, res, next) => {
@@ -47,7 +50,8 @@ export function createApp(service, config) {
     next();
   });
   registerCatalogRoutes(app, { service, lendingLedger });
-  registerLoansRoutes(app, { lendingLedger, loanRequests });
+  registerMailRoutes(app, { lendingLedger });
+  registerLoansRoutes(app, { lendingLedger, loanRequests, confirmLoan: config.confirmLoan });
   registerReturnsRoutes(app, { returnRequests });
   registerDashboardRoutes(app, { dashboardEditor, service });
   registerPhotosRoutes(app, { photos, maxUploadBytes });

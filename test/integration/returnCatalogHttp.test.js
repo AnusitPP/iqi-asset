@@ -19,7 +19,7 @@ test('return catalog requires login and reads only the borrowed-assets sheet', a
           reads++;
           assert.deepEqual(request, {
             spreadsheetId: 'fixture-sheet',
-            range: "'รายการยืมครุภัณฑ์'!A:S",
+            range: "'รายการยืมครุภัณฑ์'!A:T",
             valueRenderOption: 'FORMATTED_VALUE',
           });
           return { data: { values } };

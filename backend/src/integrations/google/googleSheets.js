@@ -1,4 +1,5 @@
 import { LENDING_STATUS } from '../../../../shared/features/lending/status.js';
+import { loanColumnMapping } from '../../core/lending/schema.js';
 import { google } from 'googleapis';
 import { parseSheet, columnName } from '../../features/records/search.js';
 import { readDropdowns } from '../../features/records/dropdowns.js';
@@ -193,7 +194,7 @@ export class GoogleSheets {
   async readBorrowedAssets() {
     const { data } = await this.api.spreadsheets.values.get({
       spreadsheetId: this.config.spreadsheetId,
-      range: "'รายการยืมครุภัณฑ์'!A:S",
+      range: "'รายการยืมครุภัณฑ์'!A:T",
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return data.values || [];
@@ -201,7 +202,7 @@ export class GoogleSheets {
   async readLoanSheets() {
     const { data } = await this.api.spreadsheets.values.batchGet({
       spreadsheetId: this.config.spreadsheetId,
-      ranges: ["'รายการยืมครุภัณฑ์'!A:S", "'รายการคืนครุภัณฑ์'!A:S"],
+      ranges: ["'รายการยืมครุภัณฑ์'!A:T", "'รายการคืนครุภัณฑ์'!A:S"],
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return { loans: data.valueRanges[0].values || [], returns: data.valueRanges[1].values || [] };
@@ -219,12 +220,20 @@ export class GoogleSheets {
       },
     ];
     if (status === 'เสร็จสิ้น') {
+      const { indices } = loanColumnMapping(grid.loans[0]);
       const loans = grid.loans.flatMap((row, i) =>
-        row[0] === grid.returns[index][1] && row[1] === grid.returns[index][2] ? [i] : [],
+        i > 0 &&
+        row[indices[0]] === grid.returns[index][1] &&
+        row[indices[1]] === grid.returns[index][2]
+          ? [i]
+          : [],
       );
       if (loans.length !== 1 || loans[0] < 1)
         throw Object.assign(new Error('ไม่พบรายการยืมที่เชื่อมกับคำขอคืน'), { status: 409 });
-      updates.push({ range: `'รายการยืมครุภัณฑ์'!O${loans[0] + 1}`, values: [['เสร็จสิ้น']] });
+      updates.push({
+        range: `'รายการยืมครุภัณฑ์'!${columnName(indices[14])}${loans[0] + 1}`,
+        values: [['เสร็จสิ้น']],
+      });
     }
     await this.api.spreadsheets.values.batchUpdate({
       spreadsheetId: this.config.spreadsheetId,
@@ -233,17 +242,30 @@ export class GoogleSheets {
   }
   async updateLoanStatus(id, status, responsible) {
     const data = await this.readLoanSheets();
-    const indexes = data.loans.flatMap((row, index) => (row[0] === id ? [index + 1] : []));
+    const { indices } = loanColumnMapping(data.loans[0]);
+    const indexes = data.loans.flatMap((row, index) =>
+      index > 0 && row[indices[0]] === id ? [index + 1] : [],
+    );
     if (indexes.length !== 1)
       throw Object.assign(new Error('รายการยืมเปลี่ยนไป กรุณาโหลดใหม่'), { status: 409 });
-    await this.api.spreadsheets.values.update({
+    await this.api.spreadsheets.values.batchUpdate({
       spreadsheetId: this.config.spreadsheetId,
-      range: `'รายการยืมครุภัณฑ์'!O${indexes[0]}:P${indexes[0]}`,
-      valueInputOption: 'RAW',
-      requestBody: { values: [[status, responsible]] },
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: [
+          {
+            range: `'รายการยืมครุภัณฑ์'!${columnName(indices[14])}${indexes[0]}`,
+            values: [[status]],
+          },
+          {
+            range: `'รายการยืมครุภัณฑ์'!${columnName(indices[15])}${indexes[0]}`,
+            values: [[responsible]],
+          },
+        ],
+      },
     });
   }
-  async appendLoanRows(kind, rows) {
+  async appendLoanRows(kind, rows, { email = '' } = {}) {
     const title = kind === 'loans' ? 'รายการยืมครุภัณฑ์' : 'รายการคืนครุภัณฑ์';
     const { data } = await this.api.spreadsheets.get({
       spreadsheetId: this.config.spreadsheetId,
@@ -252,19 +274,30 @@ export class GoogleSheets {
     const sheetId = data.sheets.find((s) => s.properties.title === title)?.properties.sheetId;
     if (sheetId === undefined) throw new Error('ไม่พบชีต ' + title);
     const statusUpdates = [];
+    const grid = (await this.readLoanSheets()).loans;
+    const mapping = loanColumnMapping(grid[0]);
+    if (kind === 'loans') {
+      rows = rows.map((row) => {
+        const values = Array(grid[0].length).fill('');
+        mapping.indices.forEach((column, index) => {
+          values[column] = row[index] ?? '';
+        });
+        if (mapping.emailIndex >= 0) values[mapping.emailIndex] = email;
+        return values;
+      });
+    }
     if (kind === 'returns') {
       const loanSheet = data.sheets.find((s) => s.properties.title === 'รายการยืมครุภัณฑ์')
         ?.properties.sheetId;
-      const grid = (await this.readLoanSheets()).loans;
       for (const row of rows.filter(
         (r) =>
           r[2] && [LENDING_STATUS.RETURN_RECEIVED, LENDING_STATUS.RETURN_PENDING].includes(r[14]),
       )) {
-        const index = grid.findIndex((r) => r[1] === row[2]);
+        const index = grid.findIndex((r, i) => i > 0 && r[mapping.indices[1]] === row[2]);
         if (index < 1 || loanSheet === undefined) throw new Error('ไม่พบรายการยืมสำหรับรับคืน');
         statusUpdates.push({
           updateCells: {
-            start: { sheetId: loanSheet, rowIndex: index, columnIndex: 14 },
+            start: { sheetId: loanSheet, rowIndex: index, columnIndex: mapping.indices[14] },
             rows: [
               {
                 values: [

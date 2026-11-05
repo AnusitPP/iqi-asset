@@ -30,6 +30,8 @@ const catalog = {
 };
 let submitted: unknown[] = [];
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-30T12:00:00+07:00'));
   authState.user = { name: 'ทดสอบ ผู้ยืม' };
   submitted = [];
   transport.mockReset();
@@ -41,7 +43,10 @@ beforeEach(() => {
     return Response.json({ id: path === '/api/loans' ? 'L-test' : 'R-test' });
   });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 function mountForm(
   mode: 'loan' | 'return',
   client = new QueryClient({
@@ -66,17 +71,59 @@ async function fillCommonFields() {
   await user.type(screen.getByLabelText(/^ประเภทของครุภัณฑ์/), 'mouse');
   return user;
 }
-async function selectCatalogAsset() {
+async function selectCatalogAsset(mode: 'loan' | 'return' = 'return') {
+  if (mode === 'loan') {
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('textbox', { name: 'ค้นหาอุปกรณ์' }), 'mouse');
+    await user.click(
+      await screen.findByRole('button', { name: 'เลือกยืม Mouse Wireless MOUSE-001 SN1' }),
+    );
+    await screen.findByRole('dialog');
+    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', authState.user?.name);
+    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('readOnly', true);
+    await user.selectOptions(screen.getByLabelText(/^ทีม/), 'IQI');
+    return user;
+  }
   const user = await fillCommonFields();
   await waitFor(() => expect(transport).toHaveBeenCalled());
   await user.click(await screen.findByRole('option', { name: 'Mouse Wireless · MOUSE-001 · SN1' }));
   return user;
 }
-function setLoanDates(start = '2026-10-30', due = '2026-11-06') {
-  fireEvent.change(screen.getByLabelText(/^วันที่ต้องการยืม/), { target: { value: start } });
-  fireEvent.change(screen.getByLabelText(/^กำหนดวันส่งคืน/), { target: { value: due } });
+async function setLoanDates(start = '2026-10-30', due = '2026-11-06') {
+  const user = userEvent.setup();
+  for (const [label, date] of [
+    [/^วันที่ต้องการยืม/, start],
+    [/^กำหนดวันส่งคืน/, due],
+  ] as const) {
+    await user.click(screen.getByLabelText(label));
+    const dayLabel = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(`${date}T12:00:00+07:00`));
+    if (!screen.queryByRole('button', { name: dayLabel }))
+      await user.click(screen.getByRole('button', { name: 'เดือนถัดไป' }));
+    await user.click(screen.getByRole('button', { name: dayLabel }));
+  }
 }
 describe('loan and return migration', () => {
+  it('reports a saved loan with failed email without asking for another submission', async () => {
+    const originalTransport = transport.getMockImplementation()!;
+    transport.mockImplementation(async (path, options) => {
+      if (path === '/api/loans') return Response.json({ id: 'L-test', mailNotification: 'failed' });
+      return originalTransport(path, options);
+    });
+    mountForm('loan');
+    const user = await selectCatalogAsset('loan');
+    await user.type(screen.getByLabelText(/^เหตุผล/), 'Meeting');
+    await setLoanDates();
+    await user.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }));
+    expect(
+      await screen.findByText(/บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ ไม่ต้องส่งคำขอซ้ำ/),
+    ).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(transport.mock.calls.filter(([path]) => path === '/api/loans')).toHaveLength(1);
+  });
   it('prefills the signed-in Google name and keeps it read-only after clearing the form', async () => {
     authState.user = { name: 'Google Profile User' };
     mountForm('return');
@@ -91,10 +138,10 @@ describe('loan and return migration', () => {
   });
   it('submits a selected loan with category, ISO dates and request ID through the validated API client', async () => {
     mountForm('loan');
-    const user = await selectCatalogAsset();
+    const user = await selectCatalogAsset('loan');
     await user.type(screen.getByLabelText(/^เหตุผล/), 'ใช้งานประชุม');
-    setLoanDates();
-    await user.click(screen.getByRole('button', { name: 'ส่ง' }));
+    await setLoanDates();
+    await user.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }));
     expect(await screen.findByText(/ส่งคำร้องยืมสำเร็จ · L-test/)).toBeTruthy();
     expect(submitted[0]).toMatchObject({
       borrower: 'ทดสอบ ผู้ยืม',
@@ -108,7 +155,7 @@ describe('loan and return migration', () => {
       notes: '',
     });
     expect(z.object({ requestId: z.string().uuid() }).parse(submitted[0]).requestId).toBeTruthy();
-    expect(screen.getByLabelText(/^ชื่อ - สกุล/)).toHaveProperty('value', 'ทดสอบ ผู้ยืม');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
   it('prevents duplicate clicks while a request is pending', async () => {
     let finishRequest: ((response: Response) => void) | undefined;
@@ -160,14 +207,13 @@ describe('loan and return migration', () => {
     expect(transport.mock.calls.some(([path]) => path === '/api/return-catalog')).toBe(true);
     expect(transport.mock.calls.some(([path]) => path === '/api/loan-catalog')).toBe(false);
   });
-  it('requires selecting a catalog result instead of just typing its name', async () => {
+  it('requires selecting an asset before opening the loan form', async () => {
     mountForm('loan');
-    const user = await fillCommonFields();
-    await user.keyboard('{Escape}');
-    await user.type(screen.getByLabelText(/^เหตุผล/), 'ทดสอบ');
-    setLoanDates();
-    await user.click(screen.getByRole('button', { name: 'ส่ง' }));
-    expect(await screen.findByText('กรุณาเลือกอุปกรณ์จากผลค้นหา')).toBeTruthy();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('textbox', { name: 'ค้นหาอุปกรณ์' }), 'mouse');
+    await screen.findByRole('button', { name: 'เลือกยืม Mouse Wireless MOUSE-001 SN1' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'ส่งคำขอยืม' })).toBeNull();
     expect(submitted).toHaveLength(0);
   });
   it('supports keyboard catalog selection', async () => {
@@ -217,9 +263,9 @@ describe('loan and return migration', () => {
   it('keeps loan and return drafts separate when switching between their pages', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const loanPage = mountForm('loan', client);
-    const user = await selectCatalogAsset();
+    const user = await selectCatalogAsset('loan');
     await user.type(screen.getByLabelText(/^เหตุผล/), 'ประชุมทีม');
-    setLoanDates();
+    await setLoanDates();
     loanPage.unmount();
 
     const returnPage = mountForm('return', client);
@@ -231,10 +277,13 @@ describe('loan and return migration', () => {
     returnPage.unmount();
 
     const restoredLoan = mountForm('loan', client);
+    await user.click(
+      await screen.findByRole('button', { name: 'เลือกยืม Mouse Wireless MOUSE-001 SN1' }),
+    );
     expect(screen.getByLabelText(/^เหตุผล/)).toHaveProperty('value', 'ประชุมทีม');
-    expect(screen.getByLabelText(/^วันที่ต้องการยืม/)).toHaveProperty('value', '2026-10-30');
-    expect(screen.getByLabelText(/^กำหนดวันส่งคืน/)).toHaveProperty('value', '2026-11-06');
-    expect(screen.getByLabelText(/^เลขครุภัณฑ์/)).toHaveProperty('value', 'MOUSE-001 / SN1');
+    expect(screen.getByLabelText(/^วันที่ต้องการยืม/).textContent).toContain('30 ตุลาคม 2026');
+    expect(screen.getByLabelText(/^กำหนดวันส่งคืน/).textContent).toContain('06 พฤศจิกายน 2026');
+    expect(screen.getByRole('dialog').textContent).toContain('MOUSE-001');
     restoredLoan.unmount();
 
     mountForm('return', client);
@@ -243,7 +292,7 @@ describe('loan and return migration', () => {
   });
 });
 describe('shared rules and task cancellation', () => {
-  it('accepts seven calendar days across months, rejects eight days and reversed dates', () => {
+  it('accepts loans over seven days but rejects reversed or invalid dates', () => {
     const values = {
       borrower: 'ทดสอบ',
       team: 'IQI',
@@ -253,7 +302,8 @@ describe('shared rules and task cancellation', () => {
       due: '2026-11-06',
     };
     expect(loanFormSchema.safeParse(values).success).toBe(true);
-    expect(loanFormSchema.safeParse({ ...values, due: '2026-11-07' }).success).toBe(false);
+    expect(loanFormSchema.safeParse({ ...values, due: '2026-11-07' }).success).toBe(true);
+    expect(loanFormSchema.safeParse({ ...values, due: '2026-11-20' }).success).toBe(true);
     expect(loanFormSchema.safeParse({ ...values, due: '2026-10-29' }).success).toBe(false);
     expect(
       returnFormSchema.safeParse({

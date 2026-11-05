@@ -136,6 +136,15 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 - โหลดข้อมูลล่าสุดอ่านชีตใหม่ การบันทึกจาก Dashboard ไม่เปลี่ยนผลตรวจในระบบ Apps Script ต้นทาง
 - ผลตรวจบน Dashboard อ้างอิงข้อมูลที่บันทึกใน Appscriptdata การเปลี่ยนผลตรวจใน Apps Script ต้องนำมาอัปเดตชีตก่อน
 
+## อีเมลสรุปและ cron รายวัน
+
+เพิ่ม SMTP และคอลัมน์ `email` ข้างชื่อในชีตยืม ตาม [คู่มือส่งเมลรายวัน](docs/daily-mail.md)
+ใช้ `npm run mail:preview` ดูเมลเตือนโดยไม่ส่ง, `npm run mail:verify` ตรวจ SMTP,
+`npm run mail:send` ส่งหนึ่งรอบ
+Vercel Cron เรียก `/api/cron/due-reminders` ทุกวันช่วง 08:00 เวลาไทย โดยตรวจ CRON_SECRET
+ส่งแยกตาม email ในชีต เฉพาะรายการที่ยังไม่รับคืนและครบกำหนดในอีก 2 วัน ไม่ต้องเปิด worker ค้าง
+ตั้ง SMTP และ CRON_SECRET ใน Vercel Production Environment Variables ก่อน deploy
+
 ## Vercel deployment
 
 See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, Google Login, Sheet-backed sessions, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.

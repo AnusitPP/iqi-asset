@@ -25,7 +25,7 @@ function civilDate(value) {
   let match = text.match(/^(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(\d{4})$/);
   if (match) [, day, month, year] = match.map(Number);
   else {
-    match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (!match) return null;
     [, year, month, day] = match.map(Number);
   }

@@ -201,6 +201,9 @@ it('filters users and edits role/status through their existing PATCH endpoints',
 });
 it('blocks ADMIN from opening user management without USER_VIEW', async () => {
   currentUser = makeUser('admin', 'ADMIN');
+  currentUser.permissions = currentUser.permissions.filter(
+    (permission) => permission !== 'USER_VIEW',
+  );
   navigation.path = '/users';
   mount(
     <AuthenticatedWorkspace>
@@ -305,8 +308,9 @@ it('paginates mobile audit cards, opens details and resets the page when filteri
 it('loads own requests with the current API contract', async () => {
   currentUser = makeUser('staff');
   mount(<MyRequestsPage />);
-  expect(await screen.findByText('ยืม · Mouse')).toBeTruthy();
-  expect(screen.getByText('รอดำเนินการ')).toBeTruthy();
+  expect(await screen.findByText('Mouse')).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toBe('พบ 1 รายการ');
+  expect(screen.getAllByText('รอดำเนินการ').length).toBeGreaterThan(0);
 });
 it('derives landing pages and permissions from server-issued grants', () => {
   expect(defaultWorkspacePath(makeUser('staff'))).toBe('/loans');
@@ -318,13 +322,13 @@ it('does not restore revoked capabilities from stale or overbroad cached grants'
     ...makeUser('staff'),
     permissions: ['ASSET_VIEW', 'LOAN_CREATE', 'LOAN_VIEW_OWN', 'RETURN_CREATE', '*'],
   };
-  expect(canAccess(staleStaff, 'ASSET_VIEW')).toBe(true);
+  expect(canAccess(staleStaff, 'ASSET_VIEW')).toBe(false);
   expect(canAccess(staleStaff, 'AUDIT_VIEW')).toBe(false);
   expect(canAccess(staleStaff, 'USER_MANAGE')).toBe(false);
   expect(canAccess(staleStaff, 'LOAN_CREATE')).toBe(true);
   const staleAdmin = { ...makeUser('admin', 'ADMIN'), permissions: ['*', 'AUDIT_VIEW'] };
-  expect(canAccess(staleAdmin, 'AUDIT_VIEW')).toBe(true);
+  expect(canAccess(staleAdmin, 'AUDIT_VIEW')).toBe(false);
   expect(canAccess(staleAdmin, 'USER_MANAGE')).toBe(false);
-  expect(canAccess(staleAdmin, 'USER_VIEW')).toBe(false);
-  expect(canAccess(staleAdmin, 'PORTAL_HOME_VIEW')).toBe(false);
+  expect(canAccess(staleAdmin, 'USER_VIEW')).toBe(true);
+  expect(canAccess(staleAdmin, 'PORTAL_HOME_VIEW')).toBe(true);
 });

@@ -148,25 +148,21 @@ it('shows current service destinations and summary values from existing APIs', a
     '/returns',
   );
 });
-it('shows STAFF assets, borrowing, returning and own requests and blocks Home', async () => {
+it('shows STAFF only borrowing, returning and own requests and blocks Home', async () => {
   auth.role = 'STAFF';
   auth.permissions = permissionsForRole(auth.role);
   render(portal(<PortalHomePage />, createClient()));
   await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
   const nav = within(screen.getByRole('navigation', { name: 'หน้าข้อมูล' }));
   expect(nav.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
-    '/assets',
     '/loans',
     '/returns',
     '/my-requests',
   ]);
   expect(screen.queryByRole('heading', { name: 'หน้าหลักระบบงานไอที' })).toBeNull();
-  await waitFor(() =>
-    expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
-  );
-  expect(transport.mock.calls.every(([path]) => path === '/api/status')).toBe(true);
+  expect(transport).not.toHaveBeenCalled();
 });
-it('shows ADMIN operational menus including Audit without Home or user management', async () => {
+it('shows ADMIN operational menus, Home, user viewing and mail but excludes Audit', async () => {
   auth.role = 'ADMIN';
   auth.permissions = permissionsForRole(auth.role);
   navigation.path = '/dashboard';
@@ -178,18 +174,20 @@ it('shows ADMIN operational menus including Audit without Home or user managemen
     'ยืมครุภัณฑ์',
     'คืนครุภัณฑ์',
     'รายการของฉัน',
-    'Audit Log',
+    'หน้าหลัก',
+    'ผู้ใช้งาน',
+    'ส่งอีเมล',
+    'คำขออนุมัติ',
     'ไฟล์ Google Sheets',
   ])
     expect(nav.getByRole('link', { name })).toBeTruthy();
-  expect(nav.queryByRole('link', { name: 'หน้าหลัก' })).toBeNull();
-  expect(nav.queryByRole('link', { name: 'ผู้ใช้งาน' })).toBeNull();
+  expect(nav.queryByRole('link', { name: 'Audit Log' })).toBeNull();
   await waitFor(() =>
     expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
   );
   expect(navigation.replace).not.toHaveBeenCalled();
 });
-it.each(['/dashboard', '/users', '/audit', '/sheets'])(
+it.each(['/assets', '/dashboard', '/users', '/audit', '/sheets', '/mail', '/approval-requests'])(
   'blocks a direct %s URL for STAFF',
   async (path) => {
     auth.role = 'STAFF';
@@ -198,10 +196,7 @@ it.each(['/dashboard', '/users', '/audit', '/sheets'])(
     render(portal(<p>Restricted content</p>, createClient()));
     await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
     expect(screen.queryByText('Restricted content')).toBeNull();
-    await waitFor(() =>
-      expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
-    );
-    expect(transport.mock.calls.every(([path]) => path === '/api/status')).toBe(true);
+    expect(transport).not.toHaveBeenCalled();
   },
 );
 it('keeps every current menu visible for SUPER_ADMIN', () => {
@@ -210,22 +205,39 @@ it('keeps every current menu visible for SUPER_ADMIN', () => {
   expect(nav.getByRole('link', { name: 'Audit Log' })).toBeTruthy();
   expect(nav.getAllByRole('link')).toHaveLength(allPortalServices.length);
 });
-it('allows STAFF to open assets directly', () => {
+it('allows STAFF to open own requests directly', () => {
   auth.role = 'STAFF';
   auth.permissions = permissionsForRole(auth.role);
-  navigation.path = '/assets';
-  render(portal(<p>Asset content</p>, createClient()));
-  expect(screen.getByText('Asset content')).toBeTruthy();
+  navigation.path = '/my-requests';
+  render(portal(<p>Own requests content</p>, createClient()));
+  expect(screen.getByText('Own requests content')).toBeTruthy();
   expect(navigation.replace).not.toHaveBeenCalled();
 });
-it('allows ADMIN to open Audit directly', async () => {
-  auth.role = 'ADMIN';
+it('allows SUPER_ADMIN to open Audit directly', async () => {
+  auth.role = 'SUPER_ADMIN';
   auth.permissions = permissionsForRole(auth.role);
   navigation.path = '/audit';
   render(portal(<AuditPage />, createClient()));
   expect(screen.getByRole('heading', { name: 'Audit Log' })).toBeTruthy();
   await screen.findByText('Activity Fixture User');
   expect(transport.mock.calls.some(([path]) => path === '/api/audit')).toBe(true);
+  expect(navigation.replace).not.toHaveBeenCalled();
+});
+it('blocks ADMIN from Audit without requesting audit data', async () => {
+  auth.role = 'ADMIN';
+  auth.permissions = permissionsForRole(auth.role);
+  navigation.path = '/audit';
+  render(portal(<AuditPage />, createClient()));
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'));
+  expect(screen.queryByRole('heading', { name: 'Audit Log' })).toBeNull();
+  expect(transport.mock.calls.some(([path]) => path === '/api/audit')).toBe(false);
+});
+it.each(['ADMIN', 'SUPER_ADMIN'] as const)('allows %s to open mail directly', (role) => {
+  auth.role = role;
+  auth.permissions = permissionsForRole(role);
+  navigation.path = '/mail';
+  render(portal(<p>Mail content</p>, createClient()));
+  expect(screen.getByText('Mail content')).toBeTruthy();
   expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('persists sidebar collapse and group state across route remounts', async () => {

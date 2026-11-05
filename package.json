@@ -18,7 +18,10 @@
     "lint:web": "npm run lint --workspace @iqi/frontend",
     "test:web": "node frontend/scripts/run-tests.mjs",
     "test:embedded-api": "node frontend/scripts/verify-embedded-api.mjs",
-    "test:proxy": "node frontend/scripts/verify-proxy.mjs"
+    "test:proxy": "node frontend/scripts/verify-proxy.mjs",
+    "mail:preview": "node backend/scripts/daily-mail.js --preview",
+    "mail:verify": "node backend/scripts/daily-mail.js --verify",
+    "mail:send": "node backend/scripts/daily-mail.js --send"
   },
   "engines": {
     "node": ">=22.12"
@@ -29,14 +32,15 @@
     "express": "^5.1.0",
     "googleapis": "^164.0.0",
     "heic-convert": "^2.1.0",
+    "nodemailer": "^10.3.1",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "eslint": "^9.39.5",
     "globals": "^17.13.0",
-    "prettier": "^3.9.10",
-    "jsdom": "^26.1.0"
+    "jsdom": "^26.1.0",
+    "prettier": "^3.9.10"
   },
   "workspaces": [
     "frontend"

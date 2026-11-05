@@ -3,5 +3,6 @@
   "framework": "nextjs",
   "installCommand": "cd .. && npm ci",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "crons": [{ "path": "/api/cron/due-reminders", "schedule": "0 1 * * *" }]
 }

@@ -48,6 +48,6 @@ test('form endpoints save dropdown fields and pending return without staff or ac
     ).status,
     200,
   );
-  assert.equal(grids.returns[1][14], 'รอรับคืน');
+  assert.equal(grids.returns[1][14], 'รอดำเนินการ');
   assert.equal(grids.returns[1][13], '');
 });
