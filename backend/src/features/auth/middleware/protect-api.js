@@ -4,7 +4,8 @@ export function protectApi(req, res, next) {
   if (!req.user) return next();
   const path = req.originalUrl.split('?')[0];
   let permission;
-  if (/^\/api\/admin\/users(?:\/|$)/.test(path))
+  if (path === '/api/mail/send') permission = 'ADMIN_DASHBOARD_VIEW';
+  else if (/^\/api\/admin\/users(?:\/|$)/.test(path))
     permission = req.method === 'GET' ? 'USER_VIEW' : 'USER_MANAGE';
   else if (path.startsWith('/api/approval-requests'))
     permission = req.method === 'GET' ? 'LOAN_VIEW_ALL' : 'LOAN_APPROVE';

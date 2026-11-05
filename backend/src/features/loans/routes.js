@@ -1,7 +1,11 @@
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
-export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
+import { sendLoanConfirmation } from '../mail/loan-confirmation.js';
+export function registerLoansRoutes(
+  app,
+  { lendingLedger, loanRequests, confirmLoan = sendLoanConfirmation },
+) {
   app.get('/api/ready-to-borrow', async (req, res, next) => {
     try {
       res.json(await lendingLedger.readAvailableAssets());
@@ -136,6 +140,7 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
         ? {
             ...body,
             borrower: req.user.name,
+            email: req.user.email,
             requestId: createHash('sha256')
               .update(req.user.id + ':' + body.requestId)
               .digest('hex'),
@@ -144,6 +149,8 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
       const result = await loanRequests.submit(request);
       if (req.authStorage)
         await req.authStorage.write([auditEntry(req.user, 'LOAN_CREATED', 'Loan', result.id)]);
+      if (req.user && !result.unchanged)
+        result.mailNotification = await confirmLoan(lendingLedger, result, req.user.email);
       res.json(result);
     } catch (error) {
       next(error);

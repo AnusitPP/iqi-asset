@@ -1,5 +1,5 @@
 'use client';
-import { Button, Group, SimpleGrid, Stack, Text, Textarea } from '@mantine/core';
+import { Button, Group, SimpleGrid, Stack, Textarea } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Controller } from 'react-hook-form';
 import { CalendarDays } from 'lucide-react';

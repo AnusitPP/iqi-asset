@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   ListChecks,
   Files,
+  Mail,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -168,6 +169,13 @@ export const accountModule: PortalModule = {
   icon: ShieldCheck,
   tone: 'green',
   services: [
+    {
+      id: 'mail',
+      label: 'ส่งอีเมล',
+      href: '/mail',
+      icon: Mail,
+      permission: 'ADMIN_DASHBOARD_VIEW',
+    },
     {
       id: 'my-requests',
       label: 'รายการของฉัน',

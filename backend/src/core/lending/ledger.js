@@ -5,7 +5,7 @@ import { validateRequiredText as validateText } from '../validation/values.js';
 import { FORM_TEAMS } from '../../../../shared/features/lending/formConstants.js';
 import { catalogCategory } from '../../../../shared/features/catalog/search.js';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
-import { LOAN_HEADERS } from './schema.js';
+import { LOAN_HEADERS, normalizeLoanGrid } from './schema.js';
 import { RETURN_HEADERS } from './schema.js';
 function parseLedgerRows(values, headers) {
   if (JSON.stringify(values[0]) !== JSON.stringify(headers))
@@ -20,7 +20,7 @@ export class LendingLedger {
   }
   async readLedger() {
     const sheetData = await this.adapter.readLoanSheets();
-    const loans = parseLedgerRows(sheetData.loans, LOAN_HEADERS),
+    const loans = parseLedgerRows(normalizeLoanGrid(sheetData.loans), LOAN_HEADERS),
       returns = parseLedgerRows(sheetData.returns, RETURN_HEADERS);
     const returned = new Set(
       returns

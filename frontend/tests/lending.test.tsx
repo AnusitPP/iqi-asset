@@ -77,6 +77,23 @@ function setLoanDates(start = '2026-10-30', due = '2026-11-06') {
   fireEvent.change(screen.getByLabelText(/^กำหนดวันส่งคืน/), { target: { value: due } });
 }
 describe('loan and return migration', () => {
+  it('reports a saved loan with failed email without asking for another submission', async () => {
+    const originalTransport = transport.getMockImplementation()!;
+    transport.mockImplementation(async (path, options) => {
+      if (path === '/api/loans') return Response.json({ id: 'L-test', mailNotification: 'failed' });
+      return originalTransport(path, options);
+    });
+    mountForm('loan');
+    const user = await selectCatalogAsset();
+    await user.type(screen.getByLabelText(/^เหตุผล/), 'Meeting');
+    setLoanDates();
+    await user.click(screen.getByRole('button', { name: 'ส่ง' }));
+    expect(
+      await screen.findByText(/บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ ไม่ต้องส่งคำขอซ้ำ/),
+    ).toBeTruthy();
+    expect(screen.getByLabelText(/^เหตุผล/)).toHaveProperty('value', '');
+    expect(transport.mock.calls.filter(([path]) => path === '/api/loans')).toHaveLength(1);
+  });
   it('prefills the signed-in Google name and keeps it read-only after clearing the form', async () => {
     authState.user = { name: 'Google Profile User' };
     mountForm('return');

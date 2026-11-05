@@ -9,6 +9,7 @@ import { TestAuthStorage } from '../helpers/authStorage.js';
 test('three roles enforce page-related API access while staff can borrow, return and view only their requests', async (t) => {
   const storage = new TestAuthStorage();
   const config = {
+    confirmLoan: async () => 'sent',
     host: '127.0.0.1',
     sheets: [],
     authStorage: storage,
@@ -42,6 +43,12 @@ test('three roles enforce page-related API access while staff can borrow, return
     readBorrowedAssets: async () => structuredClone(catalog),
     readLoanSheets: async () => structuredClone(ledger),
     appendLoanRows: async (kind, rows) => ledger[kind].push(...structuredClone(rows)),
+    updateLoanStatus: async (id, status, responsible) => {
+      const row = ledger.loans.find((row) => row[0] === id);
+      assert.ok(row, 'approval must reference a saved loan');
+      row[14] = status;
+      row[15] = responsible;
+    },
     readDashboard: async () => [
       ['ผลตรวจ Apps Script', 'สถานะการเทียบ', 'เลขครุภัณฑ์ Apps Script', 'ทีม'],
       ['ดี', 'ตรงกัน', 'A1', 'IT'],
@@ -56,11 +63,11 @@ test('three roles enforce page-related API access while staff can borrow, return
     ['/api/loan-catalog', 200, 200, 200],
     ['/api/return-catalog', 200, 200, 200],
     ['/api/my-requests', 200, 200, 200],
-    ['/api/status', 200, 200, 200],
+    ['/api/status', 403, 200, 200],
     ['/api/dashboard', 403, 200, 200],
     ['/api/loans', 403, 200, 200],
-    ['/api/admin/users', 403, 403, 200],
-    ['/api/audit', 403, 200, 200],
+    ['/api/admin/users', 403, 200, 200],
+    ['/api/audit', 403, 403, 200],
   ];
   for (const [path, ...statuses] of matrix) {
     for (const [index, role] of ['staff', 'admin', 'owner'].entries()) {
@@ -75,13 +82,22 @@ test('three roles enforce page-related API access while staff can borrow, return
     (response) => response.json(),
   );
   assert.deepEqual(staffMe.user.permissions, [
-    'ASSET_VIEW',
     'LOAN_CREATE',
     'LOAN_VIEW_OWN',
     'RETURN_CREATE',
   ]);
   assert.equal(adminMe.user.role, 'ADMIN');
-  assert(adminMe.user.permissions.includes('AUDIT_VIEW'));
+  assert(!adminMe.user.permissions.includes('AUDIT_VIEW'));
+  assert(adminMe.user.permissions.includes('USER_VIEW'));
+  for (const [role, csrf, status] of [
+    ['staff', staffMe.csrf, 403], ['admin', adminMe.csrf, 400], ['owner', adminMe.csrf, 400],
+  ]) {
+    const response = await fetch(base + '/api/mail/send', {
+      method: 'POST', headers: { ...headers(role), 'Content-Type': 'application/json', 'X-IQI-Request': csrf },
+      body: JSON.stringify({ email: 'invalid', type: 'summary' }),
+    });
+    assert.equal(response.status, status, `${role}: mail access`);
+  }
   const denied = await fetch(`${base}/api/admin/users/${staffMe.user.id}/role`, {
     method: 'PATCH',
     headers: {
@@ -104,6 +120,21 @@ test('three roles enforce page-related API access while staff can borrow, return
     ['/api/loans', { purpose: 'fixture', start: '2026-11-02', due: '2026-11-09' }],
     ['/api/returns', { date: '2026-11-03' }],
   ]) {
+    if (path === '/api/returns') {
+      const pendingReturn = await fetch(base + path, {
+        method: 'POST', headers: { ...headers('staff'), 'Content-Type': 'application/json', 'X-IQI-Request': staffMe.csrf },
+        body: JSON.stringify({ ...input, ...values, requestId: randomUUID() }),
+      });
+      assert.equal(pendingReturn.status, 409);
+      assert.equal(ledger.returns.length, 1, 'pending loans must not create a return');
+      const loanId = ledger.loans[1][0];
+      const approval = await fetch(`${base}/api/approval-requests/${loanId}`, {
+        method: 'PATCH', headers: { ...headers('admin'), 'Content-Type': 'application/json', 'X-IQI-Request': adminMe.csrf },
+        body: JSON.stringify({ status: 'กำลังยืม', kind: 'ยืม' }),
+      });
+      assert.equal(approval.status, 200, await approval.text());
+      assert.equal(ledger.loans[1][14], 'กำลังยืม');
+    }
     const response = await fetch(base + path, {
       method: 'POST',
       headers: {

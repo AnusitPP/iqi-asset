@@ -47,7 +47,7 @@ test('original return form accepts external asset without staff/condition and aw
   };
   await service.returnForm(b);
   assert.equal(grids.returns[1][8], b.identifier);
-  assert.equal(grids.returns[1][14], 'รอรับคืน');
+  assert.equal(grids.returns[1][14], 'รอดำเนินการ');
   assert.equal(grids.returns[1][13], '');
   await service.returnForm(b);
   assert.equal(grids.returns.length, 2);
@@ -90,7 +90,7 @@ test('catalog selections use authoritative sheet identity and reject missing rec
   await service.returnForm({ ...selected, requestId: 'valid-return-001', date: '2026-10-29' });
   assert.equal(grids.returns[1][8], 'A1');
   assert.equal(grids.returns[1][9], 'SN1');
-  assert.equal(grids.returns[1][14], 'รอรับคืน');
+  assert.equal(grids.returns[1][14], 'รอดำเนินการ');
 });
 
 test('form submissions share one ledger lock and reject hosted writes', async () => {

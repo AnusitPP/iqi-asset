@@ -24,6 +24,9 @@ export class LoanRequestService {
         start: validateIsoDate(body.start),
         due: validateIsoDate(body.due),
       };
+      const email = typeof body.email === 'string' ? body.email.trim() : '';
+      if (email && (email.length > 254 || !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(email)))
+        throwHttpError(400, 'อีเมลผู้ยืมไม่ถูกต้อง');
       if (requestData.due < requestData.start) throwHttpError(400, 'กำหนดคืนต้องไม่ก่อนวันที่ยืม');
       await this.ledger.resolveCatalogSelection(body, requestData);
       const hash = fingerprintRequest(requestData),
@@ -54,29 +57,33 @@ export class LoanRequestService {
       )
         throwHttpError(409, 'อุปกรณ์นี้มีรายการยืมค้างอยู่');
       const id = 'L-' + randomUUID();
-      await this.ledger.adapter.appendLoanRows('loans', [
+      await this.ledger.adapter.appendLoanRows(
+        'loans',
         [
-          id,
-          randomUUID(),
-          currentBangkokTimestamp(),
-          requestData.borrower,
-          requestData.team,
-          LENDING_REQUEST_TYPE.LOAN,
-          requestData.category,
-          requestData.identifier,
-          requestData.selected?.serial || '',
-          requestData.selected?.name || '',
-          requestData.purpose,
-          requestData.start,
-          requestData.due,
-          requestData.notes,
-          LENDING_STATUS.LOAN_PENDING,
-          '',
-          '',
-          requestData.requestId,
-          hash,
+          [
+            id,
+            randomUUID(),
+            currentBangkokTimestamp(),
+            requestData.borrower,
+            requestData.team,
+            LENDING_REQUEST_TYPE.LOAN,
+            requestData.category,
+            requestData.identifier,
+            requestData.selected?.serial || '',
+            requestData.selected?.name || '',
+            requestData.purpose,
+            requestData.start,
+            requestData.due,
+            requestData.notes,
+            LENDING_STATUS.LOAN_PENDING,
+            '',
+            '',
+            requestData.requestId,
+            hash,
+          ],
         ],
-      ]);
+        { email },
+      );
       if (
         !(await this.ledger.readLedger()).loans.some(
           (sourceRecord) => sourceRecord[17] === requestData.requestId && sourceRecord[18] === hash,

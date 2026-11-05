@@ -14,6 +14,7 @@ export type CatalogRecord = z.infer<typeof catalogRecordSchema>;
 export const lendingResultSchema = z.object({
   id: z.string().min(1),
   unchanged: z.boolean().optional(),
+  mailNotification: z.enum(['sent', 'failed']).optional(),
 });
 const requiredText = (maximum: number) =>
   z.string().trim().min(1, 'กรุณากรอกข้อมูล').max(maximum, `กรอกได้ไม่เกิน ${maximum} ตัวอักษร`);
