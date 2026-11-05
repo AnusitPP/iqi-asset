@@ -27,8 +27,7 @@ retains branding, status colors, navigation collapse styling and asset detail
 presentation. Existing class names also preserve the original grid breakpoints,
 card spacing and page width while using Mantine components. Typography for
 migrated HTML paragraphs uses the `portal-paragraph` class; existing Mantine Text
-components keep their own sizing. The files under `legacy-frontend` belong to the archived
-application and are separate from the Next.js UI.
+components keep their own sizing. Current application styles are loaded from `src/app/components.css`, `dashboard.css`, `globals.css` and `portal.css`.
 
 Dropdown interaction tests use the accessible `combobox` and `option` roles.
 File upload tests target FileInput's native file input. The workspace continues

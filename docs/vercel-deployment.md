@@ -28,14 +28,14 @@ Frontend เป็น Next.js + TypeScript ใน `frontend/` ส่วน `back
 - `BOOTSTRAP_SUPER_ADMIN_EMAIL` ตามบัญชีหลักเดิม
 - `APP_URL`: HTTPS origin ของ deployment จริงสำหรับ Google callback เช่น `https://your-project.vercel.app` โดยไม่มี path
 - `FRONTEND_URL`: ไม่ต้องตั้งเมื่อ FE/BE อยู่ deployment เดียวกัน; ถ้าตั้งต้องเป็น origin ของหน้าเว็บจริง ห้ามใช้ localhost บน production
-- `APP_SECRET`: secret เดิมอย่างน้อย 32 ตัวอักษร และ `APP_PASSWORD` ที่ backend configuration เดิมยังตรวจว่ามี (หน้าเว็บใช้ Google Login)
+- `APP_SECRET`: secret เดิมอย่างน้อย 32 ตัวอักษร สำหรับ Google Login และ signed revisions
 - ค่า `SHEET_*`, `IQI_DATE_*`, Drive OAuth/folder settings และ `ALLOWED_HOSTS` ที่ใช้อยู่
 
 ใน Google Cloud OAuth client ลงทะเบียน Authorized redirect URI เป็น `${APP_URL}/api/auth/google/callback` ให้ตรงกันทุกตัวอักษร Preview deployment ที่ใช้ OAuth ต้องมี origin/redirect URI ของตัวเองที่ลงทะเบียนด้วย อย่าให้ callback ชี้คนละ deployment กับที่เริ่ม login
 
 ใช้ [คู่มือ auth Sheets](auth-sheets.md), [Google OAuth](google-auth-phase-1.md) และ [บัญชีหลัก](single-super-admin.md) สำหรับ schema/สิทธิ์เดิม ไม่ต้องสร้าง Users/Admins/Sessions/AuditLogs ชุดใหม่เพราะเปลี่ยน frontend
 
-ห้ามเติม `NEXT_PUBLIC_` ให้ credentials/tokens/secrets และห้ามใส่ `.env`, private workbook data หรือ credentials ใน `frontend/public/` ไฟล์เก่าอยู่ใน `legacy-frontend/` เพื่อเทียบ behavior และทดสอบเท่านั้น ไม่ใช่ runtime หรือ build input
+ห้ามเติม `NEXT_PUBLIC_` ให้ credentials/tokens/secrets และห้ามใส่ `.env`, private workbook data หรือ credentials ใน `frontend/public/`
 
 ## Local development
 

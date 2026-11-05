@@ -80,7 +80,7 @@ IQI_DATE_MODE=inspection-note
 
 เซิร์ฟเวอร์ listen `0.0.0.0` และแสดง IPv4 ของเครื่องใน terminal มือถือกับคอมต้องอยู่ WiFi/LAN เดียวกัน แล้วเปิด `http://<IP ของคอม>:3000` เช่น `http://192.168.1.94:3000` IP อาจเปลี่ยนได้ ให้ดู terminal หลังเปิดแอป
 
-Windows Firewall อาจถาม permission ให้ Allow บน **Private Network** เว็บนี้ใช้ในเครือข่ายภายในที่ไว้ใจ ต้องกรอกรหัสก่อนอ่านหรือแก้ข้อมูล เป็นรหัสร่วม ไม่มีบัญชีผู้ใช้แยกบุคคล ใช้ปุ่ม “ล็อกออก” เมื่อเลิกใช้งาน session อายุ 8 ชั่วโมงและหมดอายุเมื่อ restart เซิร์ฟเวอร์ กรอกผิด 5 ครั้งจะพักการลองจาก IP นั้น 1 นาที การเปิดผ่าน HTTP ใน LAN ไม่มีการเข้ารหัสการรับส่งข้อมูล
+Windows Firewall อาจถาม permission ให้ Allow บน **Private Network** หน้าเว็บใช้ Google Login และตรวจสิทธิ์แยกตามบัญชี ไม่มีการเข้าสู่ระบบด้วยรหัสผ่านร่วม Session เก็บในชีต Authentication อายุ 30 นาที ใช้ปุ่ม “ล็อกออก” เมื่อเลิกใช้งาน การเปิดผ่าน HTTP ใน LAN ไม่มีการเข้ารหัสการรับส่งข้อมูล
 
 ## หัวใจและชีตรอตรวจสอบ
 
@@ -151,7 +151,7 @@ See [deployment instructions](docs/vercel-deployment.md) for environment variabl
 
 ## File structure
 
-Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/architecture.md). Run all npm commands from the project root; `npm run build` builds Next.js and its Express API adapter into `frontend/.next`. Set Vercel Root Directory to `frontend`, Framework to Next.js, and include source files outside root. The original Vanilla frontend is retained in `legacy-frontend/` for regression comparison.
+Backend, frontend, shared helpers and tests are separated by responsibility. See [project structure](docs/architecture.md). Run all npm commands from the project root; `npm run build` builds Next.js and its Express API adapter into `frontend/.next`. Set Vercel Root Directory to `frontend`, Framework to Next.js, and include source files outside root.
 
 ## Next.js frontend
 

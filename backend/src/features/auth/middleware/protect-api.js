@@ -1,7 +1,6 @@
 import { hasPermission } from '../../../../../shared/features/auth/permissions.js';
 export function protectApi(req, res, next) {
-  // Legacy unit-test apps do not use the configured Sheet session middleware.
-  if (!req.user) return next();
+  if (!req.user) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วย Google' });
   const path = req.originalUrl.split('?')[0];
   let permission;
   if (path === '/api/mail/send') permission = 'ADMIN_DASHBOARD_VIEW';

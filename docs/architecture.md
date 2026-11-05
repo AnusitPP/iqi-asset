@@ -1,6 +1,6 @@
 # โครงสร้างโปรเจกต์
 
-Frontend เป็น Next.js App Router + strict TypeScript ใน npm workspace `frontend/` และเรียก Express API เดิมใน `backend/` ผ่าน services แยกหมวด โค้ด Vanilla เดิมเก็บใน `legacy-frontend/` สำหรับเทียบ behavior และ regression tests
+Frontend เป็น Next.js App Router + strict TypeScript ใน npm workspace `frontend/` และเรียก Express API เดิมใน `backend/` ผ่าน services แยกหมวด
 
 ## Frontend
 
@@ -40,9 +40,9 @@ Routes: `/login`, `/assets`, `/dashboard`, `/loans`, `/returns`, `/my-requests`,
 - `backend/src/core/`: config, security/CSRF, signed revisions, state และ lending ledger
 - `backend/src/integrations/google/`: Google Sheets/Drive/OAuth และ auth storage
 - `shared/`: dates, labels, catalog, lending constants, permissions และ profile URL validation
-- `test/`: backend/shared/legacy-model regression tests และ integration tests
+- `test/`: backend/shared regression tests และ integration tests
 
-Express standalone ให้บริการเฉพาะ API ไม่เสิร์ฟเว็บ Vanilla เดิม `legacy-frontend/` ไม่มี route ที่เข้าถึงจาก production frontend ดู feature parity และข้อจำกัดใน [migration report](frontend-migration.md)
+Express standalone ให้บริการเฉพาะ API ไม่เสิร์ฟเว็บ Vanilla เดิม หน้าเว็บให้บริการผ่าน Next.js เท่านั้น ดู feature parity และข้อจำกัดใน [migration report](frontend-migration.md)
 
 ## Commands จาก root
 
@@ -51,7 +51,7 @@ Express standalone ให้บริการเฉพาะ API ไม่เ�
 - `npm run build`: build workspace ไป `frontend/.next`
 - `npm start`: Next production server หลัง build
 - `npm run check`, `npm run lint:web`, `npm run test:web`: ตรวจ frontend
-- `npm test`: backend/shared/legacy-model tests
+- `npm test`: backend/shared tests และ HTTP integration tests
 - `npm run test:embedded-api`, `npm run test:proxy`: isolated HTTP acceptance tests
 
 ดู [deployment settings](vercel-deployment.md) ก่อน deploy จาก Git; Root Directory ต้องเป็น `frontend` และเปิด source files outside root

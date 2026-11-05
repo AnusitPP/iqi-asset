@@ -1,3 +1,4 @@
+import { testSession } from '../helpers/session.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadGoogleAuthConfig } from '../../backend/src/core/config/google-auth.config.js';
@@ -60,7 +61,8 @@ test('Google config rejects missing and malformed settings without leaking secre
   );
 });
 
-test('Google start is public, skips Sheets, sets temporary cookies and leaves old login working', async (t) => {
+test('Google start is public, skips Sheets, sets temporary cookies and rejects password login', async (t) => {
+  const fixture = await testSession({ host: '127.0.0.1', googleAuth: config });
   const app = createApp(
     {
       adapter: {},
@@ -68,7 +70,7 @@ test('Google start is public, skips Sheets, sets temporary cookies and leaves ol
         throw new Error('Sheets must not be called');
       },
     },
-    { host: '127.0.0.1', googleAuth: config },
+    fixture.config,
   );
   const server = app.listen(0, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
@@ -93,7 +95,7 @@ test('Google start is public, skips Sheets, sets temporary cookies and leaves ol
     headers: { 'Content-Type': 'application/json', 'X-IQI-Request': session.csrf },
     body: JSON.stringify({ password: '1234' }),
   });
-  assert.equal(login.status, 200);
+  assert.equal(login.status, 410);
 });
 
 test('hosted OAuth cookies are Secure', async (t) => {

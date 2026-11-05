@@ -1,5 +1,6 @@
-import { test } from 'node:test';
 import { request as httpRequest } from 'node:http';
+import { testSession } from '../helpers/session.js';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
 import { StateStore, writeLocked } from '../../backend/src/core/state/stateStore.js';
@@ -13,26 +14,16 @@ import {
   INSPECTION_HEADER,
 } from '../../backend/src/features/review/queue.js';
 import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
-import {
-  resizeForUpload,
-  setUploadLimit,
-} from '../../legacy-frontend/public/js/features/photos/prepareUpload.js';
 
-test('signed sessions work across instances while rate limits and revocations remain local', async (t) => {
-  const states = [new StateStore(), new StateStore()];
-  const config = {
+test('Google sessions and revocation work across instances with shared storage', async (t) => {
+  const fixture = await testSession({
     hosted: true,
-    host: '0.0.0.0',
-    allowedHosts: ['app.example'],
+    host: '127.0.0.1',
     appSecret: 'a'.repeat(64),
-    password: 'secret',
     sheets: ['IQI', 'items', 'all'],
-  };
-  const servers = states.map((state) =>
-    createApp({ adapter: { initialize: async () => {} } }, { ...config, state }).listen(
-      0,
-      '127.0.0.1',
-    ),
+  });
+  const servers = [0, 1].map(() =>
+    createApp({ adapter: { initialize: async () => {} } }, fixture.config).listen(0, '127.0.0.1'),
   );
   await Promise.all(
     servers.map((server) => new Promise((resolve) => server.once('listening', resolve))),
@@ -40,70 +31,34 @@ test('signed sessions work across instances while rate limits and revocations re
   t.after(async () => {
     await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))));
   });
-  const request = (instance, path, options = {}) =>
-    new Promise((resolve, reject) => {
-      const req = httpRequest(
-        {
-          hostname: '127.0.0.1',
-          port: servers[instance].address().port,
-          path,
-          method: options.method || 'GET',
-          headers: {
-            Host: 'app.example',
-            'X-Forwarded-Proto': 'https',
-            Origin: 'https://app.example',
-            ...options.headers,
-          },
-        },
-        (res) => {
-          const chunks = [];
-          res.on('data', (chunk) => chunks.push(chunk));
-          res.on('end', () =>
-            resolve(
-              new Response(Buffer.concat(chunks), {
-                status: res.statusCode,
-                headers: res.headers,
-              }),
-            ),
-          );
-        },
-      );
-      req.on('error', reject);
-      req.end(options.body);
-    });
-  const sessions = await Promise.all(
-    [0, 1].map((instance) => request(instance, '/api/auth/session').then((res) => res.json())),
-  );
-  assert.equal(sessions[0].csrf, sessions[1].csrf);
-  const headers = { 'X-IQI-Request': sessions[0].csrf, 'Content-Type': 'application/json' };
-  const login = (instance, password) =>
-    request(instance, '/api/auth/login', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ password }),
-    });
-  const loggedIn = await login(1, 'secret');
-  assert.equal(loggedIn.status, 200);
-  assert.match(loggedIn.headers.get('set-cookie'), /Secure/);
-  headers.Cookie = loggedIn.headers.get('set-cookie').split(';')[0];
-  assert.equal((await request(0, '/api/status', { headers })).status, 200);
-  assert.equal(
-    (await request(0, '/api/status', { headers: { ...headers, Host: 'untrusted.example' } }))
-      .status,
-    403,
-  );
+  const request = (index, path, options = {}) =>
+    fetch('http://127.0.0.1:' + servers[index].address().port + path, options);
+  const session = await request(0, '/api/auth/session').then((res) => res.json());
+  const other = await request(1, '/api/auth/session').then((res) => res.json());
+  assert.equal(session.csrf, other.csrf);
+  const headers = { Cookie: fixture.cookie, 'X-IQI-Request': session.csrf };
+  for (const instance of [0, 1])
+    assert.equal((await request(instance, '/api/status', { headers })).status, 200);
+  const untrusted = await new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        hostname: '127.0.0.1',
+        port: servers[0].address().port,
+        path: '/api/status',
+        headers: { ...headers, Host: 'untrusted.example' },
+      },
+      (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+  assert.equal(untrusted, 403);
   assert.equal((await request(0, '/api/auth/logout', { method: 'POST', headers })).status, 200);
-  assert.equal((await request(0, '/api/status', { headers })).status, 401);
-  // A copied cookie is not globally revoked without shared storage.
-  assert.equal((await request(1, '/api/status', { headers })).status, 200);
-  assert.equal((await request(1, '/api/status')).status, 401);
-  const copied = headers.Cookie;
-  headers.Cookie = copied.slice(0, -1) + (copied.endsWith('A') ? 'B' : 'A');
-  assert.equal((await request(1, '/api/status', { headers })).status, 401);
-  headers.Cookie = copied;
-  for (let i = 0; i < 5; i++) assert.equal((await login(0, 'wrong')).status, 401);
-  assert.equal((await login(0, 'secret')).status, 429);
-  assert.equal((await login(1, 'secret')).status, 200);
+  for (const instance of [0, 1])
+    assert.equal((await request(instance, '/api/status', { headers })).status, 401);
 });
 
 test('signed revisions save across instances and reject tampering, expiry and stale rows', async () => {
@@ -216,18 +171,4 @@ test('Drive OAuth accepts secret JSON without filesystem credentials', () => {
   });
   assert.equal(connection.connected, true);
   assert.equal(connection.auth.credentials.refresh_token, 'refresh');
-});
-
-test('oversized HEIC is rejected before uploading on hosted deployments', async () => {
-  setUploadLimit(4 * 1024 * 1024);
-  try {
-    await assert.rejects(
-      resizeForUpload({ name: 'photo.heic', type: 'image/heic', size: 5 * 1024 * 1024 }),
-      /4 MB/,
-    );
-    const small = { name: 'photo.heic', type: 'image/heic', size: 1024 };
-    assert.equal(await resizeForUpload(small), small);
-  } finally {
-    setUploadLimit(25 * 1024 * 1024);
-  }
 });

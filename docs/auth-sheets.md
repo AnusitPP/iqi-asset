@@ -19,7 +19,7 @@ Profile, bootstrap grant, session and login audit are written together using a S
 
 ## Modules
 
-integrations/google/auth-storage.js handles Sheets transport/schema validation. auth/repositories/user.repository.js resolves identity and role; auth/services/session.service.js implements login/session/revocation; controllers/session.controller.js handles cookies/responses. sheet.middleware.js composes these separately from the existing legacy auth middleware used by older isolated test fixtures. Real configured Google deployments use sheet.middleware and reject password POST with 410. Missing AUTH_SPREADSHEET_ID with configured Google credentials fails startup instead of falling back.
+integrations/google/auth-storage.js handles Sheets transport/schema validation. auth/repositories/user.repository.js resolves identity and role; auth/services/session.service.js implements login/session/revocation; controllers/session.controller.js handles cookies/responses. sheet.middleware.js composes these for all authenticated API requests. Password authentication has been removed. Real configured Google deployments use sheet.middleware and reject password POST with 410. Missing AUTH_SPREADSHEET_ID with configured Google credentials fails startup instead of falling back.
 
 shared/features/auth/permissions.js defines permissions; auth/middleware/protect-api.js enforces the existing API surface before handlers. Users routes/controller/service handle listing/detail and audited role/status changes. Audit routes expose authentication/user-management history only to USER_MANAGE holders; ADMIN cannot access Audit Log. The permanently protected bootstrap anchor ensures there is an active SUPER_ADMIN even across concurrent last-admin mutations; its role/status cannot be reduced from the UI/API.
 
@@ -30,7 +30,7 @@ Frontend auth/permissions.js applies permission-based menus, profile and readonl
 GET /api/auth/google and /api/auth/google/callback: Google identity verification.
 GET /api/auth/session and /api/auth/me: current safe user/permissions plus CSRF.
 POST /api/auth/logout: persistent revoke.
-POST /api/auth/login: 410 in configured Sheet mode.
+POST /api/auth/login: always 410; password authentication is not supported.
 GET /api/admin/users?search=&role=&status= and /api/admin/users/:id.
 PATCH /api/admin/users/:id/role and /api/admin/users/:id/status (USER_MANAGE).
 GET /api/audit: latest 200 permitted events.

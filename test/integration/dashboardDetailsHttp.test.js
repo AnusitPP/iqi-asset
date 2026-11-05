@@ -1,3 +1,4 @@
+import { testSession } from '../helpers/session.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
@@ -23,17 +24,13 @@ test('authenticated details API saves existing team and new notes without changi
       for (const c of changes) grid[row - 1][c.column] = c.value;
     },
   };
-  const server = createApp({ adapter }, { host: '127.0.0.1' }).listen(0, '127.0.0.1');
+  const authFixture = await testSession({ host: '127.0.0.1' });
+  const server = createApp({ adapter }, authFixture.config).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
   const session = await fetch(base + '/api/auth/session').then((r) => r.json());
-  const login = await fetch(base + '/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-IQI-Request': session.csrf },
-    body: JSON.stringify({ password: '1234' }),
-  });
-  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const cookie = authFixture.cookie;
   const revision = dashboardData(grid).records[0].revision;
   const put = (headers = {}) =>
     fetch(base + '/api/dashboard/2/details', {
