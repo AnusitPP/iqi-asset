@@ -30,6 +30,7 @@ export class ReturnRequestService {
         if (matches.length !== 1)
           throwHttpError(409, 'ไม่พบรายการยืมของบัญชีนี้ที่ตรงกับอุปกรณ์ กรุณาโหลดรายการใหม่');
         loan = matches[0];
+        requestData.team = loan[4];
         requestData.identifier = loan[7];
         requestData.category = loan[6];
         requestData.selected = { asset: loan[7], serial: loan[8] || '', name: loan[9] || '' };

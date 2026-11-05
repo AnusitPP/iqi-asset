@@ -8,6 +8,7 @@ export const catalogRecordSchema = z.object({
   serial: z.string(),
   name: z.string(),
   photo: z.string().optional(),
+  team: z.string().optional(),
 });
 export const catalogSchema = z.object({ records: z.array(catalogRecordSchema) });
 export type CatalogRecord = z.infer<typeof catalogRecordSchema>;
@@ -26,6 +27,24 @@ const commonFields = {
 export const loanFormSchema = z
   .object({ ...commonFields, purpose: requiredText(500), start: calendarDate, due: calendarDate })
   .superRefine((values, context) => {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    if (isIsoCalendarDate(values.start) && values.start < today)
+      context.addIssue({ code: 'custom', path: ['start'], message: 'วันที่ยืมต้องไม่ย้อนหลัง' });
+    if (
+      isIsoCalendarDate(values.start) &&
+      isIsoCalendarDate(values.due) &&
+      (Date.parse(values.due) - Date.parse(values.start)) / 86400000 > 7
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['due'],
+        message: 'กำหนดคืนต้องไม่เกิน 7 วันหลังวันยืม',
+      });
     if (
       isIsoCalendarDate(values.start) &&
       isIsoCalendarDate(values.due) &&

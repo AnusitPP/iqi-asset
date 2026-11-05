@@ -37,7 +37,8 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
     );
     res.json({
       records: [
-        ...ledger.loans.map((row) => ({
+        ...ledger.loans.map((row, index) => ({
+          order: index,
           id: row[0],
           kind: 'ยืม',
           asset: row[7],
@@ -52,8 +53,13 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
           borrower: row[3] || '',
           photo: photo(row[7], row[8]),
           completed: returned.has(row[1]),
+          statusLocked:
+            row[14] === 'เสร็จสิ้น' ||
+            row[14] === 'รอดำเนินการคืน' ||
+            ledger.returns.some((entry) => entry[2] === row[1]),
         })),
-        ...ledger.returns.map((row) => ({
+        ...ledger.returns.map((row, index) => ({
+          order: index,
           id: row[0],
           kind: 'คืน',
           asset: row[8],
@@ -68,6 +74,7 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
           borrower: row[4] || '',
           photo: photo(row[8], row[9]),
           completed: true,
+          statusLocked: ['เสร็จสิ้น', 'รับคืนแล้ว'].includes(row[14]),
         })),
       ].filter((record) => admin || own.has(record.id)),
     });
@@ -91,6 +98,14 @@ export function registerLoansRoutes(app, { lendingLedger, loanRequests }) {
         );
         if (matches.length !== 1)
           throw Object.assign(new Error('ไม่พบรายการยืมหรือรหัสซ้ำ'), { status: 409 });
+        const record = matches[0];
+        if (
+          ['เสร็จสิ้น', 'รับคืนแล้ว'].includes(record[14]) ||
+          (!returning &&
+            (record[14] === 'รอดำเนินการคืน' ||
+              state.returns.some((entry) => entry[2] === record[1])))
+        )
+          throw Object.assign(new Error('รายการนี้ไม่สามารถเปลี่ยนสถานะได้แล้ว'), { status: 409 });
         if (returning) {
           if (req.body.status === 'เสร็จสิ้น' && !['ดี', 'ชำรุด'].includes(req.body.condition))
             throw Object.assign(new Error('กรุณาระบุสภาพหลังคืน'), { status: 400 });

@@ -26,6 +26,9 @@ import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
 export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const client = useQueryClient();
   const [requestKind, setRequestKind] = useState('ยืม');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sort, setSort] = useState('newest');
+  const [conditionError, setConditionError] = useState('');
   const [conditions, setConditions] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [details, setDetails] = useState<
@@ -61,6 +64,33 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
     };
   };
   const { api, can, user } = useAuthSession();
+  const readKey = user ? `request-reads:${user.id}:${approvals ? 'approvals' : 'own'}` : '';
+  const [readState, setReadState] = useState<{ key: string; ids: string[] }>({ key: '', ids: [] });
+  useEffect(() => {
+    if (!readKey) return;
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem(readKey) ?? '[]');
+      setReadState({
+        key: readKey,
+        ids: Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [],
+      });
+    } catch {
+      setReadState({ key: readKey, ids: [] });
+    }
+  }, [readKey]);
+  const openDetails = (entry: z.infer<typeof myRequestsSchema>['records'][number]) => {
+    setDetails(entry);
+    setConditionError('');
+    update.reset();
+    const id = `${entry.kind}:${entry.id}`;
+    const ids = [...new Set([...(readState.key === readKey ? readState.ids : []), id])];
+    setReadState({ key: readKey, ids });
+    try {
+      localStorage.setItem(readKey, JSON.stringify(ids));
+    } catch {
+      /* Reading still works when storage is unavailable. */
+    }
+  };
   const requests = useQuery({
     queryKey: [approvals ? 'approval-requests' : 'my-requests', user?.id],
     queryFn: ({ signal }) =>
@@ -81,6 +111,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         { method: 'PATCH', body: { status, kind: requestKind, condition: conditions[id] } },
       ),
     onSuccess: async (_result, variables) => {
+      setDetails(null);
       setDrafts((previous) => {
         const next = { ...previous };
         delete next[variables.id];
@@ -90,6 +121,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         client.invalidateQueries({ queryKey: ['approval-requests'] }),
         client.invalidateQueries({ queryKey: ['my-requests'] }),
         client.invalidateQueries({ queryKey: ['loan-catalog'] }),
+        client.invalidateQueries({ queryKey: ['return-catalog'] }),
       ]);
     },
   });
@@ -98,9 +130,26 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
     (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role) || !can('LOAN_VIEW_ALL'))
   )
     return <Text>คุณไม่มีสิทธิ์เข้าถึงหน้านี้</Text>;
-  const visibleRequests = (requests.data?.records ?? []).filter(
+  const kindRequests = (requests.data?.records ?? []).filter(
     (entry) => !approvals || entry.kind === requestKind,
   );
+  const displayStatus = (entry: z.infer<typeof myRequestsSchema>['records'][number]) =>
+    entry.kind === 'คืน'
+      ? (({ รอรับคืน: 'รอดำเนินการ', รับคืนแล้ว: 'เสร็จสิ้น' } as Record<string, string>)[
+          entry.status
+        ] ?? entry.status)
+      : entry.completed
+        ? 'เสร็จสิ้น'
+        : entry.status;
+  const visibleRequests = kindRequests
+    .filter((entry) => !approvals || !statusFilter || displayStatus(entry) === statusFilter)
+    .sort((a, b) =>
+      sort === 'oldest'
+        ? a.order - b.order
+        : sort === 'name'
+          ? a.name.localeCompare(b.name, 'th')
+          : b.order - a.order,
+    );
   const summaryStatuses =
     requestKind === 'คืน'
       ? ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
@@ -122,7 +171,10 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         <Tabs
           value={requestKind}
           onChange={(value) => {
-            if (value) setRequestKind(value);
+            if (value) {
+              setRequestKind(value);
+              setStatusFilter('');
+            }
           }}
           mb="md"
         >
@@ -141,10 +193,17 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
           {summaryStatuses.map((status) => (
             <Paper
               key={status}
+              component="button"
+              type="button"
+              aria-pressed={statusFilter === status}
+              onClick={() => setStatusFilter((previous) => (previous === status ? '' : status))}
+              bg={statusFilter === status ? 'portalGreen.0' : undefined}
               withBorder
               radius="md"
               p="md"
               style={{
+                cursor: 'pointer',
+                textAlign: 'left',
                 borderTop: `2px solid var(--mantine-color-${lendingStatusColor(status)}-5)`,
               }}
             >
@@ -153,24 +212,34 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                 <Text size="28px" fw={700} lh={1.2}>
                   {requests.isPending
                     ? '—'
-                    : (
-                        visibleRequests.filter(
-                          (entry) =>
-                            (entry.kind === 'คืน'
-                              ? ((
-                                  { รอรับคืน: 'รอดำเนินการ', รับคืนแล้ว: 'เสร็จสิ้น' } as Record<
-                                    string,
-                                    string
-                                  >
-                                )[entry.status] ?? entry.status)
-                              : entry.status) === status,
-                        ).length ?? 0
-                      ).toLocaleString('th-TH')}
+                    : kindRequests
+                        .filter((entry) => displayStatus(entry) === status)
+                        .length.toLocaleString('th-TH')}
                 </Text>
               </Group>
             </Paper>
           ))}
         </SimpleGrid>
+      )}
+      {approvals && (
+        <Group justify="space-between" mb="md">
+          <Button variant="light" onClick={() => setStatusFilter('')} disabled={!statusFilter}>
+            แสดงทุกสถานะ
+          </Button>
+          <Select
+            label="เรียงลำดับ"
+            value={sort}
+            allowDeselect={false}
+            onChange={(value) => {
+              if (value) setSort(value);
+            }}
+            data={[
+              { value: 'newest', label: 'ใหม่สุดก่อน' },
+              { value: 'oldest', label: 'เก่าสุดก่อน' },
+              { value: 'name', label: 'ชื่ออุปกรณ์' },
+            ]}
+          />
+        </Group>
       )}
       <ErrorAlert error={requests.error} />
       <ErrorAlert error={update.error} />
@@ -184,7 +253,33 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
               : 'ยังไม่มีรายการของคุณ'}
           </Text>
           {visibleRequests.map((entry) => (
-            <Paper key={`${entry.kind}-${entry.id}`} withBorder p="sm" radius="lg">
+            <Paper
+              key={`${entry.kind}-${entry.id}`}
+              withBorder
+              p="sm"
+              radius="lg"
+              style={{ position: 'relative' }}
+            >
+              {readState.key === readKey &&
+                !readState.ids.includes(`${entry.kind}:${entry.id}`) && (
+                  <Box
+                    component="span"
+                    role="img"
+                    aria-label="ยังไม่ได้อ่าน"
+                    title="ยังไม่ได้อ่าน"
+                    w={10}
+                    h={10}
+                    bg="red.6"
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      right: 8,
+                      transform: 'translate(50%, -50%)',
+                      borderRadius: '50%',
+                      boxShadow: '0 0 0 2px var(--mantine-color-body)',
+                    }}
+                  />
+                )}
               <Group wrap="wrap" gap="md" align="center">
                 <Group wrap="nowrap" style={{ flex: '2 1 240px', minWidth: 0 }}>
                   <Box
@@ -236,49 +331,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                 >
                   {entry.completed && entry.kind === 'ยืม' ? 'เสร็จสิ้น' : entry.status || '—'}
                 </Badge>
-                {approvals && (
-                  <Group gap="xs">
-                    <Select
-                      aria-label={`สถานะ ${entry.id}`}
-                      w={170}
-                      value={drafts[entry.id] ?? entry.status}
-                      data={[...new Set([entry.status, ...summaryStatuses].filter(Boolean))]}
-                      disabled={update.isPending || !can('LOAN_APPROVE')}
-                      allowDeselect={false}
-                      onChange={(status) => {
-                        if (status) setDrafts((previous) => ({ ...previous, [entry.id]: status }));
-                      }}
-                    />
-                    {entry.kind === 'คืน' && (drafts[entry.id] ?? entry.status) === 'เสร็จสิ้น' && (
-                      <Select
-                        aria-label={`สภาพหลังคืน ${entry.id}`}
-                        placeholder="สภาพหลังคืน"
-                        data={['ดี', 'ชำรุด']}
-                        value={conditions[entry.id] || null}
-                        onChange={(value) =>
-                          setConditions((previous) => ({ ...previous, [entry.id]: value || '' }))
-                        }
-                        w={130}
-                      />
-                    )}
-                    <Button
-                      size="xs"
-                      disabled={
-                        !drafts[entry.id] ||
-                        drafts[entry.id] === entry.status ||
-                        update.isPending ||
-                        !can('LOAN_APPROVE')
-                      }
-                      loading={update.isPending && update.variables?.id === entry.id}
-                      onClick={() =>
-                        update.mutate({ id: entry.id, status: drafts[entry.id] ?? entry.status })
-                      }
-                    >
-                      บันทึก
-                    </Button>
-                  </Group>
-                )}
-                <Button size="xs" variant="outline" onClick={() => setDetails(entry)}>
+                <Button size="xs" variant="outline" onClick={() => openDetails(entry)}>
                   ดูรายละเอียด
                 </Button>
               </Group>
@@ -325,6 +378,72 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
             <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
               หมายเหตุ: {details.notes || '—'}
             </Text>
+            {approvals && !details.statusLocked && (
+              <Group gap="xs">
+                <Select
+                  aria-label={`สถานะ ${details.id}`}
+                  w={170}
+                  value={drafts[details.id] ?? details.status}
+                  data={[...new Set([details.status, ...summaryStatuses].filter(Boolean))]}
+                  disabled={update.isPending || !can('LOAN_APPROVE')}
+                  allowDeselect={false}
+                  onChange={(status) => {
+                    setConditionError('');
+                    if (status) setDrafts((previous) => ({ ...previous, [details.id]: status }));
+                  }}
+                />
+                {details.kind === 'คืน' &&
+                  (drafts[details.id] ?? details.status) === 'เสร็จสิ้น' && (
+                    <Select
+                      aria-label={`สภาพหลังคืน ${details.id}`}
+                      placeholder="สภาพหลังคืน"
+                      data={['ดี', 'ชำรุด']}
+                      value={conditions[details.id] || null}
+                      onChange={(value) => {
+                        setConditions((previous) => ({ ...previous, [details.id]: value || '' }));
+                        setConditionError('');
+                      }}
+                      aria-invalid={conditionError === details.id}
+                      aria-describedby={
+                        conditionError === details.id ? 'return-condition-error' : undefined
+                      }
+                      w={130}
+                    />
+                  )}
+                <Button
+                  size="xs"
+                  disabled={
+                    !drafts[details.id] ||
+                    drafts[details.id] === details.status ||
+                    update.isPending ||
+                    !can('LOAN_APPROVE')
+                  }
+                  loading={update.isPending && update.variables?.id === details.id}
+                  onClick={() => {
+                    const status = drafts[details.id] ?? details.status;
+                    if (
+                      details.kind === 'คืน' &&
+                      status === 'เสร็จสิ้น' &&
+                      !conditions[details.id]
+                    ) {
+                      setConditionError(details.id);
+                      return;
+                    }
+                    setConditionError('');
+                    update.mutate({ id: details.id, status });
+                  }}
+                >
+                  บันทึก
+                </Button>
+              </Group>
+            )}
+
+            {conditionError === details.id && (
+              <Text id="return-condition-error" role="alert" size="xs" c="red" mt={-8}>
+                กรุณาระบุสภาพหลังคืน
+              </Text>
+            )}
+
             <Text size="xs" c="dimmed" style={{ overflowWrap: 'anywhere' }}>
               เลขคำขอ: {details.id}
             </Text>

@@ -25,6 +25,15 @@ export class LoanRequestService {
         due: validateIsoDate(body.due),
       };
       if (requestData.due < requestData.start) throwHttpError(400, 'กำหนดคืนต้องไม่ก่อนวันที่ยืม');
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+      if (requestData.start < today) throwHttpError(400, 'วันที่ยืมต้องไม่ย้อนหลัง');
+      if ((Date.parse(requestData.due) - Date.parse(requestData.start)) / 86400000 > 7)
+        throwHttpError(400, 'กำหนดคืนต้องไม่เกิน 7 วันหลังวันยืม');
       await this.ledger.resolveCatalogSelection(body, requestData);
       const hash = fingerprintRequest(requestData),
         ledgerState = await this.ledger.readLedger(),

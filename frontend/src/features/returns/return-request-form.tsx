@@ -1,6 +1,5 @@
 'use client';
 import { TextInput } from '@mantine/core';
-import { RETURN_TERMS } from '@shared/features/lending/formConstants.js';
 import { returnFormSchema } from '@/types/lending';
 import { returnsService } from '@/services/returns.service';
 import { LendingRequestForm } from '@/features/lending/lending-request-form';
@@ -18,22 +17,18 @@ export function ReturnRequestForm() {
     requestName: 'คำร้องคืน',
     submitRequest: submitReturnRequest,
   });
-  const { form, busy } = request;
+  const { form } = request;
 
   return (
-    <LendingRequestForm
-      request={request}
-      title="คืนครุภัณฑ์"
-      sectionTitle="ส่วนที่ 5 : คืนครุภัณฑ์คอมพิวเตอร์ หรือคืนวัสดุด้านเทคโนโลยีสารสนเทศ"
-      terms={[RETURN_TERMS]}
-    >
+    <LendingRequestForm request={request} title="คืนครุภัณฑ์" sectionTitle="" terms={[]}>
       <TextInput
         label="วันที่ส่งคืน"
         withAsterisk
         type="date"
-        {...form.register('date')}
+        readOnly
+        value={form.watch('date')}
         error={form.formState.errors.date?.message}
-        disabled={busy}
+        disabled
       />
     </LendingRequestForm>
   );

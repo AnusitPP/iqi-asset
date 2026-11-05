@@ -51,7 +51,7 @@ export function LendingRequestForm({
     handleSubmitLendingRequest,
   } = request;
   const [detailsStep, setDetailsStep] = useState(false);
-  const showSelection = mode === 'loan';
+  const showSelection = true;
   return (
     <Box component="section">
       {!showSelection && (
@@ -65,7 +65,7 @@ export function LendingRequestForm({
         radius="lg"
         p={showSelection ? 0 : 'lg'}
       >
-        {showSelection ? (
+        {mode === 'loan' || mode === 'return' ? (
           <Stack>
             <LendingCatalogPicker
               heading={title}
@@ -81,7 +81,7 @@ export function LendingRequestForm({
             />
           </Stack>
         ) : null}
-        {mode === 'loan' && (
+        {
           <Modal
             opened={detailsStep && selected !== null}
             onClose={() => {
@@ -113,9 +113,12 @@ export function LendingRequestForm({
           >
             {renderForm()}
           </Modal>
+        }
+        {notice && (
+          <Text role="status" c="portalGreen.7" mt="md">
+            {notice}
+          </Text>
         )}
-        {mode === 'loan' && notice && <Text role="status" c="portalGreen.7" mt="md">{notice}</Text>}
-        {mode === 'return' && renderForm()}
       </Paper>
     </Box>
   );
@@ -123,7 +126,7 @@ export function LendingRequestForm({
     return (
       <form noValidate onSubmit={form.handleSubmit(handleSubmitLendingRequest)}>
         <Stack>
-          {mode === 'loan' && (
+          {selected && (
             <>
               <Paper
                 withBorder
@@ -192,36 +195,39 @@ export function LendingRequestForm({
               maxLength={200}
               readOnly={mode === 'loan' || borrowerReadOnly}
 
-              {...form.register('borrower')}
+              {...(mode === 'return'
+                ? { value: form.watch('borrower') }
+                : form.register('borrower'))}
               error={form.formState.errors.borrower?.message}
-              disabled={busy}
+              disabled={busy || mode === 'return'}
             />
-            <NativeSelect
-              label="ทีม"
-              withAsterisk
-              data={[{ value: '', label: 'เลือก' }, ...FORM_TEAMS]}
-              {...form.register('team')}
-              error={form.formState.errors.team?.message}
-              disabled={busy}
-            />
+            {mode === 'return' ? (
+              <TextInput
+                label="ทีม"
+                withAsterisk
+                readOnly
+                value={form.watch('team')}
+                error={form.formState.errors.team?.message}
+                disabled
+              />
+            ) : (
+              <NativeSelect
+                label="ทีม"
+                withAsterisk
+                data={[{ value: '', label: 'เลือก' }, ...FORM_TEAMS]}
+                {...form.register('team')}
+                error={form.formState.errors.team?.message}
+                disabled={busy}
+              />
+            )}
           </SimpleGrid>
-          {mode === 'return' && <Text fw={600}>{sectionTitle}</Text>}
+          {mode === 'return' && sectionTitle && <Text fw={600}>{sectionTitle}</Text>}
           {mode === 'return' &&
             terms.map((text) => (
               <Text size="sm" c="dimmed" key={text}>
                 {text}
               </Text>
             ))}
-          {mode === 'return' && (
-            <LendingCatalogPicker
-              mode={mode}
-              key={pickerVersion}
-              selected={selected}
-              onSelect={selectLendingAsset}
-              disabled={busy}
-              error={selectionError}
-            />
-          )}
           {mode === 'return' && (
             <TextInput
               label="เลขครุภัณฑ์, Serial Number (S/N), Service Tag"
@@ -244,7 +250,7 @@ export function LendingRequestForm({
           <Text role="status">{notice}</Text>
           <Group>
             <Button type="submit" loading={busy}>
-              {mode === 'loan' ? 'ส่งคำขอยืม' : 'ส่ง'}
+              {mode === 'loan' ? 'ส่งคำขอยืม' : 'ส่งคำขอคืน'}
             </Button>
             <Button
               type="button"
