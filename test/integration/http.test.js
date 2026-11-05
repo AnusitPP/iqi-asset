@@ -1,3 +1,4 @@
+import { testSession } from '../helpers/session.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
@@ -21,7 +22,8 @@ test('HTTP API protects secrets, rejects writes outside IQI, and reports failure
       if (failWrite) throw new Error('network unavailable');
     },
   };
-  const app = createApp(new Records(adapter, config), config);
+  const authFixture = await testSession(config);
+  const app = createApp(new Records(adapter, config), authFixture.config);
   const server = app.listen(0, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -29,13 +31,7 @@ test('HTTP API protects secrets, rejects writes outside IQI, and reports failure
   const fetch = (url, options = {}) =>
     globalThis.fetch(url, { ...options, headers: { Cookie: cookie, ...options.headers } });
   try {
-    const auth = await fetch(base + '/api/auth/session').then((r) => r.json());
-    const login = await fetch(base + '/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-IQI-Request': auth.csrf },
-      body: JSON.stringify({ password: '1234' }),
-    });
-    cookie = login.headers.get('set-cookie').split(';')[0];
+    cookie = authFixture.cookie;
     const status = await fetch(base + '/api/status').then((r) => r.json());
     const record = await fetch(base + '/api/record?sheet=IQI&row=2').then((r) => r.json());
     const put = (body, headers = {}) =>

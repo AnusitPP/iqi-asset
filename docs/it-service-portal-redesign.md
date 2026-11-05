@@ -77,7 +77,7 @@ No existing external service URLs for these planned modules were found, so none 
 - `frontend/tests/workspace.test.tsx`: mobile navigation expectation uses the new inspection label.
 - `docs/architecture.md`: links this report.
 
-Next.js may regenerate `frontend/next-env.d.ts` during checks. The pre-existing user edit in `frontend/src/app/legacy.css` was preserved.
+Next.js may regenerate `frontend/next-env.d.ts` during checks. Shared component styles are maintained in `frontend/src/app/components.css`.
 
 ## Adding a module
 

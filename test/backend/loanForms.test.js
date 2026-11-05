@@ -1,6 +1,9 @@
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Loans, LOAN_HEADERS, RETURN_HEADERS } from '../helpers/lending.js';
+beforeEach((t) =>
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-29T01:00:00Z') }),
+);
 const make = () => {
   const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
   const adapter = {
@@ -31,8 +34,10 @@ test('original loan form accepts manual identifier and preserves selected type',
   assert.equal(grids.loans.length, 2);
   await assert.rejects(() => service.borrowForm({ ...form, team: 'fake' }), { status: 400 });
   await assert.rejects(() => service.borrowForm({ ...form, due: '2026-10-28' }), { status: 400 });
-  await service.borrowForm({ ...form, requestId: 'long-loan', due: '2026-11-20' });
-  assert.equal(grids.loans.length, 3);
+  await assert.rejects(
+    () => service.borrowForm({ ...form, requestId: 'long-loan', due: '2026-11-20' }),
+    { status: 400 },
+  );
 });
 test('original return form accepts external asset without staff/condition and awaits inspection', async () => {
   const { service, grids } = make();

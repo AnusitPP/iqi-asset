@@ -1,6 +1,6 @@
 # Next.js migration and feature parity
 
-The current Vanilla implementation was retained in `legacy-frontend/` for comparison and existing model regression tests. The earlier Next.js implementation from repository history supplied the existing assets/dashboard/photos/lending components. It was updated for the current Google identity, Sheet-backed sessions and role model rather than bringing back the old password login.
+The application uses Next.js with Google identity, Sheet-backed sessions and role-based access. The archived Vanilla frontend and password login have been removed; regression tests cover the current React implementation.
 
 | Existing behavior                                                           | Next.js implementation                                                                                           |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |

@@ -7,6 +7,7 @@ import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/core/lending/sch
 import { TestAuthStorage } from '../helpers/authStorage.js';
 
 test('three roles enforce page-related API access while staff can borrow, return and view only their requests', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-02T01:00:00Z') });
   const storage = new TestAuthStorage();
   const config = {
     confirmLoan: async () => 'sent',
@@ -40,7 +41,6 @@ test('three roles enforce page-related API access while staff can borrow, return
   const adapter = {
     initialize: async () => {},
     readReadyToBorrow: async () => structuredClone(catalog),
-    readBorrowedAssets: async () => structuredClone(catalog),
     readLoanSheets: async () => structuredClone(ledger),
     appendLoanRows: async (kind, rows) => ledger[kind].push(...structuredClone(rows)),
     updateLoanStatus: async (id, status, responsible) => {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
 import { SheetSessionService } from '../../backend/src/features/auth/services/session.service.js';
 import { TestAuthStorage } from '../helpers/authStorage.js';
-test('Google session endpoint reports missing Sheet auth configuration before the legacy auth guard', async (t) => {
+test('Google session endpoint reports missing Sheet auth configuration without falling back to password authentication', async (t) => {
   const server = createApp({ adapter: {} }, { host: '127.0.0.1' }).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));

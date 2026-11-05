@@ -27,7 +27,3 @@ function parseCatalogRows(values, sheetName) {
 export function readyToBorrowData(values = []) {
   return parseCatalogRows(values, 'พร้อมยืม');
 }
-
-export function borrowedAssetCatalogData(values = []) {
-  return parseCatalogRows(values, 'รายการยืมครุภัณฑ์');
-}

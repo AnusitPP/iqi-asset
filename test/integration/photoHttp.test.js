@@ -1,3 +1,4 @@
+import { testSession } from '../helpers/session.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
@@ -21,17 +22,13 @@ test('HTTP sequential multi-photo upload fills three slots and rejects overflow 
       grid[row - 1].splice(3, 3, ...urls);
     },
   };
-  const server = createApp({ adapter }, { host: '127.0.0.1' }).listen(0, '127.0.0.1');
+  const authFixture = await testSession({ host: '127.0.0.1' });
+  const server = createApp({ adapter }, authFixture.config).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
   const session = await fetch(base + '/api/auth/session').then((r) => r.json());
-  const login = await fetch(base + '/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-IQI-Request': session.csrf },
-    body: JSON.stringify({ password: '1234' }),
-  });
-  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const cookie = authFixture.cookie;
   const image = await sharp({ create: { width: 10, height: 10, channels: 3, background: 'red' } })
     .png()
     .toBuffer();

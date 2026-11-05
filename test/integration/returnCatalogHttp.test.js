@@ -1,63 +1,58 @@
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
-import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
+import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/core/lending/schema.js';
+import { testSession } from '../helpers/session.js';
 
-test('return catalog requires login and reads only the borrowed-assets sheet', async (t) => {
+test('return catalog requires Google session and lists only own approved loans without pending returns', async (t) => {
+  const fixture = await testSession({ host: '127.0.0.1' });
+  const row = (id, status) => {
+    const row = Array(19).fill('');
+    Object.assign(row, { 0: id, 1: id, 7: id, 8: 'SN1', 9: 'Mouse', 14: status });
+    return row;
+  };
+  const grids = {
+    loans: [
+      LOAN_HEADERS,
+      row('OWN', 'กำลังยืม'),
+      row('OTHER', 'กำลังยืม'),
+      row('PENDING', 'รอดำเนินการ'),
+    ],
+    returns: [RETURN_HEADERS],
+  };
+  const user = fixture.storage.tables.Users[0];
+  fixture.storage.tables.AuditLogs.push(
+    ...['OWN', 'PENDING'].map((id) => ({
+      actor_user_id: user.id,
+      action: 'LOAN_CREATED',
+      entity_id: id,
+    })),
+  );
   let reads = 0;
-  let values = [
-    ['ชื่ออุปกรณ์', 'เลขครุภัณฑ์', 'S/N', 'สถานะ'],
-    ['จอ', 'LOAN-001', 'SN1', 'ยืม'],
-    ['แถวว่าง', '', '', ''],
-    ['คอม', 'LOAN-002', '', ''],
-  ];
-  const adapter = new GoogleSheets({ spreadsheetId: 'fixture-sheet' });
-  adapter.api = {
-    spreadsheets: {
-      values: {
-        get: async (request) => {
-          reads++;
-          assert.deepEqual(request, {
-            spreadsheetId: 'fixture-sheet',
-            range: "'รายการยืมครุภัณฑ์'!A:T",
-            valueRenderOption: 'FORMATTED_VALUE',
-          });
-          return { data: { values } };
-        },
-      },
+  const adapter = {
+    readLoanSheets: async () => {
+      reads++;
+      return structuredClone(grids);
     },
   };
-  const server = createApp({ adapter }, { host: '127.0.0.1' }).listen(0, '127.0.0.1');
+  const server = createApp({ adapter }, fixture.config).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
-  const base = `http://127.0.0.1:${server.address().port}`;
-  assert.equal((await fetch(base + '/api/return-catalog')).status, 401);
+  const url = `http://127.0.0.1:${server.address().port}/api/return-catalog`;
+  assert.equal((await fetch(url)).status, 401);
   assert.equal(reads, 0);
-  const session = await fetch(base + '/api/auth/session').then((response) => response.json());
-  const login = await fetch(base + '/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-IQI-Request': session.csrf },
-    body: JSON.stringify({ password: '1234' }),
-  });
-  const headers = { Cookie: login.headers.get('set-cookie').split(';')[0] };
-  const response = await fetch(base + '/api/return-catalog', { headers });
+  const response = await fetch(url, { headers: { Cookie: fixture.cookie } });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    records: [
-      { row: 2, asset: 'LOAN-001', serial: 'SN1', name: 'จอ' },
-      { row: 4, asset: 'LOAN-002', serial: '', name: 'คอม' },
-    ],
+    records: [{ row: 2, asset: 'OWN', serial: 'SN1', name: 'Mouse', team: '' }],
   });
-  assert.equal(reads, 1);
-
-  for (const invalid of [[], [['เลขครุภัณฑ์', 'ชื่ออุปกรณ์', 'S/N', 'S/N']]]) {
-    values = invalid;
-    const invalidResponse = await fetch(base + '/api/return-catalog', { headers });
-    assert.equal(invalidResponse.status, 422);
-    assert.match((await invalidResponse.json()).error, /รายการยืมครุภัณฑ์/);
-  }
-  values = [['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์']];
-  const emptyResponse = await fetch(base + '/api/return-catalog', { headers });
-  assert.equal(emptyResponse.status, 200);
-  assert.deepEqual(await emptyResponse.json(), { records: [] });
+  const pendingReturn = Array(19).fill('');
+  pendingReturn[0] = 'R1';
+  pendingReturn[2] = 'OWN';
+  pendingReturn[14] = 'รอดำเนินการ';
+  grids.returns.push(pendingReturn);
+  assert.deepEqual(
+    await fetch(url, { headers: { Cookie: fixture.cookie } }).then((res) => res.json()),
+    { records: [] },
+  );
 });

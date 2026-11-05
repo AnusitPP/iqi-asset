@@ -191,14 +191,6 @@ export class GoogleSheets {
     });
     return data.values || [];
   }
-  async readBorrowedAssets() {
-    const { data } = await this.api.spreadsheets.values.get({
-      spreadsheetId: this.config.spreadsheetId,
-      range: "'รายการยืมครุภัณฑ์'!A:T",
-      valueRenderOption: 'FORMATTED_VALUE',
-    });
-    return data.values || [];
-  }
   async readLoanSheets() {
     const { data } = await this.api.spreadsheets.values.batchGet({
       spreadsheetId: this.config.spreadsheetId,

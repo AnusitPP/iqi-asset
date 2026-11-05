@@ -12,8 +12,7 @@ export function loadConfig(env = process.env) {
   const frontendOrigin = env.FRONTEND_URL ? applicationOrigin(env, 'FRONTEND_URL') : undefined;
   if ((env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET) && !env.AUTH_SPREADSHEET_ID)
     throw configurationError('กรุณาตั้งค่า AUTH_SPREADSHEET_ID สำหรับ Google Login');
-  if (hosted && (!env.APP_PASSWORD || !env.APP_SECRET))
-    throw configurationError('Vercel ต้องตั้ง APP_PASSWORD และ APP_SECRET');
+  if (hosted && !env.APP_SECRET) throw configurationError('Vercel ต้องตั้ง APP_SECRET');
   if (hosted && !env.GOOGLE_SERVICE_ACCOUNT_JSON)
     throw configurationError('Vercel ต้องตั้ง GOOGLE_SERVICE_ACCOUNT_JSON');
   if (env.APP_SECRET && env.APP_SECRET.length < 32)
@@ -55,7 +54,6 @@ export function loadConfig(env = process.env) {
     ],
     dateHeader: env.IQI_DATE_HEADER || '',
     dateMode: env.IQI_DATE_MODE || 'date',
-    password: env.APP_PASSWORD || '1234',
     disabled_menu: env.DISABLED_MENU === 'true',
   };
   if (new Set(config.sheets).size !== 3)

@@ -29,9 +29,14 @@ const adapter = {
     ['FIXTURE-MOUSE', 'SN-001', 'Mouse'],
   ],
   readLoanSheets: async () => structuredClone(ledger),
-  readBorrowedAssets: async () => structuredClone(ledger.loans),
   appendLoanRows: async (name, rows) => {
     ledger[name].push(...structuredClone(rows));
+  },
+  updateLoanStatus: async (id, status, responsible) => {
+    const row = ledger.loans.find((row) => row[0] === id);
+    assert(row);
+    row[14] = status;
+    row[15] = responsible;
   },
   initialize: async () => {},
   readDashboard: async () => structuredClone(grid),
@@ -40,7 +45,11 @@ const adapter = {
   },
 };
 const authStorage = new TestAuthStorage();
-const authConfig = { authStorage, bootstrapSuperAdminEmail: 'owner@example.invalid' };
+const authConfig = {
+  authStorage,
+  bootstrapSuperAdminEmail: 'owner@example.invalid',
+  confirmLoan: async () => 'sent',
+};
 const sessions = new SheetSessionService(authStorage, authConfig);
 const ownerToken = await sessions.login({
   sub: 'fixture-owner',
@@ -172,12 +181,19 @@ try {
     identifier: 'FIXTURE-MOUSE / SN-001',
     notes: '',
   };
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  const due = new Date(Date.parse(today + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
   const loanBody = {
     ...selection,
     requestId: randomUUID(),
     purpose: 'ทดสอบเท่านั้น',
-    start: '2026-10-30',
-    due: '2026-11-06',
+    start: today,
+    due,
   };
   const sendLoan = () =>
     fetch(base + '/api/loans', {
@@ -198,12 +214,22 @@ try {
   });
   assert.equal(returnCatalogResponse.status, 200);
   const returnCatalog = await returnCatalogResponse.json();
-  assert.equal(returnCatalog.records[0].asset, 'FIXTURE-MOUSE');
-  assert.equal(returnCatalog.records[0].serial, 'SN-001');
+  assert.deepEqual(returnCatalog.records, []);
+  const approval = await fetch(base + '/api/approval-requests/' + loanResult.id, {
+    method: 'PATCH',
+    headers: authenticated,
+    body: JSON.stringify({ kind: 'ยืม', status: 'กำลังยืม' }),
+  });
+  assert.equal(approval.status, 200, await approval.text());
+  const ownReturnCatalog = await fetch(base + '/api/return-catalog', {
+    headers: authenticated,
+  }).then((res) => res.json());
+  assert.equal(ownReturnCatalog.records[0].asset, 'FIXTURE-MOUSE');
+  assert.equal(ownReturnCatalog.records[0].serial, 'SN-001');
   const returned = await fetch(base + '/api/returns', {
     method: 'POST',
     headers: authenticated,
-    body: JSON.stringify({ ...selection, requestId: randomUUID(), date: '2026-11-01' }),
+    body: JSON.stringify({ ...selection, requestId: randomUUID(), date: today }),
   });
   assert.equal(returned.status, 200);
   assert.match((await returned.json()).id, /^R-/);

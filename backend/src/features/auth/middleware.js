@@ -1,106 +1,21 @@
+import express from 'express';
 import { createSheetAuth } from './sheet.middleware.js';
 import { createAuthRoutes } from './auth.routes.js';
-import { signToken, readToken } from '../../core/security/tokens.js';
-import express from 'express';
-import { randomBytes, scryptSync, timingSafeEqual, createHash, createHmac } from 'node:crypto';
-import { StateStore } from '../../core/state/stateStore.js';
-import { SESSION_LIFETIME_MS as LIFETIME } from '../../core/config/session.config.js';
+import { configurationError } from '../../core/config/credentials.js';
+
 export function createAuth(config, csrf) {
   if (config.authSpreadsheetId || config.authStorage) return createSheetAuth(config, csrf);
   const router = express.Router();
-  const state = config.state || new StateStore();
-  const secret = createHmac('sha256', config.appSecret || randomBytes(32))
-    .update('iqi:session:')
-    .update(config.password || '1234')
-    .digest('hex');
-  const salt = randomBytes(16);
-  const hash = scryptSync(config.password || '1234', salt, 32);
-  const token = (req) =>
-    req.get('cookie')?.match(/(?:^|;\s*)iqi_session=([A-Za-z0-9_.-]{1,4096})(?:;|$)/)?.[1];
-  const session = (req) => {
-    const payload = readToken(token(req), secret);
-    return payload?.purpose === 'session' && typeof payload.id === 'string' ? payload : null;
+  const missingConfiguration = () => {
+    throw configurationError('กรุณาตั้งค่า AUTH_SPREADSHEET_ID สำหรับ Google Login');
   };
-  const revoke = async (req) => {
-    const payload = session(req);
-    if (payload) await state.set(`revoked:${payload.id}`, true, payload.expires - Date.now());
-  };
-  const authenticated = async (req) => {
-    const payload = session(req);
-    return !!payload && !(await state.get(`revoked:${payload.id}`));
-  };
-  const cookieOptions = (req) => ({
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: config.hosted || req.secure,
-    path: '/',
-  });
-  const startSession = async (req, res, user) => {
-    await revoke(req);
-    const signed = signToken(
-      {
-        purpose: 'session',
-        id: randomBytes(32).toString('hex'),
-        expires: Date.now() + LIFETIME,
-        ...(user ? { user } : {}),
-      },
-      secret,
-    );
-    res.cookie('iqi_session', signed, { ...cookieOptions(req), maxAge: LIFETIME });
-  };
-  router.use('/auth', createAuthRoutes(config, startSession));
-  router.get('/auth/me', (req, res) =>
-    res.status(503).json({
-      error:
-        'กรุณาตั้งค่า AUTH_SPREADSHEET_ID, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET และ GOOGLE_ALLOWED_DOMAIN สำหรับ Google Login',
-    }),
+  router.use('/auth', createAuthRoutes(config, missingConfiguration));
+  router.get(['/auth/session', '/auth/me'], (_req, res) =>
+    res.status(503).json({ error: 'กรุณาตั้งค่า AUTH_SPREADSHEET_ID สำหรับ Google Login' }),
   );
-  router.get('/auth/session', async (req, res) => {
-    const isAuthenticated = await authenticated(req);
-    const name = isAuthenticated ? session(req)?.user?.name : undefined;
-    res.json({
-      authenticated: isAuthenticated,
-      csrf,
-      user: typeof name === 'string' ? { name } : null,
-    });
-  });
-  router.post('/auth/login', async (req, res) => {
-    const ip = createHash('sha256')
-      .update(req.ip || '')
-      .digest('hex');
-    await state.withLock(`login:${ip}`, async () => {
-      const key = `attempt:${ip}`;
-      const attempt = await state.get(key);
-      if (attempt?.count >= 5) {
-        res.set('Retry-After', String(Math.max(1, Math.ceil((attempt.until - Date.now()) / 1000))));
-        return res.status(429).json({ error: 'กรอกรหัสผิดหลายครั้ง กรุณารอ 1 นาทีแล้วลองใหม่' });
-      }
-      const password = req.body?.password;
-      const valid =
-        typeof password === 'string' &&
-        password.length <= 256 &&
-        timingSafeEqual(hash, scryptSync(password, salt, 32));
-      if (!valid) {
-        const next = attempt || { count: 0, until: Date.now() + 60000 };
-        next.count++;
-        if (next.count >= 5) next.until = Date.now() + 60000;
-        await state.set(key, next, Math.max(1, next.until - Date.now()));
-        return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง' });
-      }
-      await state.delete(key);
-      await startSession(req, res);
-      res.json({ authenticated: true });
-    });
-  });
-  router.post('/auth/logout', async (req, res) => {
-    await revoke(req);
-    res.clearCookie('iqi_session', cookieOptions(req));
-    res.json({ authenticated: false });
-  });
-  router.use(async (req, res, next) => {
-    if (!(await authenticated(req)))
-      return res.status(401).json({ error: 'กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน' });
-    next();
-  });
+  router.post('/auth/login', (_req, res) =>
+    res.status(410).json({ error: 'กรุณาเข้าสู่ระบบด้วย Google' }),
+  );
+  router.use((_req, res) => res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วย Google' }));
   return router;
 }

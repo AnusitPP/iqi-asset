@@ -28,7 +28,6 @@ const child = spawn(
       VERCEL: '1',
       IQI_PROXY_TEST: '1',
       IQI_BACKEND_ORIGIN: 'http://127.0.0.1:1',
-      APP_PASSWORD: 'embedded-api-fixture',
       AUTH_SPREADSHEET_ID: 'fixture-auth-sheet',
       GOOGLE_CLIENT_ID: 'fixture-client',
       GOOGLE_CLIENT_SECRET: 'fixture-secret',

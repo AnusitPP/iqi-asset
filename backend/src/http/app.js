@@ -38,9 +38,7 @@ export function createApp(service, config) {
   registerMailCron(app, { adapter: service.adapter });
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
-  app.use('/api', (req, res, next) => {
-    req.authStorage ? protectApi(req, res, next) : next();
-  });
+  app.use('/api', protectApi);
   if (config.authSpreadsheetId || config.authStorage) {
     registerAuditRoutes(app);
     registerUserRoutes(app, config);
@@ -49,7 +47,7 @@ export function createApp(service, config) {
     if (service.ready) await service.ready();
     next();
   });
-  registerCatalogRoutes(app, { service, lendingLedger });
+  registerCatalogRoutes(app, { lendingLedger });
   registerMailRoutes(app, { lendingLedger });
   registerLoansRoutes(app, { lendingLedger, loanRequests, confirmLoan: config.confirmLoan });
   registerReturnsRoutes(app, { returnRequests });

@@ -6,13 +6,12 @@ import { loadConfig } from '../../backend/src/core/config/loadConfig.js';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
 import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
 import { safeMessage, logError } from '../../backend/src/core/errors/errors.js';
-import { readApiResponse } from '../../legacy-frontend/public/js/core/http/response.js';
 import { StateStore } from '../../backend/src/core/state/stateStore.js';
 
 const serviceAccount = { client_email: 'test@example.invalid', private_key: 'test-key' };
 const env = {
   VERCEL: '1',
-  APP_PASSWORD: 'fake-password',
+  AUTH_SPREADSHEET_ID: 'fixture-auth-sheet',
   APP_SECRET: 's'.repeat(64),
   GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify(serviceAccount),
   GOOGLE_DRIVE_OAUTH_JSON: JSON.stringify({
@@ -50,7 +49,7 @@ test('local config retains file fallback and hosted config rejects missing or ma
   assert.equal(local.serviceAccount, undefined);
   assert.match(local.keyFile, /credentials[\\/]test.json$/);
   assert.equal(local.driveOAuthFile, path.resolve('credentials/oauth.json'));
-  for (const key of ['APP_PASSWORD', 'APP_SECRET', 'GOOGLE_SERVICE_ACCOUNT_JSON']) {
+  for (const key of ['APP_SECRET', 'GOOGLE_SERVICE_ACCOUNT_JSON']) {
     assert.throws(() => loadConfig({ ...env, [key]: '' }), { code: 'APP_CONFIGURATION' });
   }
   for (const key of ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_DRIVE_OAUTH_JSON']) {
@@ -68,38 +67,6 @@ test('local config retains file fallback and hosted config rejects missing or ma
   });
   assert.throws(() => loadConfig({ ...env, GOOGLE_SERVICE_ACCOUNT_JSON: '{}' }), {
     code: 'APP_CONFIGURATION',
-  });
-});
-
-test('frontend handles platform text/HTML, malformed JSON and application failures without parsing crashes', async () => {
-  for (const type of ['text/plain', 'text/html']) {
-    await assert.rejects(
-      readApiResponse(
-        new Response('A server error has occurred', {
-          status: 500,
-          headers: { 'Content-Type': type },
-        }),
-      ),
-      /HTTP 500/,
-    );
-  }
-  await assert.rejects(
-    readApiResponse(
-      new Response('<html>not json</html>', { headers: { 'Content-Type': 'text/html' } }),
-    ),
-    /ผิดรูปแบบ/,
-  );
-  await assert.rejects(
-    readApiResponse(new Response('{', { headers: { 'Content-Type': 'application/json' } })),
-    /JSON ไม่สมบูรณ์/,
-  );
-  await assert.rejects(
-    readApiResponse(Response.json({ error: 'ข้อมูลเปลี่ยนไป' }, { status: 409 })),
-    /ข้อมูลเปลี่ยนไป.*409/,
-  );
-  await assert.rejects(readApiResponse(new Response('too large', { status: 413 })), /ไฟล์ใหญ่/);
-  assert.deepEqual(await readApiResponse(Response.json({ authenticated: true })), {
-    authenticated: true,
   });
 });
 
@@ -176,7 +143,7 @@ test('local server is API-only with mocked Google setup and no cloud writes', ()
         if (!response.ok) throw new Error('Local API failed: ' + path);
       }
       for (const path of ['/', '/js/app.js', '/styles/style.css', '/shared/features/photos/slots.js']) {
-        if ((await fetch(base + path)).status !== 404) throw new Error('Legacy web route still served: ' + path);
+        if ((await fetch(base + path)).status !== 404) throw new Error('Archived web route still served: ' + path);
       }
       const session = await fetch(base + '/api/auth/session').then(res => res.json());
       const response = await fetch(base + '/api/auth/login', {
@@ -195,7 +162,7 @@ test('local server is API-only with mocked Google setup and no cloud writes', ()
       PATH: process.env.PATH,
       PORT: '0',
       HOST: '127.0.0.1',
-      APP_PASSWORD: 'local-test-password',
+      AUTH_SPREADSHEET_ID: 'fixture-auth-sheet',
       DOTENV_CONFIG_PATH: '/tmp/iqi-nonexistent-test-env',
     },
     stdio: ['ignore', 'pipe', 'pipe'],

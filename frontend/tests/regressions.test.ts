@@ -8,7 +8,7 @@ import {
   type StatusDraft,
 } from '../src/features/dashboard/save-drafts';
 
-describe('regressions retained after retiring the Vanilla frontend', () => {
+describe('frontend data and transport regressions', () => {
   it('keeps untouched CRLF and bare-CR values when other fields are edited', () => {
     expect(
       preserveUnchangedAssetValues(
@@ -48,7 +48,7 @@ describe('regressions retained after retiring the Vanilla frontend', () => {
   it('handles platform HTML/text, incomplete JSON, 413 and typed JSON success', async () => {
     const invoke = (response: Response) =>
       new ApiClient(undefined, vi.fn<typeof fetch>().mockResolvedValue(response)).request(
-        '/api/auth/login',
+        '/api/auth/session',
         z.object({ authenticated: z.boolean() }),
       );
     for (const type of ['text/plain', 'text/html'])
