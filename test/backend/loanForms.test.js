@@ -4,14 +4,14 @@ import { Loans, LOAN_HEADERS, RETURN_HEADERS } from '../helpers/lending.js';
 beforeEach((t) =>
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-29T01:00:00Z') }),
 );
-const make = () => {
+const make = (config) => {
   const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
   const adapter = {
     readLoanSheets: async () => structuredClone(grids),
     readReadyToBorrow: async () => [['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์']],
     appendLoanRows: async (k, r) => grids[k].push(...r),
   };
-  return { service: new Loans(adapter), grids };
+  return { service: new Loans(adapter, config), grids };
 };
 const form = {
   requestId: 'form-test-001',
@@ -98,8 +98,8 @@ test('catalog selections use authoritative sheet identity and reject missing rec
   assert.equal(grids.returns[1][14], 'รอดำเนินการ');
 });
 
-test('form submissions share one ledger lock and reject hosted writes', async () => {
-  const { service, grids } = make();
+test('hosted submissions share the instance queue and reject conflicting requests', async () => {
+  const { service, grids } = make({ hosted: true });
   const request = { ...form, identifier: 'A1' };
   const outcomes = await Promise.allSettled([
     service.borrowForm(request),
@@ -108,8 +108,28 @@ test('form submissions share one ledger lock and reject hosted writes', async ()
   assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1);
   assert.equal(outcomes.find((result) => result.status === 'rejected').reason.status, 409);
   assert.equal(grids.loans.length, 2);
-  assert.throws(() => new Loans({}, { hosted: true }).borrowForm(form), { status: 503 });
   await assert.rejects(() => service.borrowForm({ ...request, purpose: 'changed' }), {
     status: 409,
   });
+});
+
+test('hosted loan and return submissions save and reuse the same request ID', async () => {
+  const { service, grids } = make({ hosted: true });
+  const loan = await service.borrowForm(form);
+  assert.match(loan.id, /^L-/);
+  assert.deepEqual(await service.borrowForm(form), { id: loan.id, unchanged: true });
+  const returning = {
+    requestId: 'hosted-return-001',
+    borrower: form.borrower,
+    team: form.team,
+    category: 'อื่นๆ',
+    identifier: 'external-asset',
+    date: '2026-10-29',
+    notes: '',
+  };
+  const returned = await service.returnForm(returning);
+  assert.match(returned.id, /^R-/);
+  assert.deepEqual(await service.returnForm(returning), { id: returned.id, unchanged: true });
+  assert.equal(grids.loans.length, 2);
+  assert.equal(grids.returns.length, 2);
 });

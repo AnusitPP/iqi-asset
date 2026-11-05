@@ -13,7 +13,7 @@ export function HomeStatistics() {
   const canRequests = authenticated && can('LOAN_VIEW_OWN');
   const dashboard = useQuery({
     queryKey: ['dashboard'],
-    queryFn: ({ signal }) => dashboardService.fetchDashboardData(api, signal),
+    queryFn: () => dashboardService.fetchDashboardData(api),
     enabled: canDashboard,
     staleTime: 60000,
   });
