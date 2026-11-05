@@ -21,10 +21,12 @@ import { PhotoStore } from '../integrations/google/photoStorage.js';
 import { DashboardPhotos } from '../features/photos/service.js';
 import { registerMailRoutes } from '../features/mail/routes.js';
 import { registerMailCron } from '../features/mail/cron.js';
+import { createLendingGateway } from '../integrations/google/lendingGateway.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
   const lendingLedger = new LendingLedger(service.adapter, config);
+  lendingLedger.gateway = createLendingGateway(config);
   const loanRequests = new LoanRequestService(lendingLedger);
   const returnRequests = new ReturnRequestService(lendingLedger);
   const csrf = config.appSecret

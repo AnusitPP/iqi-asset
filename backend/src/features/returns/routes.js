@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 export function registerReturnsRoutes(app, { returnRequests }) {
   app.post('/api/returns', async (req, res, next) => {
     try {
+      if (returnRequests.ledger?.gateway && !req.user)
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วยบัญชีผู้ใช้ก่อนคืน' });
       const body = req.body || {};
       let ownLoanIds;
       if (req.user) {

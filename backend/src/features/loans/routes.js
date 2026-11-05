@@ -95,6 +95,28 @@ export function registerLoansRoutes(
         : ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก', 'กำลังยืม'];
       if (!statuses.includes(req.body?.status))
         return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
+      if (lendingLedger.gateway) {
+        const result = await lendingLedger.gateway.execute('approve', {
+          id: req.params.id,
+          kind: returning ? 'คืน' : 'ยืม',
+          status: req.body.status,
+          condition: req.body.condition || '',
+          expectedStatus: req.body.expectedStatus,
+          responsible: req.user.name,
+        });
+        if (!result.unchanged)
+          await req.authStorage.write([
+            auditEntry(
+              req.user,
+              returning ? 'RETURN_STATUS_UPDATED' : 'LOAN_STATUS_UPDATED',
+              returning ? 'Return' : 'Loan',
+              req.params.id,
+              { status: result.previousStatus },
+              { status: req.body.status },
+            ),
+          ]);
+        return res.json({ id: result.id });
+      }
       await lendingLedger.withWriteLock(async () => {
         const state = await lendingLedger.readLedger();
         const matches = (returning ? state.returns : state.loans).filter(
@@ -150,6 +172,8 @@ export function registerLoansRoutes(
   });
   app.post('/api/loans', async (req, res, next) => {
     try {
+      if (lendingLedger.gateway && !req.user)
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วยบัญชีผู้ใช้ก่อนยืม' });
       const body = req.body || {};
       const request = req.user
         ? {

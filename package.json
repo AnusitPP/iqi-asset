@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:lending-script": "node backend/scripts/build-lending-script.js",
     "setup:sheets": "node backend/scripts/setup-sheets.js",
     "drive:connect": "node backend/scripts/drive-connect.js",
     "dev": "npm run dev --workspace @iqi/frontend",

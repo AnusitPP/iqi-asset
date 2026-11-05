@@ -17,6 +17,7 @@ export class LoanRequestService {
     this.ledger = ledger;
   }
   submit(body) {
+    if (this.ledger.gateway) return this.ledger.gateway.execute('loan', body);
     return this.ledger.withWriteLock(async () => {
       const requestData = {
         ...this.ledger.validateRequestBody(body, LOAN_TYPES),

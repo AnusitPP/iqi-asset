@@ -108,7 +108,15 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
       api.request(
         `/api/approval-requests/${encodeURIComponent(id)}`,
         z.object({ id: z.string() }),
-        { method: 'PATCH', body: { status, kind: requestKind, condition: conditions[id] } },
+        {
+          method: 'PATCH',
+          body: {
+            status,
+            kind: requestKind,
+            condition: conditions[id],
+            expectedStatus: details?.status,
+          },
+        },
       ),
     onSuccess: async (_result, variables) => {
       setDetails(null);

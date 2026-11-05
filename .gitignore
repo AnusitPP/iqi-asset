@@ -3,6 +3,7 @@ credentials/
 !package.json
 !package-lock.json
 !vercel.json
+!apps-script/lending/appsscript.json
 .env
 .env.*
 !.env.example

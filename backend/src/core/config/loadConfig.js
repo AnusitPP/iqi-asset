@@ -19,6 +19,8 @@ export function loadConfig(env = process.env) {
     throw configurationError('APP_SECRET ต้องยาวอย่างน้อย 32 ตัวอักษร');
   const config = {
     hosted,
+    lendingScriptUrl: env.LENDING_SCRIPT_URL || '',
+    lendingScriptSecret: env.LENDING_SCRIPT_SECRET || '',
     publicOrigin,
     frontendOrigin,
     authSpreadsheetId: env.AUTH_SPREADSHEET_ID || '',
