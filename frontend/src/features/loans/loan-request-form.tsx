@@ -5,7 +5,7 @@ import { Controller } from 'react-hook-form';
 import { CalendarDays } from 'lucide-react';
 import 'dayjs/locale/th';
 import { LOAN_TERMS, LOAN_NOTES } from '@shared/features/lending/formConstants.js';
-import { calendarDaysBetween } from '@shared/core/extensions/dates.js';
+import dayjs from 'dayjs';
 import { loanFormSchema } from '@/types/lending';
 import { loansService } from '@/services/loans.service';
 import { LendingRequestForm } from '@/features/lending/lending-request-form';
@@ -25,8 +25,14 @@ export function LoanRequestForm() {
   });
   const { form, busy } = request;
   const start = form.watch('start');
-  const due = form.watch('due');
-  const overSevenDays = !!start && !!due && calendarDaysBetween(start, due) > 7;
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  const earliestReturn = start && start > today ? start : today;
+  const latestReturn = dayjs(earliestReturn).add(7, 'day').format('YYYY-MM-DD');
 
   return (
     <LendingRequestForm
@@ -72,7 +78,9 @@ export function LoanRequestForm() {
             render={({ field, fieldState }) => (
               <DatePickerInput
                 label={name === 'start' ? 'วันที่ต้องการยืม' : 'กำหนดวันส่งคืน'}
-                description={name === 'due' && overSevenDays ? '*หมายเหตุ เกิน 7 วัน' : undefined}
+                description={name === 'due' ? 'คืนภายใน 7 วันนับจากวันที่ยืม' : undefined}
+                minDate={name === 'start' ? today : earliestReturn}
+                maxDate={name === 'due' ? latestReturn : undefined}
                 inputWrapperOrder={['label', 'input', 'description', 'error']}
                 styles={{
                   description: {
@@ -87,10 +95,26 @@ export function LoanRequestForm() {
                 valueFormat="DD MMMM YYYY"
                 firstDayOfWeek={0}
                 value={field.value || null}
-                onChange={(value) => field.onChange(value ?? '')}
+                onChange={(value) => {
+                  const date = value ? dayjs(value).format('YYYY-MM-DD') : '';
+                  form.setValue(name, date, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                    shouldValidate: true,
+                  });
+                  if (name === 'start') {
+                    const due = form.getValues('due');
+                    if (
+                      !date ||
+                      (due && (due < date || due > dayjs(date).add(7, 'day').format('YYYY-MM-DD')))
+                    )
+                      form.setValue('due', '', { shouldDirty: true, shouldValidate: true });
+                    else if (due) void form.trigger('due');
+                  }
+                }}
                 onBlur={field.onBlur}
                 ref={field.ref}
-                error={name === 'start' ? fieldState.error?.message : undefined}
+                error={fieldState.error?.message}
                 disabled={busy}
                 clearable
                 leftSection={<CalendarDays size={16} aria-hidden="true" />}

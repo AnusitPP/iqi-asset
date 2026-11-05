@@ -52,6 +52,8 @@ export const myRequestsSchema = z.object({
       borrower: z.string().optional().default(''),
       photo: z.string().optional().default(''),
       completed: z.boolean().optional().default(false),
+      statusLocked: z.boolean().optional().default(false),
+      order: z.number().optional().default(0),
     }),
   ),
 });

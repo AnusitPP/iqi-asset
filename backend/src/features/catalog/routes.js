@@ -32,6 +32,7 @@ export function registerCatalogRoutes(app, { service, lendingLedger }) {
               asset: row[7],
               serial: row[8] || '',
               name: row[9] || '',
+              team: row[4] || '',
             })),
         });
       }

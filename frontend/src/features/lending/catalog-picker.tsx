@@ -2,15 +2,12 @@
 import {
   Badge,
   Button,
-  Combobox,
   Group,
-  InputBase,
   Paper,
   SimpleGrid,
   Stack,
   Text,
   TextInput,
-  useCombobox,
   Box,
   UnstyledButton,
   Title,
@@ -28,7 +25,6 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import type { CatalogRecord } from '@/types/lending';
 import { ErrorAlert } from '@/components/ui/feedback';
 export function LendingCatalogPicker({
-  selected,
   onSelect,
   disabled,
   error,
@@ -42,120 +38,122 @@ export function LendingCatalogPicker({
   mode: 'loan' | 'return';
   heading?: string;
 }) {
-  const { api } = useAuthSession();
-  const [query, setQuery] = useWorkspaceState(`${mode}-catalog-query`, selected?.name ?? ''),
-    [requested, setRequested] = useState(false);
-  const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
+  const { api, user } = useAuthSession();
+  const action = mode === 'loan' ? 'ยืม' : 'คืน';
+  const [query, setQuery] = useWorkspaceState(`${mode}-catalog-query`, '');
   const [category, setCategory] = useState('');
   const [view, setView] = useState('grid');
   const catalog = useQuery({
-    queryKey: [mode === 'loan' ? 'loan-catalog' : 'return-catalog'],
+    queryKey: [mode === 'loan' ? 'loan-catalog' : 'return-catalog', user?.id],
     queryFn: ({ signal }) =>
       mode === 'loan'
         ? catalogService.fetchLoanCatalog(api, signal)
         : catalogService.fetchReturnCatalog(api, signal),
-    enabled: mode === 'loan' || requested,
+    enabled: !!user,
   });
-  const matches = matchCatalog(catalog.data?.records ?? [], query);
-  const sheetName = mode === 'loan' ? 'พร้อมยืม' : 'รายการยืมครุภัณฑ์';
-  if (mode === 'loan') {
+  const matches = matchCatalog(catalog.data?.records ?? [], mode === 'loan' ? query : '');
+  {
     const records = catalog.data?.records ?? [];
     const categories = [...new Set(records.map((record) => catalogCategory(record.name)))];
     const visible = matches.filter(
-      (record) => !category || catalogCategory(record.name) === category,
+      (record) => mode === 'return' || !category || catalogCategory(record.name) === category,
     );
     return (
       <Stack>
         {heading && (
           <Group align="center" gap="md">
             <Title order={1}>{heading}</Title>
-            <Group gap={6} wrap="nowrap">
-              <Box
-                w={6}
-                h={6}
-                bg="portalGreen.6"
-                aria-hidden="true"
-                style={{ borderRadius: '50%', flexShrink: 0 }}
-              />
-              <Text size="xs" c="portalGreen.6">
-                เฉพาะพร้อมยืม
-              </Text>
-            </Group>
+            {mode === 'loan' && (
+              <Group gap={6} wrap="nowrap">
+                <Box
+                  w={6}
+                  h={6}
+                  bg="portalGreen.6"
+                  aria-hidden="true"
+                  style={{ borderRadius: '50%', flexShrink: 0 }}
+                />
+                <Text size="xs" c="portalGreen.6">
+                  เฉพาะพร้อมยืม
+                </Text>
+              </Group>
+            )}
           </Group>
         )}
 
-        <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} shadow="xs">
-          <Stack gap="sm">
-            <Group align="center" gap="xs">
-              <TextInput
-                leftSection={<Search size={18} aria-hidden="true" />}
-                flex="1 1 280px"
-                miw={200}
-                aria-label="ค้นหาอุปกรณ์"
-                placeholder="ชื่ออุปกรณ์ เลขครุภัณฑ์ หรือ S/N"
-                value={query}
-                disabled={disabled}
-                onChange={(event) => setQuery(event.currentTarget.value)}
-              />
+        {mode === 'loan' && (
+          <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} shadow="xs">
+            <Stack gap="sm">
+              <Group align="center" gap="xs">
+                <TextInput
+                  leftSection={<Search size={18} aria-hidden="true" />}
+                  flex="1 1 280px"
+                  miw={200}
+                  aria-label="ค้นหาอุปกรณ์"
+                  placeholder="ชื่ออุปกรณ์ เลขครุภัณฑ์ หรือ S/N"
+                  value={query}
+                  disabled={disabled}
+                  onChange={(event) => setQuery(event.currentTarget.value)}
+                />
 
-              <Button
-                type="button"
-                variant="default"
-                px="xs"
-                aria-label="ล้างตัวกรอง"
-                title="ล้างตัวกรอง"
-                disabled={disabled}
-                onClick={() => {
-                  setQuery('');
-                  setCategory('');
-                }}
-              >
-                <RotateCcw size={16} aria-hidden="true" />
-              </Button>
-              <Button.Group>
                 <Button
-                  leftSection={<LayoutGrid size={16} aria-hidden="true" />}
-                  variant={view === 'grid' ? 'filled' : 'default'}
-                  aria-pressed={view === 'grid'}
-                  onClick={() => setView('grid')}
+                  type="button"
+                  variant="default"
+                  px="xs"
+                  aria-label="ล้างตัวกรอง"
+                  title="ล้างตัวกรอง"
+                  disabled={disabled}
+                  onClick={() => {
+                    setQuery('');
+                    setCategory('');
+                  }}
                 >
-                  การ์ด
+                  <RotateCcw size={16} aria-hidden="true" />
                 </Button>
-                <Button
-                  leftSection={<List size={16} aria-hidden="true" />}
-                  variant={view === 'list' ? 'filled' : 'default'}
-                  aria-pressed={view === 'list'}
-                  onClick={() => setView('list')}
-                >
-                  รายการ
-                </Button>
-              </Button.Group>
-            </Group>
-            <ScrollArea type="auto" offsetScrollbars>
-              <Group wrap="nowrap" gap="xs" pb={4}>
-                {['', ...categories].map((value) => (
+                <Button.Group>
                   <Button
-                    key={value}
-                    type="button"
-                    radius="xl"
-                    size="xs"
-                    variant={category === value ? 'filled' : 'default'}
-                    aria-pressed={category === value}
-                    disabled={disabled}
-                    style={{ flexShrink: 0 }}
-                    onClick={() => setCategory(value)}
+                    leftSection={<LayoutGrid size={16} aria-hidden="true" />}
+                    variant={view === 'grid' ? 'filled' : 'default'}
+                    aria-pressed={view === 'grid'}
+                    onClick={() => setView('grid')}
                   >
-                    {value || 'ทั้งหมด'} (
-                    {value
-                      ? records.filter((record) => catalogCategory(record.name) === value).length
-                      : records.length}
-                    )
+                    การ์ด
                   </Button>
-                ))}
+                  <Button
+                    leftSection={<List size={16} aria-hidden="true" />}
+                    variant={view === 'list' ? 'filled' : 'default'}
+                    aria-pressed={view === 'list'}
+                    onClick={() => setView('list')}
+                  >
+                    รายการ
+                  </Button>
+                </Button.Group>
               </Group>
-            </ScrollArea>
-          </Stack>
-        </Paper>
+              <ScrollArea type="auto" offsetScrollbars>
+                <Group wrap="nowrap" gap="xs" pb={4}>
+                  {['', ...categories].map((value) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      radius="xl"
+                      size="xs"
+                      variant={category === value ? 'filled' : 'default'}
+                      aria-pressed={category === value}
+                      disabled={disabled}
+                      style={{ flexShrink: 0 }}
+                      onClick={() => setCategory(value)}
+                    >
+                      {value || 'ทั้งหมด'} (
+                      {value
+                        ? records.filter((record) => catalogCategory(record.name) === value).length
+                        : records.length}
+                      )
+                    </Button>
+                  ))}
+                </Group>
+              </ScrollArea>
+            </Stack>
+          </Paper>
+        )}
         {heading && (
           <Group gap="sm" wrap="nowrap">
             <Box
@@ -165,7 +163,7 @@ export function LendingCatalogPicker({
               style={{ alignSelf: 'stretch', flexShrink: 0, borderRadius: 999 }}
             />
             <Text fw={700} size="lg">
-              1. เลือกอุปกรณ์ที่ต้องการยืม
+              {mode === 'loan' ? '1. ' : ''}เลือกอุปกรณ์ที่ต้องการ{action}
             </Text>
           </Group>
         )}
@@ -184,7 +182,11 @@ export function LendingCatalogPicker({
           </Text>
         )}
         {!catalog.isPending && !catalog.error && !visible.length && (
-          <Text c="dimmed">ไม่พบอุปกรณ์ที่ตรงกับคำค้น</Text>
+          <Text c="dimmed">
+            {mode === 'return' && !records.length
+              ? 'คุณไม่มีครุภัณฑ์ที่สามารถส่งคำขอคืนได้'
+              : 'ไม่พบอุปกรณ์ที่ตรงกับคำค้น'}
+          </Text>
         )}
         {view === 'list' ? (
           <Table.ScrollContainer minWidth={760}>
@@ -197,13 +199,15 @@ export function LendingCatalogPicker({
             >
               <Table.Thead bg="var(--mantine-color-gray-0)">
                 <Table.Tr>
-                  {['อุปกรณ์', 'เลขครุภัณฑ์', 'S/N', 'หมวดหมู่', 'สถานะ', 'การยืม'].map((label) => (
-                    <Table.Th key={label}>
-                      <Text size="xs" c="dimmed" fw={600}>
-                        {label}
-                      </Text>
-                    </Table.Th>
-                  ))}
+                  {['อุปกรณ์', 'เลขครุภัณฑ์', 'S/N', 'หมวดหมู่', 'สถานะ', `การ${action}`].map(
+                    (label) => (
+                      <Table.Th key={label}>
+                        <Text size="xs" c="dimmed" fw={600}>
+                          {label}
+                        </Text>
+                      </Table.Th>
+                    ),
+                  )}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -234,7 +238,7 @@ export function LendingCatalogPicker({
                           </Box>
                           <UnstyledButton
                             type="button"
-                            aria-label={`ยืม ${record.name} ${record.asset}`}
+                            aria-label={`${action} ${record.name} ${record.asset}`}
                             style={{ minWidth: 0, width: 300, maxWidth: '100%' }}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -276,7 +280,7 @@ export function LendingCatalogPicker({
                             <Box w={6} h={6} bg="green" style={{ borderRadius: '50%' }} />
                           }
                         >
-                          พร้อมยืม
+                          {mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
@@ -288,13 +292,13 @@ export function LendingCatalogPicker({
 
                           disabled={disabled}
 
-                          aria-label={`เลือกยืม ${record.name} ${record.asset} ${record.serial}`}
+                          aria-label={`${action} ${record.name} ${record.asset} ${record.serial}`}
                           onClick={(event) => {
                             event.stopPropagation();
                             onSelect(record);
                           }}
                         >
-                          ยืมอุปกรณ์นี้
+                          {action}อุปกรณ์นี้
                         </Button>
                       </Table.Td>
                     </Table.Tr>
@@ -326,7 +330,7 @@ export function LendingCatalogPicker({
                 <UnstyledButton
                   type="button"
                   disabled={disabled}
-                  aria-label={`ยืม ${record.name} ${record.asset}`}
+                  aria-label={`${action} ${record.name} ${record.asset}`}
                   onClick={() => onSelect(record)}
                   style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 1 }}
                 />
@@ -357,7 +361,7 @@ export function LendingCatalogPicker({
                       {record.asset}
                     </Badge>
                     <Badge color="green" variant="light" size="xs">
-                      พร้อมยืม
+                      {mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
                     </Badge>
                   </Group>
                 </Box>
@@ -388,10 +392,10 @@ export function LendingCatalogPicker({
                       type="button"
                       disabled={disabled}
                       style={{ position: 'relative', zIndex: 2 }}
-                      aria-label={`เลือกยืม ${record.name} ${record.asset} ${record.serial}`}
+                      aria-label={`${action} ${record.name} ${record.asset} ${record.serial}`}
                       onClick={() => onSelect(record)}
                     >
-                      ขอยืมอุปกรณ์นี้
+                      {mode === 'loan' ? 'ขอยืมอุปกรณ์นี้' : 'คืนอุปกรณ์นี้'}
                     </Button>
                   </Box>
                 </Stack>
@@ -402,82 +406,6 @@ export function LendingCatalogPicker({
       </Stack>
     );
   }
-  return (
-    <Box>
-      <Combobox
-        store={combobox}
-        onOptionSubmit={(value) => {
-          const record = catalog.data?.records.find((item) => String(item.row) === value);
-          if (!record) return;
-          onSelect(record);
-          setQuery(record.name);
-          combobox.closeDropdown();
-        }}
-      >
-        <Combobox.Target>
-          <InputBase
-            label="ประเภทของครุภัณฑ์ หรือวัสดุ"
-            withAsterisk
-            placeholder="ค้นหาชื่ออุปกรณ์ เลขครุภัณฑ์ หรือ S/N"
-            value={query}
-            disabled={disabled}
-            error={error}
-            autoComplete="off"
-            onChange={(event) => {
-              setQuery(event.currentTarget.value);
-              onSelect(null);
-              setRequested(true);
-              combobox.openDropdown();
-              combobox.resetSelectedOption();
-            }}
-            onFocus={() => {
-              if (!selected) {
-                setRequested(true);
-                combobox.openDropdown();
-              }
-            }}
-            onBlur={() => combobox.closeDropdown()}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') combobox.closeDropdown();
-            }}
-          />
-        </Combobox.Target>
-        <Combobox.Dropdown>
-          <Combobox.Options mah={260} style={{ overflowY: 'auto' }}>
-            {catalog.isFetching ? (
-              <Combobox.Empty>กำลังอ่านข้อมูลจากชีต{sheetName}…</Combobox.Empty>
-            ) : matches.length ? (
-              matches.map((record) => (
-                <Combobox.Option key={record.row} value={String(record.row)}>
-                  {[record.name, record.asset, record.serial].filter(Boolean).join(' · ')}
-                </Combobox.Option>
-              ))
-            ) : (
-              <Combobox.Empty>ไม่พบอุปกรณ์ที่ตรงกับคำค้น</Combobox.Empty>
-            )}
-          </Combobox.Options>
-        </Combobox.Dropdown>
-      </Combobox>
-      <Text size="xs" role="status">
-        {selected
-          ? `เลือกแล้ว: ${selected.asset}`
-          : requested
-            ? `พบ ${matches.length} รายการ · กรุณาเลือกอุปกรณ์จากผลค้นหา`
-            : `ค้นหาจากชีต${sheetName}`}
-      </Text>
-      <ErrorAlert error={catalog.error} />
-      {catalog.error && (
-        <Button
-          variant="subtle"
-          onClick={() => {
-            void catalog.refetch();
-          }}
-        >
-          ลองโหลดอุปกรณ์อีกครั้ง
-        </Button>
-      )}
-    </Box>
-  );
 }
 
 export function CatalogPhoto({

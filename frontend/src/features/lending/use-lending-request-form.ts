@@ -63,7 +63,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     resolver: zodResolver(lendingFormSchema),
   });
   const busy = form.formState.isSubmitting;
-  useUnsavedChangesGuard(form.formState.isDirty || selected !== null || busy);
+  useUnsavedChangesGuard(Object.keys(form.formState.dirtyFields).length > 0 || busy);
   useEffect(() => {
     const subscription = form.watch((_values, info) => {
       if (info.type === 'change') requestId.current = crypto.randomUUID();
@@ -134,14 +134,15 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     }
   };
   const selectLendingAsset = (record: CatalogRecord | null) => {
-    if (mode === 'loan' && record && !form.getValues('start')) {
+    if (record && (mode === 'return' || !form.getValues('start'))) {
       const today = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Bangkok',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
       }).format(new Date());
-      form.setValue('start', today, { shouldDirty: true });
+      form.setValue(mode === 'return' ? 'date' : 'start', today, { shouldDirty: false });
+      if (mode === 'return') form.setValue('team', record.team ?? '', { shouldDirty: false });
     }
     requestId.current = crypto.randomUUID();
     setSelected(record);
