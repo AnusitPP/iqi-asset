@@ -5,6 +5,8 @@ import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/core/lending/sch
 import { testSession } from '../helpers/session.js';
 
 test('Google authenticated forms save borrower identity and allow returns only after loan approval', async (t) => {
+  // Keep fixture dates valid without depending on the day the suite is run.
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-05T01:00:00Z') });
   const fixture = await testSession({ host: '127.0.0.1' });
   const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
   const adapter = {

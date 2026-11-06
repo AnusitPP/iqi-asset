@@ -4,5 +4,5 @@
   "installCommand": "cd .. && npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "crons": [{ "path": "/api/cron/due-reminders", "schedule": "0 1 * * *" }]
+  "crons": [{ "path": "/api/cron/due-reminders", "schedule": "0 2 * * *" }]
 }
