@@ -120,3 +120,21 @@ test('approval and completed returns update shifted status fields without overwr
     { range: "'รายการยืมครุภัณฑ์'!P2", values: [[LENDING_STATUS.RETURNED]] },
   ]);
 });
+test('admin comments add a dedicated RAW column and preserve the loan mapping', () => {
+  const adapter = Object.create(GoogleSheets.prototype);
+  assert.deepEqual(adapter.commentUpdates('รายการยืมครุภัณฑ์', [headers], 2, '=text'), [
+    { range: "'รายการยืมครุภัณฑ์'!U1", values: [['comment']] },
+    { range: "'รายการยืมครุภัณฑ์'!U2", values: [['=text']] },
+  ]);
+  assert.deepEqual(
+    normalizeLoanGrid([
+      [...headers, 'comment'],
+      [...physical, 'ข้อความ'],
+    ])[1],
+    [...canonical, 'ข้อความ'],
+  );
+  assert.deepEqual(
+    adapter.commentUpdates('รายการคืนครุภัณฑ์', [[...RETURN_HEADERS, 'comment']], 2, ''),
+    [{ range: "'รายการคืนครุภัณฑ์'!T2", values: [['']] }],
+  );
+});

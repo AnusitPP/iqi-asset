@@ -1,4 +1,5 @@
 'use client';
+import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -141,12 +142,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
   };
   const selectLendingAsset = (record: CatalogRecord | null) => {
     if (record && (mode === 'return' || !form.getValues('start'))) {
-      const today = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Bangkok',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date());
+      const today = bangkokIsoDate();
       form.setValue(mode === 'return' ? 'date' : 'start', today, { shouldDirty: false });
       if (mode === 'return') form.setValue('team', record.team ?? '', { shouldDirty: false });
     }

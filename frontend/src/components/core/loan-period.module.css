@@ -1,0 +1,25 @@
+.timeBadge {
+  box-shadow: 0 1px 5px #0002;
+  border: 0;
+  text-transform: none;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.statusBadge {
+  box-shadow: 0 1px 5px #0002;
+  border: 0;
+  text-transform: none;
+  flex-shrink: 0;
+}
+
+.timeBadge,
+.statusBadge {
+  min-height: 25px;
+  padding-inline: 9px;
+  font-size: 11px;
+}
+
+.timeBadge,
+.statusBadge {
+  font-weight: 800;
+}

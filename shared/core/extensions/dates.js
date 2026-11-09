@@ -88,3 +88,12 @@ export function isIsoCalendarDate(value) {
 export function calendarDaysBetween(start, end) {
   return (Date.parse(end) - Date.parse(start)) / MILLISECONDS_PER_DAY;
 }
+
+export function bangkokIsoDate(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: BANGKOK_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}

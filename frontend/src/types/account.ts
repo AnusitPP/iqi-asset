@@ -48,6 +48,7 @@ export const myRequestsSchema = z.object({
       due: z.string().optional().default(''),
       purpose: z.string().optional().default(''),
       notes: z.string().optional().default(''),
+      adminComment: z.string().optional().default(''),
       team: z.string().optional().default(''),
       borrower: z.string().optional().default(''),
       photo: z.string().optional().default(''),

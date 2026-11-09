@@ -308,9 +308,20 @@ it('paginates mobile audit cards, opens details and resets the page when filteri
 it('loads own requests with the current API contract', async () => {
   currentUser = makeUser('staff');
   mount(<MyRequestsPage />);
+  const user = userEvent.setup();
+  expect(await screen.findByText('ไม่พบรายการที่ตรงกับตัวกรอง')).toBeTruthy();
+  const currentOnly = screen.getByRole('checkbox', { name: 'แสดงรายการที่ยืมปัจจุบัน' });
+  expect((currentOnly as HTMLInputElement).checked).toBe(true);
+  expect(screen.queryByText('Mouse')).toBeNull();
+  await user.click(currentOnly);
   expect(await screen.findByText('Mouse')).toBeTruthy();
   expect(screen.getByRole('status').textContent).toBe('พบ 1 รายการ');
-  expect(screen.getAllByText('รอดำเนินการ').length).toBeGreaterThan(0);
+  await user.type(screen.getByLabelText('ค้นหารายการของฉัน'), 'A-1');
+  expect(screen.getByText('Mouse')).toBeTruthy();
+  await user.clear(screen.getByLabelText('ค้นหารายการของฉัน'));
+  await user.type(screen.getByLabelText('ค้นหารายการของฉัน'), 'missing');
+  expect(screen.queryByText('Mouse')).toBeNull();
+  expect(screen.getByText('ไม่พบรายการที่ตรงกับตัวกรอง')).toBeTruthy();
 });
 it('derives landing pages and permissions from server-issued grants', () => {
   expect(defaultWorkspacePath(makeUser('staff'))).toBe('/loans');

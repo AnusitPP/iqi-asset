@@ -298,3 +298,37 @@ describe('validation and cancellation', () => {
     expect(drafts.size).toBe(2);
   });
 });
+it('return cards reuse loan timing and show loan details before the return form', async () => {
+  const original = transport.getMockImplementation()!;
+  transport.mockImplementation((path, options) =>
+    path === '/api/return-catalog'
+      ? Promise.resolve(
+          Response.json({
+            records: [
+              {
+                ...catalog.records[0],
+                loanId: 'STeP-IQI-L-fixture',
+                start: '2026-10-29',
+                due: '2026-11-02',
+                status: 'กำลังยืม',
+                borrower: 'Fixture User',
+                purpose: 'Meeting',
+                adminComment: 'กรุณาคืนตามกำหนด',
+              },
+            ],
+          }),
+        )
+      : original(path, options),
+  );
+  mount('return');
+  expect(await screen.findByText('เลขคำขอ: STeP-IQI-L-fixture')).toBeTruthy();
+  expect(screen.getAllByText('เหลือ 3 วัน')).toHaveLength(2);
+  expect(screen.getByText('1 / 4 วัน')).toBeTruthy();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'คืน Mouse Wireless MOUSE-001 SN1' }));
+  expect(await screen.findByRole('dialog', { name: /รายละเอียดรายการของฉัน/ })).toBeTruthy();
+  expect(screen.getByText('Meeting')).toBeTruthy();
+  expect(screen.getByText('คอมเมนต์จากแอดมิน: กรุณาคืนตามกำหนด')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'คัดลอก STeP-IQI-L-fixture' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'ส่งคำขอคืน' })).toBeTruthy();
+});

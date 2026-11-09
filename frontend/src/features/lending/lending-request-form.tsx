@@ -14,11 +14,17 @@ import {
   SimpleGrid,
   Badge,
 } from '@mantine/core';
+import { Layers } from 'lucide-react';
+import { RequestDetailsSummary } from '@/components/core/request-details-summary';
+import { CopyableText } from '@/components/core/copyable-text';
+import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
+import detailStyles from '@/components/core/request-details.module.css';
 import { useState, type ReactNode } from 'react';
 import { FORM_TEAMS } from '@shared/features/lending/formConstants.js';
 import { catalogCategory } from '@shared/features/catalog/search.js';
 import { ErrorAlert } from '@/components/ui/feedback';
-import { CatalogPhoto, LendingCatalogPicker } from './catalog-picker';
+import { LendingCatalogPicker } from './catalog-picker';
+import { CatalogPhoto } from '@/components/core/catalog-photo';
 import type { LendingRequestController } from './use-lending-request-form';
 
 type LendingRequestFormProps = {
@@ -88,11 +94,27 @@ export function LendingRequestForm({
               if (!busy) setDetailsStep(false);
             }}
             title={
-              <Stack gap={2}>
-                <Text size="sm" fw={600} c="portalGreen.7" style={{ overflowWrap: 'anywhere' }}>
-                  {selected?.asset}
-                </Text>
-              </Stack>
+              mode === 'return' ? (
+                <Group gap="sm">
+                  <Box className={detailStyles.titleIcon}>
+                    <Layers size={22} aria-hidden="true" />
+                  </Box>
+                  <Stack gap={2}>
+                    <Text fw={700} size="lg">
+                      รายละเอียดรายการของฉัน
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      เลขคำขอ: <CopyableText value={selected?.loanId || ''} />
+                    </Text>
+                  </Stack>
+                </Group>
+              ) : (
+                <Stack gap={2}>
+                  <Text size="sm" fw={600} c="portalGreen.7" style={{ overflowWrap: 'anywhere' }}>
+                    {selected?.asset}
+                  </Text>
+                </Stack>
+              )
             }
             styles={{
               header: {
@@ -106,7 +128,16 @@ export function LendingRequestForm({
               body: { paddingTop: 20 },
             }}
             centered
-            size="lg"
+            size={mode === 'return' ? 680 : 'lg'}
+            classNames={
+              mode === 'return'
+                ? {
+                    header: detailStyles.header,
+                    body: detailStyles.body,
+                    content: detailStyles.content,
+                  }
+                : undefined
+            }
             closeOnClickOutside={!busy}
             closeOnEscape={!busy}
             withCloseButton={!busy}
@@ -126,7 +157,25 @@ export function LendingRequestForm({
     return (
       <form noValidate onSubmit={form.handleSubmit(handleSubmitLendingRequest)}>
         <Stack>
-          {selected && (
+          {selected && mode === 'return' && (
+            <RequestDetailsSummary
+              today={bangkokIsoDate()}
+              record={{
+                ...selected,
+                kind: 'ยืม',
+                date: selected.start || '',
+                due: selected.due || '',
+                status: selected.status || 'กำลังยืม',
+                borrower: selected.borrower || form.watch('borrower'),
+              }}
+            />
+          )}
+          {selected && mode === 'return' && selected.adminComment && (
+            <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              คอมเมนต์จากแอดมิน: {selected.adminComment}
+            </Text>
+          )}
+          {selected && mode !== 'return' && (
             <>
               <Paper
                 withBorder

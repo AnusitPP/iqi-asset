@@ -1,4 +1,5 @@
 'use client';
+import { SearchInput } from '@/components/core/search-input';
 import {
   Badge,
   Button,
@@ -7,18 +8,22 @@ import {
   SimpleGrid,
   Stack,
   Text,
-  TextInput,
   Box,
   UnstyledButton,
   Title,
   Table,
   ScrollArea,
 } from '@mantine/core';
-import { Package, Search, LayoutGrid, List, RotateCcw } from 'lucide-react';
-import { Image } from '@mantine/core';
+import { ResetFiltersButton } from '@/components/core/action-buttons';
 import { useQuery } from '@tanstack/react-query';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
+import { BorrowedEquipmentCard } from '@/components/core/borrowed-equipment-card';
+import { RequestStatusBadge } from '@/components/core/request-status-badge';
+import { EquipmentCard } from '@/components/core/equipment-card';
+import { CatalogPhoto } from '@/components/core/catalog-photo';
+import { ViewToggle } from '@/components/core/view-toggle';
 import { catalogCategory, matchCatalog } from '@shared/features/catalog/search.js';
 import { catalogService } from '@/services/catalog.service';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -39,6 +44,11 @@ export function LendingCatalogPicker({
   heading?: string;
 }) {
   const { api, user } = useAuthSession();
+  const [today, setToday] = useState(() => bangkokIsoDate());
+  useEffect(() => {
+    const timer = setInterval(() => setToday(bangkokIsoDate()), 60000);
+    return () => clearInterval(timer);
+  }, []);
   const action = mode === 'loan' ? 'ยืม' : 'คืน';
   const [query, setQuery] = useWorkspaceState(`${mode}-catalog-query`, '');
   const [category, setCategory] = useState('');
@@ -85,8 +95,8 @@ export function LendingCatalogPicker({
           <Paper withBorder radius="lg" p={{ base: 'sm', sm: 'lg' }} shadow="xs">
             <Stack gap="sm">
               <Group align="center" gap="xs">
-                <TextInput
-                  leftSection={<Search size={18} aria-hidden="true" />}
+                <SearchInput
+                  iconSize={18}
                   flex="1 1 280px"
                   miw={200}
                   aria-label="ค้นหาอุปกรณ์"
@@ -96,38 +106,15 @@ export function LendingCatalogPicker({
                   onChange={(event) => setQuery(event.currentTarget.value)}
                 />
 
-                <Button
-                  type="button"
-                  variant="default"
-                  px="xs"
-                  aria-label="ล้างตัวกรอง"
-                  title="ล้างตัวกรอง"
+                <ViewToggle value={view} onChange={setView} />
+                <ResetFiltersButton
+                  ml="auto"
                   disabled={disabled}
                   onClick={() => {
                     setQuery('');
                     setCategory('');
                   }}
-                >
-                  <RotateCcw size={16} aria-hidden="true" />
-                </Button>
-                <Button.Group>
-                  <Button
-                    leftSection={<LayoutGrid size={16} aria-hidden="true" />}
-                    variant={view === 'grid' ? 'filled' : 'default'}
-                    aria-pressed={view === 'grid'}
-                    onClick={() => setView('grid')}
-                  >
-                    การ์ด
-                  </Button>
-                  <Button
-                    leftSection={<List size={16} aria-hidden="true" />}
-                    variant={view === 'list' ? 'filled' : 'default'}
-                    aria-pressed={view === 'list'}
-                    onClick={() => setView('list')}
-                  >
-                    รายการ
-                  </Button>
-                </Button.Group>
+                />
               </Group>
               <ScrollArea type="auto" offsetScrollbars>
                 <Group wrap="nowrap" gap="xs" pb={4}>
@@ -274,15 +261,10 @@ export function LendingCatalogPicker({
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Badge
-                          color="green"
-                          variant="light"
-                          leftSection={
-                            <Box w={6} h={6} bg="green" style={{ borderRadius: '50%' }} />
-                          }
-                        >
-                          {mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
-                        </Badge>
+                        <RequestStatusBadge
+                          status={mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
+                          size="xs"
+                        />
                       </Table.Td>
                       <Table.Td>
                         <Button
@@ -313,80 +295,77 @@ export function LendingCatalogPicker({
             cols={view === 'grid' ? { base: 1, xs: 2, sm: 3, lg: 4, xl: 6 } : 1}
             spacing="sm"
           >
-            {visible.map((record) => (
-              <Paper
-                key={record.row}
-                withBorder
-                radius="lg"
-                shadow="xs"
-                style={{
-                  minWidth: 0,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <UnstyledButton
-                  type="button"
-                  disabled={disabled}
-                  aria-label={`${action} ${record.name} ${record.asset}`}
-                  onClick={() => onSelect(record)}
-                  style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 1 }}
-                />
-                <Box
-                  bg="var(--mantine-color-gray-0)"
-                  h={150}
-                  style={{ position: 'relative', flexShrink: 0 }}
-                >
-                  <CatalogPhoto
-                    key={record.photo}
-                    url={record.photo}
-                    name={record.name}
-                    height={150}
-                  />
-                  <Group
-                    justify="space-between"
-                    gap={4}
-                    style={{ position: 'absolute', top: 8, left: 8, right: 8 }}
-                  >
-                    <Badge
-                      color="gray"
-                      variant="white"
-                      radius="sm"
-                      maw="55%"
-                      title={record.asset}
-                      styles={{ label: { textTransform: 'none' } }}
+            {visible.map((record) =>
+              mode === 'return' ? (
+                <BorrowedEquipmentCard
+                  key={record.row}
+                  id={record.loanId || ''}
+                  today={today}
+                  record={{
+                    ...record,
+                    kind: 'ยืม',
+                    date: record.start || '',
+                    due: record.due || '',
+                    status: record.status || 'กำลังยืม',
+                  }}
+                  overlay={
+                    <UnstyledButton
+                      type="button"
+                      disabled={disabled}
+                      aria-label={`${action} ${record.name} ${record.asset}`}
+                      onClick={() => onSelect(record)}
+                      style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 1 }}
+                    />
+                  }
+                  action={
+                    <Button
+                      fullWidth
+                      size="sm"
+                      type="button"
+                      disabled={disabled}
+                      style={{ position: 'relative', zIndex: 2 }}
+                      aria-label={`${action} ${record.name} ${record.asset} ${record.serial}`}
+                      onClick={() => onSelect(record)}
                     >
-                      {record.asset}
-                    </Badge>
-                    <Badge color="green" variant="light" size="xs">
-                      {mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
-                    </Badge>
-                  </Group>
-                </Box>
-                <Stack gap="xs" p="sm" style={{ flex: 1, minWidth: 0 }}>
-                  <Text
-                    size="xs"
-                    c="portalGreen.6"
-                    fw={600}
-                    truncate
-                    title={catalogCategory(record.name)}
-                  >
-                    {catalogCategory(record.name)}
-                  </Text>
-                  <Text size="sm" fw={700} lineClamp={2} mih={44} lh="22px" title={record.name}>
-                    {record.name || 'ไม่ระบุชื่ออุปกรณ์'}
-                  </Text>
-                  <Text size="xs" c="dimmed" truncate title={record.serial}>
-                    S/N: {record.serial || '—'}
-                  </Text>
-                  <Box
-                    mt="auto"
-                    pt="sm"
-                    style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}
-                  >
+                      คืนอุปกรณ์นี้
+                    </Button>
+                  }
+                />
+              ) : (
+                <EquipmentCard
+                  key={record.row}
+                  photo={record.photo}
+                  name={record.name || 'ไม่ระบุชื่ออุปกรณ์'}
+                  category={catalogCategory(record.name)}
+                  detail={`S/N: ${record.serial || '—'}`}
+                  overlay={
+                    <UnstyledButton
+                      type="button"
+                      disabled={disabled}
+                      aria-label={`${action} ${record.name} ${record.asset}`}
+                      onClick={() => onSelect(record)}
+                      style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 1 }}
+                    />
+                  }
+                  badges={
+                    <>
+                      <Badge
+                        color="gray"
+                        variant="filled"
+                        radius="sm"
+                        maw="55%"
+                        title={record.asset}
+                        styles={{ label: { textTransform: 'none' } }}
+                      >
+                        {record.asset}
+                      </Badge>
+                      <RequestStatusBadge
+                        status={mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
+                        size="xs"
+                      />
+                    </>
+                  }
+                  action={
                     <Button
                       fullWidth
                       size="sm"
@@ -398,61 +377,13 @@ export function LendingCatalogPicker({
                     >
                       {mode === 'loan' ? 'ขอยืมอุปกรณ์นี้' : 'คืนอุปกรณ์นี้'}
                     </Button>
-                  </Box>
-                </Stack>
-              </Paper>
-            ))}
+                  }
+                />
+              ),
+            )}
           </SimpleGrid>
         )}
       </Stack>
     );
   }
-}
-
-export function CatalogPhoto({
-  url,
-  name,
-  height = 160,
-}: {
-  url?: string;
-  name: string;
-  height?: number;
-}) {
-  const [failed, setFailed] = useState(false);
-  let id: string | null = null;
-  try {
-    const link = new URL(url ?? '');
-    if (link.protocol === 'https:' && link.hostname === 'drive.google.com') {
-      id = link.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] ?? link.searchParams.get('id');
-    }
-  } catch {
-    /* Missing or invalid sheet link uses the placeholder. */
-  }
-  if (!id || !/^[\w-]+$/.test(id) || failed) {
-    return (
-      <Box
-        w="100%"
-        h={height}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Package
-          size={Math.min(64, Math.round(height * 0.65))}
-          style={{ flexShrink: 0, display: 'block' }}
-          strokeWidth={1}
-          aria-label="ไม่มีภาพอุปกรณ์"
-        />
-      </Box>
-    );
-  }
-  return (
-    <Image
-      src={`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w600`}
-      alt={name || 'รูปอุปกรณ์'}
-      h={height}
-      fit="contain"
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
-    />
-  );
 }

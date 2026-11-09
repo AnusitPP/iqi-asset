@@ -23,6 +23,7 @@ frontend/
       audit/                Audit Log, filters, before/after details
     services/               API calls แยกหมวด
     components/             workspace, avatar และ UI ที่ใช้ร่วมกัน
+      core/                 EquipmentCard, CatalogPhoto, ViewToggle และ SearchInput
     providers/              Mantine, Query, auth, unsaved และ toast
     types/                  Zod response contracts และ TS declarations
   tests/                    unit/component regression tests
@@ -59,3 +60,29 @@ Express standalone ให้บริการเฉพาะ API ไม่เ�
 ## IT Service Portal
 
 หน้า `/` เป็น Home ของบริการไอที และใช้ navigation กลางที่ `frontend/src/config/navigation.ts` ร่วมกับ sidebar, breadcrumbs และ module cards หน้าทำงานเดิมยังใช้ routes เดิม ส่วน `/services/[service]` ใช้เฉพาะบริการที่ระบุว่าอยู่ระหว่างพัฒนา ดู [รายงาน redesign และรายการไฟล์/route](it-service-portal-redesign.md)
+
+## Component ที่ใช้หลายฟีเจอร์
+
+ใช้ `frontend/src/components/core/` สำหรับ UI ที่ใช้ข้ามฟีเจอร์:
+
+- `EquipmentCard`: โครงสร้างการ์ดอุปกรณ์ร่วมกัน หน้ายืมและรายการของฉันส่ง badges และปุ่มตามงานของตน
+- `CatalogPhoto`: รูป Drive พร้อมตรวจ URL และภาพสำรอง ใช้ใน catalog, ฟอร์ม และรายละเอียดคำขอ
+- `ViewToggle`: ปุ่มการ์ด/รายการ พร้อมสถานะ aria-pressed
+- `SearchInput`: ช่องค้นหาและไอคอนกลาง โดยส่ง props ของ Mantine ตามแต่ละหน้า
+
+Business logic, permission และการส่ง API อยู่ใน features ตามเดิม ส่วนวันที่ ISO ของไทยใช้ `bangkokIsoDate` จาก shared เพื่อให้ backend และ frontend ตรวจวันเดียวกัน
+
+ปุ่มกลางเพิ่มเติมใน `components/core/`:
+
+- `CopyableText`: ข้อความพร้อมปุ่มคัดลอกแบบ Dashboard รวม fallback สำหรับ LAN และการแจ้งผล
+- `RefreshButton`: ปุ่มโหลดรายการล่าสุดแบบรายการของฉัน โดยแต่ละหน้าส่ง loading, disabled และ callback
+- `ResetFiltersButton`: ปุ่มล้างตัวกรองแบบ Dashboard ใช้ท้ายขวาของแถบตัวกรอง
+
+## สถานะยืม–คืนกลาง
+
+- เปลี่ยนคำแสดงผลและสีที่ `REQUEST_STATUS_PRESENTATION` ใน `shared/features/lending/status.js` โดยคง key ซึ่งเป็นค่าที่บันทึกในชีต
+- ตัวเลือกอนุมัติอยู่ใน `LOAN_APPROVAL_STATUSES` และ `RETURN_APPROVAL_STATUSES`; หน้าเว็บและ API ใช้ `approvalStatuses` เดียวกัน
+- `requestStatusValue` รวมกติกาการแสดงผลรายการคืนเก่าและรายการยืมที่คืนเสร็จแล้ว
+- รูปแบบ Badge แก้ที่ `frontend/src/components/core/request-status-badge.tsx`; catalog, การ์ด, รายการ และ modal ใช้ component นี้
+
+หน้า `/my-requests` และ `/returns` ใช้ `BorrowedEquipmentCard` และ `RequestDetailsSummary` ร่วมกัน; สไตล์รายละเอียดอยู่ใน `components/core/request-details.module.css` ส่วนหน้า return เก็บฟอร์มส่งคำขอคืนไว้ใน feature เดิม

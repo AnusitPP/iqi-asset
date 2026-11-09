@@ -1,4 +1,5 @@
 'use client';
+import { RefreshButton } from '@/components/core/action-buttons';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Group, Text, Badge, Box, Title } from '@mantine/core';
@@ -37,14 +38,12 @@ export function UsersPage() {
     <Box component="section">
       <Group justify="space-between" align="center" className="dash-heading">
         <Title order={1}>ผู้ใช้งาน</Title>
-        <Button
+        <RefreshButton
           loading={users.isFetching}
           onClick={() => {
             void users.refetch();
           }}
-        >
-          โหลดผู้ใช้งานล่าสุด
-        </Button>
+        />
       </Group>
       <UsersFiltersForm
         search={search}

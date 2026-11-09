@@ -116,7 +116,7 @@ test('hosted submissions share the instance queue and reject conflicting request
 test('hosted loan and return submissions save and reuse the same request ID', async () => {
   const { service, grids } = make({ hosted: true });
   const loan = await service.borrowForm(form);
-  assert.match(loan.id, /^L-/);
+  assert.match(loan.id, /^STeP-IQI-L\d{8}-\d{6}-[A-Z0-9]{5}$/);
   assert.deepEqual(await service.borrowForm(form), { id: loan.id, unchanged: true });
   const returning = {
     requestId: 'hosted-return-001',
@@ -128,7 +128,7 @@ test('hosted loan and return submissions save and reuse the same request ID', as
     notes: '',
   };
   const returned = await service.returnForm(returning);
-  assert.match(returned.id, /^R-/);
+  assert.match(returned.id, /^STeP-IQI-R\d{8}-\d{6}-[A-Z0-9]{5}$/);
   assert.deepEqual(await service.returnForm(returning), { id: returned.id, unchanged: true });
   assert.equal(grids.loans.length, 2);
   assert.equal(grids.returns.length, 2);

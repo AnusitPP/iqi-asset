@@ -1,3 +1,4 @@
+import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 export function registerCatalogRoutes(app, { lendingLedger }) {
   app.get('/api/loan-catalog', async (req, res, next) => {
     try {
@@ -17,6 +18,9 @@ export function registerCatalogRoutes(app, { lendingLedger }) {
           (entry) => entry.actor_user_id === req.user.id && entry.action === 'LOAN_CREATED',
         ).map((entry) => entry.entity_id),
       );
+      const catalog = lendingLedger.adapter?.readReadyToBorrow
+        ? readyToBorrowData(await lendingLedger.adapter.readReadyToBorrow()).records
+        : [];
       return res.json({
         records: state.active
           .filter(
@@ -31,6 +35,17 @@ export function registerCatalogRoutes(app, { lendingLedger }) {
             serial: row[8] || '',
             name: row[9] || '',
             team: row[4] || '',
+            loanId: row[0],
+            start: row[11] || '',
+            due: row[12] || '',
+            status: row[14] || '',
+            borrower: row[3] || '',
+            purpose: row[10] || '',
+            notes: row[13] || '',
+            adminComment: row[19] || '',
+            photo:
+              catalog.find((record) => record.asset === row[7] && record.serial === (row[8] || ''))
+                ?.photo || '',
           })),
       });
     } catch (error) {

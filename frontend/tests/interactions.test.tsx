@@ -193,7 +193,7 @@ describe('migrated interactions', () => {
       onlineManager.setOnline(true);
     });
     expect(dashboardReads()).toBe(1);
-    await user.click(screen.getByRole('button', { name: 'โหลดข้อมูลล่าสุด' }));
+    await user.click(screen.getByRole('button', { name: 'โหลดรายการล่าสุด' }));
     await waitFor(() => expect(dashboardReads()).toBe(2));
     view.unmount();
     const remounted = renderWithAppProviders(<DashboardPage />, client);

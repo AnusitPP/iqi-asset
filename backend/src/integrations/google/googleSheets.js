@@ -194,12 +194,12 @@ export class GoogleSheets {
   async readLoanSheets() {
     const { data } = await this.api.spreadsheets.values.batchGet({
       spreadsheetId: this.config.spreadsheetId,
-      ranges: ["'รายการยืมครุภัณฑ์'!A:T", "'รายการคืนครุภัณฑ์'!A:S"],
+      ranges: ["'รายการยืมครุภัณฑ์'!A:U", "'รายการคืนครุภัณฑ์'!A:T"],
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return { loans: data.valueRanges[0].values || [], returns: data.valueRanges[1].values || [] };
   }
-  async updateReturnStatus(id, status, responsible, condition) {
+  async updateReturnStatus(id, status, responsible, condition, comment) {
     const grid = await this.readLoanSheets();
     const matches = grid.returns.flatMap((row, index) => (row[0] === id ? [index] : []));
     if (matches.length !== 1 || matches[0] < 1)
@@ -211,6 +211,8 @@ export class GoogleSheets {
         values: [[condition || grid.returns[index][13] || '', status, responsible]],
       },
     ];
+    if (comment !== undefined)
+      updates.push(...this.commentUpdates('รายการคืนครุภัณฑ์', grid.returns, index + 1, comment));
     if (status === 'เสร็จสิ้น') {
       const { indices } = loanColumnMapping(grid.loans[0]);
       const loans = grid.loans.flatMap((row, i) =>
@@ -232,7 +234,7 @@ export class GoogleSheets {
       requestBody: { valueInputOption: 'RAW', data: updates },
     });
   }
-  async updateLoanStatus(id, status, responsible) {
+  async updateLoanStatus(id, status, responsible, comment) {
     const data = await this.readLoanSheets();
     const { indices } = loanColumnMapping(data.loans[0]);
     const indexes = data.loans.flatMap((row, index) =>
@@ -245,6 +247,9 @@ export class GoogleSheets {
       requestBody: {
         valueInputOption: 'RAW',
         data: [
+          ...(comment === undefined
+            ? []
+            : this.commentUpdates('รายการยืมครุภัณฑ์', data.loans, indexes[0], comment)),
           {
             range: `'รายการยืมครุภัณฑ์'!${columnName(indices[14])}${indexes[0]}`,
             values: [[status]],
@@ -256,6 +261,14 @@ export class GoogleSheets {
         ],
       },
     });
+  }
+  commentUpdates(title, grid, row, comment) {
+    const existing = grid[0].indexOf('comment');
+    const column = columnName(existing < 0 ? grid[0].length : existing);
+    return [
+      ...(existing < 0 ? [{ range: `${quote(title)}!${column}1`, values: [['comment']] }] : []),
+      { range: `${quote(title)}!${column}${row}`, values: [[comment]] },
+    ];
   }
   async appendLoanRows(kind, rows, { email = '' } = {}) {
     const title = kind === 'loans' ? 'รายการยืมครุภัณฑ์' : 'รายการคืนครุภัณฑ์';

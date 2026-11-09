@@ -1,8 +1,8 @@
+import { createRequestNumber } from '../../core/lending/request-number.js';
 import {
   LENDING_REQUEST_TYPE,
   LENDING_STATUS,
 } from '../../../../shared/features/lending/status.js';
-import { randomUUID } from 'node:crypto';
 import { formatBangkokTimestamp as currentBangkokTimestamp } from '../../../../shared/core/extensions/dates.js';
 import { throwHttpError } from '../../core/errors/errors.js';
 import { validateIsoDate } from '../../core/validation/values.js';
@@ -50,7 +50,7 @@ export class ReturnRequestService {
           throwHttpError(409, 'รายการนี้ส่งคำขอคืนแล้ว ไม่สามารถคืนซ้ำได้');
         if (loan[14] !== 'กำลังยืม') throwHttpError(409, 'คืนได้เฉพาะรายการที่อยู่ในสถานะกำลังยืม');
       }
-      const id = 'R-' + randomUUID();
+      const id = createRequestNumber('R', ledgerState.returns);
       await this.ledger.adapter.appendLoanRows('returns', [
         [
           id,

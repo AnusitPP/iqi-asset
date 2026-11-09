@@ -1,3 +1,5 @@
+import { bangkokIsoDate } from '../../../../shared/core/extensions/dates.js';
+import { createRequestNumber } from '../../core/lending/request-number.js';
 import { assetIdentityKey } from '../../../../shared/features/catalog/search.js';
 import {
   LENDING_REQUEST_TYPE,
@@ -28,12 +30,7 @@ export class LoanRequestService {
       if (email && (email.length > 254 || !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(email)))
         throwHttpError(400, 'อีเมลผู้ยืมไม่ถูกต้อง');
       if (requestData.due < requestData.start) throwHttpError(400, 'กำหนดคืนต้องไม่ก่อนวันที่ยืม');
-      const today = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Bangkok',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date());
+      const today = bangkokIsoDate();
       if (requestData.start < today) throwHttpError(400, 'วันที่ยืมต้องไม่ย้อนหลัง');
       if ((Date.parse(requestData.due) - Date.parse(requestData.start)) / 86400000 > 7)
         throwHttpError(400, 'กำหนดคืนต้องไม่เกิน 7 วันหลังวันยืม');
@@ -65,7 +62,7 @@ export class LoanRequestService {
         )
       )
         throwHttpError(409, 'อุปกรณ์นี้มีรายการยืมค้างอยู่');
-      const id = 'L-' + randomUUID();
+      const id = createRequestNumber('L', ledgerState.loans);
       await this.ledger.adapter.appendLoanRows(
         'loans',
         [

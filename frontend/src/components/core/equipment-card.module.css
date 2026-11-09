@@ -1,0 +1,31 @@
+.banners {
+  position: absolute;
+  inset: 0 0 auto;
+  gap: 0;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+.banners > :global(.mantine-Badge-root) {
+  height: 30px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 800;
+  max-width: 66%;
+  text-transform: none;
+  color: white;
+}
+.banners > :global(.mantine-Badge-root):first-child {
+  clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 100%, 0 100%);
+  padding-left: 10px;
+  padding-right: 21px;
+}
+.banners > :global(.mantine-Badge-root):last-child {
+  margin-left: auto;
+  max-width: 48%;
+  clip-path: polygon(13px 0, 100% 0, 100% 100%, 0 100%);
+  padding-left: 21px;
+  padding-right: 10px;
+}

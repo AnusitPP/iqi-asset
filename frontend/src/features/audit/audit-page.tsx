@@ -1,4 +1,5 @@
 'use client';
+import { RefreshButton } from '@/components/core/action-buttons';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Group, Text, Box, Title } from '@mantine/core';
@@ -47,14 +48,12 @@ export function AuditPage() {
     <Box component="section">
       <Group justify="space-between" align="center" className="dash-heading">
         <Title order={1}>Audit Log</Title>
-        <Button
+        <RefreshButton
           loading={audit.isFetching}
           onClick={() => {
             void audit.refetch();
           }}
-        >
-          โหลดประวัติล่าสุด
-        </Button>
+        />
       </Group>
       <AuditFilters
         query={query}

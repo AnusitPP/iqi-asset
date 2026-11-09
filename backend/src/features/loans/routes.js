@@ -1,3 +1,4 @@
+import { approvalStatuses } from '../../../../shared/features/lending/status.js';
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
@@ -53,6 +54,7 @@ export function registerLoansRoutes(
           due: row[12] || '',
           purpose: row[10] || '',
           notes: row[13] || '',
+          adminComment: row[19] || '',
           team: row[4] || '',
           borrower: row[3] || '',
           photo: photo(row[7], row[8]),
@@ -74,6 +76,7 @@ export function registerLoansRoutes(
           due: '',
           purpose: '',
           notes: row[12] || '',
+          adminComment: row[19] || '',
           team: row[5] || '',
           borrower: row[4] || '',
           photo: photo(row[8], row[9]),
@@ -89,10 +92,11 @@ export function registerLoansRoutes(
     try {
       if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
         return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดำเนินการนี้' });
+      const comment = req.body?.adminComment;
+      if (comment !== undefined && (typeof comment !== 'string' || comment.length > 2000))
+        return res.status(400).json({ error: 'คอมเมนต์ต้องเป็นข้อความไม่เกิน 2000 ตัวอักษร' });
       const returning = req.body?.kind === 'คืน';
-      const statuses = returning
-        ? ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
-        : ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก', 'กำลังยืม'];
+      const statuses = approvalStatuses(returning ? 'คืน' : 'ยืม');
       if (!statuses.includes(req.body?.status))
         return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
       await lendingLedger.withWriteLock(async () => {
@@ -118,12 +122,14 @@ export function registerLoansRoutes(
             req.body.status,
             req.user.name,
             req.body.condition,
+            comment,
           );
         } else
           await lendingLedger.adapter.updateLoanStatus(
             req.params.id,
             req.body.status,
             req.user.name,
+            comment,
           );
         await req.authStorage.write([
           auditEntry(

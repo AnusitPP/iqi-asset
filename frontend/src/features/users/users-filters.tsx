@@ -1,6 +1,7 @@
 'use client';
-import { Search } from 'lucide-react';
-import { Button, Group, Paper, TextInput, NativeSelect } from '@mantine/core';
+import { ResetFiltersButton } from '@/components/core/action-buttons';
+import { SearchInput } from '@/components/core/search-input';
+import { Button, Group, Paper, NativeSelect } from '@mantine/core';
 import { roleSchema, userStatusSchema } from '@/types/account';
 
 export type UsersFilters = { search: string; role: string; status: string };
@@ -26,10 +27,10 @@ export function UsersFiltersForm({
         }}
       >
         <Group align="center" gap="xs">
-          <TextInput
+          <SearchInput
             aria-label="ค้นหาผู้ใช้งาน"
             placeholder="ค้นหาชื่อหรืออีเมล"
-            leftSection={<Search size={14} />}
+            iconSize={14}
             flex={{ base: '1 1 100%', sm: '1 1 240px' }}
             styles={{ input: { height: 40 } }}
             maxLength={400}
@@ -55,17 +56,7 @@ export function UsersFiltersForm({
           <Button type="submit" color="dark" h={40} px="lg">
             ค้นหา
           </Button>
-          <Button
-            variant="default"
-            type="button"
-            h={40}
-            px="lg"
-            bg="gray.0"
-            c="dimmed"
-            onClick={onReset}
-          >
-            ล้างตัวกรอง
-          </Button>
+          <ResetFiltersButton ml="auto" onClick={onReset} />
         </Group>
       </form>
     </Paper>

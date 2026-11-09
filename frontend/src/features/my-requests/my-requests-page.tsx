@@ -1,16 +1,24 @@
 'use client';
+import { RefreshButton, ResetFiltersButton } from '@/components/core/action-buttons';
+import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
+import { SearchInput } from '@/components/core/search-input';
 import { useEffect, useState } from 'react';
+import { Layers, ClipboardCheck, MessageSquare, Save } from 'lucide-react';
+import { CopyableText } from '@/components/core/copyable-text';
+import { ViewToggle } from '@/components/core/view-toggle';
+import styles from '@/components/core/request-details.module.css';
 import { z } from 'zod';
 import { myRequestsSchema } from '@/types/account';
-import { CatalogPhoto } from '@/features/lending/catalog-picker';
+import { CatalogPhoto } from '@/components/core/catalog-photo';
 import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/dates.js';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import {
+  Checkbox,
   Button,
   Paper,
   Stack,
   Text,
-  Badge,
+  Textarea,
   Box,
   Group,
   Title,
@@ -20,16 +28,28 @@ import {
   SimpleGrid,
 } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
+import { BorrowedEquipmentCard } from '@/components/core/borrowed-equipment-card';
+import { RequestDetailsSummary } from '@/components/core/request-details-summary';
+import { RequestStatusBadge } from '@/components/core/request-status-badge';
+import {
+  approvalStatuses,
+  requestStatusValue,
+  requestStatusPresentation,
+} from '@shared/features/lending/status.js';
 import { lendingStatusColor } from '@/lib/lending-status';
 import { myRequestsService } from '@/services/my-requests.service';
 import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
 export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const client = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [currentLoansOnly, setCurrentLoansOnly] = useState(true);
   const [requestKind, setRequestKind] = useState('ยืม');
   const [statusFilter, setStatusFilter] = useState('');
-  const [sort, setSort] = useState('newest');
+  const [view, setView] = useState('grid');
+  const [sort, setSort] = useState(approvals ? 'newest' : 'due');
   const [conditionError, setConditionError] = useState('');
   const [conditions, setConditions] = useState<Record<string, string>>({});
+  const [comment, setComment] = useState('');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [details, setDetails] = useState<
     z.infer<typeof myRequestsSchema>['records'][number] | null
@@ -39,12 +59,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-  const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
+  const today = bangkokIsoDate(now);
   const displayDate = (value: string) =>
     isIsoCalendarDate(value)
       ? new Date(value + 'T00:00:00+07:00').toLocaleDateString('th-TH', {
@@ -80,6 +95,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   }, [readKey]);
   const openDetails = (entry: z.infer<typeof myRequestsSchema>['records'][number]) => {
     setDetails(entry);
+    setComment(entry.adminComment);
     setConditionError('');
     update.reset();
     const id = `${entry.kind}:${entry.id}`;
@@ -108,7 +124,10 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
       api.request(
         `/api/approval-requests/${encodeURIComponent(id)}`,
         z.object({ id: z.string() }),
-        { method: 'PATCH', body: { status, kind: requestKind, condition: conditions[id] } },
+        {
+          method: 'PATCH',
+          body: { status, kind: requestKind, condition: conditions[id], adminComment: comment },
+        },
       ),
     onSuccess: async (_result, variables) => {
       setDetails(null);
@@ -133,39 +152,68 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const kindRequests = (requests.data?.records ?? []).filter(
     (entry) => !approvals || entry.kind === requestKind,
   );
-  const displayStatus = (entry: z.infer<typeof myRequestsSchema>['records'][number]) =>
-    entry.kind === 'คืน'
-      ? (({ รอรับคืน: 'รอดำเนินการ', รับคืนแล้ว: 'เสร็จสิ้น' } as Record<string, string>)[
-          entry.status
-        ] ?? entry.status)
-      : entry.completed
-        ? 'เสร็จสิ้น'
-        : entry.status;
+  const displayStatus = requestStatusValue;
+  const searchTerms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const dueTime = (entry: z.infer<typeof myRequestsSchema>['records'][number]) =>
+    entry.kind === 'ยืม' &&
+    !entry.completed &&
+    !['ไม่อนุมัติ', 'ยกเลิก', 'เสร็จสิ้น'].includes(entry.status) &&
+    isIsoCalendarDate(entry.due)
+      ? Date.parse(entry.due)
+      : Infinity;
   const visibleRequests = kindRequests
+    .filter(
+      (entry) =>
+        approvals ||
+        !currentLoansOnly ||
+        (entry.kind === 'ยืม' &&
+          !entry.completed &&
+          ['กำลังยืม', 'รอดำเนินการคืน'].includes(entry.status)),
+    )
+    .filter(
+      (entry) =>
+        approvals ||
+        searchTerms.every((term) =>
+          [
+            entry.name,
+            entry.asset,
+            entry.serial,
+            entry.id,
+            requestStatusPresentation(displayStatus(entry)).label,
+            entry.status,
+            entry.notes,
+            entry.adminComment,
+          ]
+            .join(' ')
+            .toLocaleLowerCase()
+            .includes(term),
+        ),
+    )
     .filter((entry) => !approvals || !statusFilter || displayStatus(entry) === statusFilter)
     .sort((a, b) =>
-      sort === 'oldest'
-        ? a.order - b.order
-        : sort === 'name'
-          ? a.name.localeCompare(b.name, 'th')
-          : b.order - a.order,
+      sort === 'due'
+        ? dueTime(a) === dueTime(b)
+          ? b.order - a.order
+          : dueTime(a) < dueTime(b)
+            ? -1
+            : 1
+        : sort === 'oldest'
+          ? a.order - b.order
+          : sort === 'name'
+            ? a.name.localeCompare(b.name, 'th')
+            : b.order - a.order,
     );
-  const summaryStatuses =
-    requestKind === 'คืน'
-      ? ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น']
-      : ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก', 'กำลังยืม'];
+  const summaryStatuses = approvalStatuses(requestKind);
   return (
     <Box component="section">
       <Group justify="space-between" align="center" className="dash-heading">
         <Title order={1}>{approvals ? 'คำขออนุมัติ' : 'รายการของฉัน'}</Title>
-        <Button
+        <RefreshButton
           loading={requests.isFetching}
           onClick={() => {
             void requests.refetch();
           }}
-        >
-          โหลดรายการล่าสุด
-        </Button>
+        />
       </Group>
       {approvals && (
         <Tabs
@@ -208,7 +256,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
               }}
             >
               <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                <Text size="sm">{status}</Text>
+                <Text size="sm">{requestStatusPresentation(status).label}</Text>
                 <Text size="28px" fw={700} lh={1.2}>
                   {requests.isPending
                     ? '—'
@@ -241,6 +289,55 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
           />
         </Group>
       )}
+      {!approvals && (
+        <Paper withBorder p="md" radius="lg" mb="md">
+          <Stack gap="sm">
+            <Group align="flex-end" gap="lg">
+              <SearchInput
+                style={{ flex: '1 1 320px' }}
+                label="ค้นหารายการของฉัน"
+                placeholder="ชื่ออุปกรณ์ เลขครุภัณฑ์ S/N หรือเลขคำขอ"
+                iconSize={18}
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+              />
+              <Group gap="xs" wrap="nowrap">
+                <Select
+                  id="own-request-sort"
+                  aria-label="เรียงลำดับรายการของฉัน"
+                  w={170}
+                  value={sort}
+                  allowDeselect={false}
+                  onChange={(value) => {
+                    if (value) setSort(value);
+                  }}
+                  data={[
+                    { value: 'due', label: 'ใกล้กำหนดคืนก่อน' },
+                    { value: 'newest', label: 'ใหม่สุดก่อน' },
+                    { value: 'oldest', label: 'เก่าสุดก่อน' },
+                    { value: 'name', label: 'ชื่ออุปกรณ์' },
+                  ]}
+                />
+              </Group>
+              <Group gap="xs" wrap="nowrap">
+                <ViewToggle value={view} onChange={setView} />
+                <ResetFiltersButton
+                  onClick={() => {
+                    setSearch('');
+                    setSort('due');
+                    setCurrentLoansOnly(true);
+                  }}
+                />
+              </Group>
+            </Group>
+            <Checkbox
+              label="แสดงรายการที่ยืมปัจจุบัน"
+              checked={currentLoansOnly}
+              onChange={(event) => setCurrentLoansOnly(event.currentTarget.checked)}
+            />
+          </Stack>
+        </Paper>
+      )}
       <ErrorAlert error={requests.error} />
       <ErrorAlert error={update.error} />
       {requests.isPending ? (
@@ -250,148 +347,189 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
           <Text role="status">
             {visibleRequests.length
               ? `พบ ${visibleRequests.length} รายการ`
-              : 'ยังไม่มีรายการของคุณ'}
+              : approvals
+                ? 'ยังไม่มีรายการของคุณ'
+                : 'ไม่พบรายการที่ตรงกับตัวกรอง'}
           </Text>
-          {visibleRequests.map((entry) => (
-            <Paper
-              key={`${entry.kind}-${entry.id}`}
-              withBorder
-              p="sm"
-              radius="lg"
-              style={{ position: 'relative' }}
-            >
-              {readState.key === readKey &&
-                !readState.ids.includes(`${entry.kind}:${entry.id}`) && (
-                  <Box
-                    component="span"
-                    role="img"
-                    aria-label="ยังไม่ได้อ่าน"
-                    title="ยังไม่ได้อ่าน"
-                    w={10}
-                    h={10}
-                    bg="red.6"
-                    style={{
-                      position: 'absolute',
-                      top: 2,
-                      right: 8,
-                      transform: 'translate(50%, -50%)',
-                      borderRadius: '50%',
-                      boxShadow: '0 0 0 2px var(--mantine-color-body)',
-                    }}
-                  />
-                )}
-              <Group wrap="wrap" gap="md" align="center">
-                <Group wrap="nowrap" style={{ flex: '2 1 240px', minWidth: 0 }}>
-                  <Box
-                    w={56}
-                    bg="gray.0"
-                    style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden' }}
-                  >
-                    <CatalogPhoto
-                      key={entry.photo}
-                      url={entry.photo}
-                      name={entry.name}
-                      height={56}
-                    />
-                  </Box>
-                  <Stack gap={3} style={{ minWidth: 0 }}>
-                    <Text fw={600} size="sm" lineClamp={2}>
-                      {entry.name || entry.asset}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {entry.asset} · S/N: {entry.serial || '—'}
-                    </Text>
-                  </Stack>
-                </Group>
-                {approvals && (
-                  <Stack gap={3} style={{ flex: '1 1 150px', minWidth: 0 }}>
-                    <Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>
-                      ผู้ขอ: {entry.borrower || '—'}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      ทีม: {entry.team || '—'}
-                    </Text>
-                  </Stack>
-                )}
-                <Stack gap={3} style={{ flex: '1 1 150px' }}>
-                  <Text size="xs">
-                    {entry.kind === 'ยืม' ? 'วันที่ยืม' : 'วันที่คืน'}: {displayDate(entry.date)}
-                  </Text>
-                  {entry.due && <Text size="xs">กำหนดคืน: {displayDate(entry.due)}</Text>}
-                  {countdown(entry) && (
-                    <Text size="xs" fw={600} c={countdown(entry)!.color}>
-                      {countdown(entry)!.text}
-                    </Text>
-                  )}
-                </Stack>
-                <Badge
-                  color={lendingStatusColor(
-                    entry.completed && entry.kind === 'ยืม' ? 'เสร็จสิ้น' : entry.status,
-                  )}
+          <SimpleGrid
+            cols={approvals || view === 'list' ? 1 : { base: 1, xs: 2, sm: 3, lg: 4, xl: 6 }}
+            spacing="sm"
+          >
+            {visibleRequests.map((entry) =>
+              !approvals && view === 'grid' ? (
+                <BorrowedEquipmentCard
+                  key={`${entry.kind}-${entry.id}`}
+                  record={entry}
+                  id={entry.id}
+                  today={today}
+                  action={
+                    <Button fullWidth size="sm" onClick={() => openDetails(entry)}>
+                      ดูรายละเอียด
+                    </Button>
+                  }
+                  categoryIndicator={
+                    readState.key === readKey &&
+                    !readState.ids.includes(`${entry.kind}:${entry.id}`) && (
+                      <Box
+                        component="span"
+                        role="img"
+                        aria-label="ยังไม่ได้อ่าน"
+                        title="ยังไม่ได้อ่าน"
+                        w={10}
+                        h={10}
+                        bg="red.6"
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          right: 2,
+                          transform: 'translateY(-50%)',
+                          zIndex: 3,
+                          borderRadius: '50%',
+                        }}
+                      />
+                    )
+                  }
+                />
+              ) : (
+                <Paper
+                  key={`${entry.kind}-${entry.id}`}
+                  withBorder
+                  p="sm"
+                  radius="lg"
+                  style={{ position: 'relative' }}
                 >
-                  {entry.completed && entry.kind === 'ยืม' ? 'เสร็จสิ้น' : entry.status || '—'}
-                </Badge>
-                <Button size="xs" variant="outline" onClick={() => openDetails(entry)}>
-                  ดูรายละเอียด
-                </Button>
-              </Group>
-            </Paper>
-          ))}
+                  {readState.key === readKey &&
+                    !readState.ids.includes(`${entry.kind}:${entry.id}`) && (
+                      <Box
+                        component="span"
+                        role="img"
+                        aria-label="ยังไม่ได้อ่าน"
+                        title="ยังไม่ได้อ่าน"
+                        w={10}
+                        h={10}
+                        bg="red.6"
+                        style={{
+                          position: 'absolute',
+                          top: 2,
+                          right: 8,
+                          transform: 'translate(50%, -50%)',
+                          borderRadius: '50%',
+                        }}
+                      />
+                    )}
+                  <Group wrap="wrap" gap="md" align="center">
+                    <Group wrap="nowrap" style={{ flex: '2 1 240px', minWidth: 0 }}>
+                      <Box
+                        w={56}
+                        bg="gray.0"
+                        style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden' }}
+                      >
+                        <CatalogPhoto
+                          key={entry.photo}
+                          url={entry.photo}
+                          name={entry.name}
+                          height={56}
+                        />
+                      </Box>
+                      <Stack gap={3} style={{ minWidth: 0 }}>
+                        <Text fw={600} size="sm" lineClamp={2}>
+                          {entry.name || entry.asset}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {entry.asset} · S/N: {entry.serial || '—'}
+                        </Text>
+                      </Stack>
+                    </Group>
+                    {approvals && (
+                      <Stack gap={3} style={{ flex: '1 1 150px', minWidth: 0 }}>
+                        <Text size="sm" fw={600} style={{ overflowWrap: 'anywhere' }}>
+                          ผู้ขอ: {entry.borrower || '—'}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          ทีม: {entry.team || '—'}
+                        </Text>
+                      </Stack>
+                    )}
+                    <Stack gap={3} style={{ flex: '1 1 150px' }}>
+                      <Text size="xs">
+                        {entry.kind === 'ยืม' ? 'วันที่ยืม' : 'วันที่คืน'}:{' '}
+                        {displayDate(entry.date)}
+                      </Text>
+                      {entry.due && <Text size="xs">กำหนดคืน: {displayDate(entry.due)}</Text>}
+                      {countdown(entry) && (
+                        <Text size="xs" fw={600} c={countdown(entry)!.color}>
+                          {countdown(entry)!.text}
+                        </Text>
+                      )}
+                    </Stack>
+                    <RequestStatusBadge record={entry} />
+                    <Button size="xs" variant="outline" onClick={() => openDetails(entry)}>
+                      ดูรายละเอียด
+                    </Button>
+                  </Group>
+                </Paper>
+              ),
+            )}
+          </SimpleGrid>
         </Stack>
       )}
       <Modal
         opened={details !== null}
         onClose={() => setDetails(null)}
-        title="รายละเอียดรายการของฉัน"
+        title={
+          <Group gap="sm">
+            <Box className={styles.titleIcon}>
+              <Layers size={22} aria-hidden="true" />
+            </Box>
+            <Stack gap={2} style={{ minWidth: 0 }}>
+              <Text fw={700} size="lg">
+                รายละเอียดรายการของฉัน
+              </Text>
+              {details && (
+                <Text size="xs" c="dimmed" style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
+                  เลขคำขอ: <CopyableText key={details.id} value={details.id} />
+                </Text>
+              )}
+            </Stack>
+          </Group>
+        }
+        classNames={{ header: styles.header, body: styles.body, content: styles.content }}
         centered
-        size="lg"
+        size={680}
       >
         {details && (
-          <Stack>
-            <CatalogPhoto key={details.photo} url={details.photo} name={details.name} />
-            <Text fw={700}>{details.name || details.asset}</Text>
-            <Badge
-              color={lendingStatusColor(
-                details.completed && details.kind === 'ยืม' ? 'เสร็จสิ้น' : details.status,
-              )}
-            >
-              {details.completed && details.kind === 'ยืม' ? 'เสร็จสิ้น' : details.status || '—'}
-            </Badge>
-            <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <Text size="sm">เลขครุภัณฑ์: {details.asset}</Text>
-              <Text size="sm">S/N: {details.serial || '—'}</Text>
-              <Text size="sm">
-                วันที่{details.kind}: {displayDate(details.date)}
-              </Text>
-              <Text size="sm">กำหนดคืน: {displayDate(details.due)}</Text>
-            </SimpleGrid>
-            {countdown(details) && (
-              <Text c={countdown(details)!.color} fw={600}>
-                {countdown(details)!.text}
-              </Text>
-            )}
-            <Text size="sm">ผู้ขอ: {details.borrower || '—'}</Text>
-            <Text size="sm">ทีม: {details.team || '—'}</Text>
-            <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              เหตุผล: {details.purpose || '—'}
-            </Text>
-            <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              หมายเหตุ: {details.notes || '—'}
-            </Text>
+          <Stack gap="sm">
+            <RequestDetailsSummary record={details} today={today} />
             {approvals && !details.statusLocked && (
-              <Group gap="xs">
-                <Select
-                  aria-label={`สถานะ ${details.id}`}
-                  w={170}
-                  value={drafts[details.id] ?? details.status}
-                  data={[...new Set([details.status, ...summaryStatuses].filter(Boolean))]}
-                  disabled={update.isPending || !can('LOAN_APPROVE')}
-                  allowDeselect={false}
-                  onChange={(status) => {
-                    setConditionError('');
-                    if (status) setDrafts((previous) => ({ ...previous, [details.id]: status }));
-                  }}
-                />
+              <Stack className={styles.controls}>
+                <Box className={styles.statusRow}>
+                  <Group gap="sm">
+                    <ClipboardCheck className={styles.orangeIcon} aria-hidden="true" />
+                    <Text fw={700}>สถานะรายการ</Text>
+                  </Group>
+                  <Select
+                    aria-label={`สถานะ ${details.id}`}
+                    classNames={{ input: styles.statusInput }}
+                    value={drafts[details.id] ?? details.status}
+                    data={[
+                      ...new Set(
+                        [
+                          ...(details.status === 'กำลังดำเนินการ' ? [] : [details.status]),
+                          ...summaryStatuses,
+                        ].filter(Boolean),
+                      ),
+                    ].map((value) => ({
+                      value,
+                      label: requestStatusPresentation(value).label,
+                    }))}
+                    disabled={update.isPending || !can('LOAN_APPROVE')}
+                    allowDeselect={false}
+                    onChange={(status) => {
+                      setConditionError('');
+                      if (status) setDrafts((previous) => ({ ...previous, [details.id]: status }));
+                    }}
+                  />
+                </Box>
                 {details.kind === 'คืน' &&
                   (drafts[details.id] ?? details.status) === 'เสร็จสิ้น' && (
                     <Select
@@ -410,32 +548,57 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                       w={130}
                     />
                   )}
-                <Button
-                  size="xs"
-                  disabled={
-                    !drafts[details.id] ||
-                    drafts[details.id] === details.status ||
-                    update.isPending ||
-                    !can('LOAN_APPROVE')
+                <Textarea
+                  label={
+                    <Group gap="sm">
+                      <MessageSquare className={styles.orangeIcon} aria-hidden="true" />
+                      <Text fw={700}>คอมเมนต์จากแอดมิน</Text>
+                    </Group>
                   }
-                  loading={update.isPending && update.variables?.id === details.id}
-                  onClick={() => {
-                    const status = drafts[details.id] ?? details.status;
-                    if (
-                      details.kind === 'คืน' &&
-                      status === 'เสร็จสิ้น' &&
-                      !conditions[details.id]
-                    ) {
-                      setConditionError(details.id);
-                      return;
+                  value={comment}
+                  onChange={(event) => setComment(event.currentTarget.value)}
+                  maxLength={2000}
+                  minRows={2}
+                  autosize
+                  size="sm"
+                  disabled={update.isPending || !can('LOAN_APPROVE')}
+                />
+                <ErrorAlert error={update.error} />
+                <Group justify="flex-end" className={styles.footer}>
+                  <Button
+                    size="sm"
+                    className={styles.saveButton}
+                    leftSection={<Save size={19} aria-hidden="true" />}
+                    disabled={
+                      ((drafts[details.id] ?? details.status) === details.status &&
+                        comment === details.adminComment) ||
+                      update.isPending ||
+                      !can('LOAN_APPROVE')
                     }
-                    setConditionError('');
-                    update.mutate({ id: details.id, status });
-                  }}
-                >
-                  บันทึก
-                </Button>
-              </Group>
+                    loading={update.isPending && update.variables?.id === details.id}
+                    onClick={() => {
+                      const status = drafts[details.id] ?? details.status;
+                      if (
+                        details.kind === 'คืน' &&
+                        status === 'เสร็จสิ้น' &&
+                        !conditions[details.id]
+                      ) {
+                        setConditionError(details.id);
+                        return;
+                      }
+                      setConditionError('');
+                      update.mutate({ id: details.id, status });
+                    }}
+                  >
+                    บันทึก
+                  </Button>
+                </Group>
+              </Stack>
+            )}
+            {(!approvals || details.statusLocked) && (
+              <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                คอมเมนต์จากแอดมิน: {details.adminComment || '—'}
+              </Text>
             )}
 
             {conditionError === details.id && (
@@ -443,10 +606,6 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                 กรุณาระบุสภาพหลังคืน
               </Text>
             )}
-
-            <Text size="xs" c="dimmed" style={{ overflowWrap: 'anywhere' }}>
-              เลขคำขอ: {details.id}
-            </Text>
           </Stack>
         )}
       </Modal>

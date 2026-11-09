@@ -1,9 +1,5 @@
 'use client';
-import { useToast } from '@/providers/toast-provider';
-import { Alert, Button, Loader, Group } from '@mantine/core';
-import { copyTextToClipboard } from '@/lib/clipboard';
-import { Copy } from 'lucide-react';
-import { useState } from 'react';
+import { Alert, Loader, Group } from '@mantine/core';
 import { getErrorMessage } from '@/lib/api-client';
 export function ErrorAlert({ error }: { error: unknown }) {
   return error ? (
@@ -17,34 +13,5 @@ export function LoadingIndicator() {
     <Group justify="center" gap="sm" py="xl" role="status">
       <Loader size="sm" /> กำลังอ่านข้อมูลล่าสุด…
     </Group>
-  );
-}
-export function CopyableText({ value }: { value: string }) {
-  const { showToast } = useToast();
-  const [message, setMessage] = useState('');
-  return (
-    <span className="dash-copy-value">
-      <span>{value || '—'}</span>
-      {value && (
-        <Button
-          variant="subtle"
-          size="compact-xs"
-          aria-label={`คัดลอก ${value}`}
-          onClick={async () => {
-            try {
-              await copyTextToClipboard(value);
-              setMessage('คัดลอกแล้ว');
-              showToast('คัดลอกแล้ว');
-            } catch {
-              setMessage('คัดลอกไม่ได้ กรุณาเลือกข้อความแล้วคัดลอก');
-              showToast('คัดลอกไม่ได้ กรุณาเลือกข้อความแล้วคัดลอก');
-            }
-          }}
-        >
-          <Copy size={14} />
-        </Button>
-      )}
-      <span role="status">{message}</span>
-    </span>
   );
 }

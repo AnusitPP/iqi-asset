@@ -45,7 +45,10 @@ export const RETURN_HEADERS = [
 export function loanColumnMapping(headers = []) {
   const names = headers.map((value) => String(value).trim());
   if (
-    names.length !== LOAN_HEADERS.length + (names.includes('email') ? 1 : 0) ||
+    names.length !==
+      LOAN_HEADERS.length +
+        (names.includes('email') ? 1 : 0) +
+        (names.includes('comment') ? 1 : 0) ||
     LOAN_HEADERS.some((header) => names.filter((name) => name === header).length !== 1) ||
     names.filter((name) => name === 'email').length > 1
   )
@@ -58,5 +61,13 @@ export function loanColumnMapping(headers = []) {
 
 export function normalizeLoanGrid(values = []) {
   const { indices } = loanColumnMapping(values[0]);
-  return [LOAN_HEADERS, ...values.slice(1).map((row) => indices.map((index) => row[index] ?? ''))];
+  return [
+    LOAN_HEADERS,
+    ...values
+      .slice(1)
+      .map((row) => [
+        ...indices.map((index) => row[index] ?? ''),
+        ...(values[0].includes('comment') ? [row[values[0].indexOf('comment')] ?? ''] : []),
+      ]),
+  ];
 }

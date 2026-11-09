@@ -21,7 +21,18 @@ export class LendingLedger {
   async readLedger() {
     const sheetData = await this.adapter.readLoanSheets();
     const loans = parseLedgerRows(normalizeLoanGrid(sheetData.loans), LOAN_HEADERS),
-      returns = parseLedgerRows(sheetData.returns, RETURN_HEADERS);
+      returns = parseLedgerRows(
+        [
+          sheetData.returns[0]?.filter((header) => header !== 'comment'),
+          ...sheetData.returns
+            .slice(1)
+            .map((row) => [
+              ...row.slice(0, 19),
+              row[sheetData.returns[0].indexOf('comment')] ?? '',
+            ]),
+        ],
+        RETURN_HEADERS,
+      );
     const returned = new Set(
       returns
         .filter((sourceRecord) => sourceRecord[14] === LENDING_STATUS.RETURN_RECEIVED)

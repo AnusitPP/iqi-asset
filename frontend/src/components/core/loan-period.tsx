@@ -1,0 +1,61 @@
+'use client';
+import { Box, Group, Progress, Stack, Text } from '@mantine/core';
+import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/dates.js';
+
+export function LoanPeriod({ start, due, today }: { start: string; due: string; today: string }) {
+  if (![start, due, today].every(isIsoCalendarDate)) return null;
+  const total = calendarDaysBetween(start, due);
+  if (total <= 0) return null;
+  const elapsed = Math.max(0, calendarDaysBetween(start, today));
+  const remaining = calendarDaysBetween(today, due);
+  const overdue = remaining < 0;
+  const color = overdue ? 'red' : remaining > 2 ? 'green' : 'yellow';
+  const percentage = Math.round((elapsed / total) * 100);
+  return (
+    <Stack gap={4} mt={4}>
+      <Group justify="space-between" gap={4}>
+        <Text size="xs" c="dimmed">
+          ระยะเวลาการยืม
+        </Text>
+        <Text size="xs" fw={600}>
+          {elapsed} / {total} วัน
+        </Text>
+      </Group>
+      {overdue ? (
+        <Box
+          role="progressbar"
+          aria-label="ระยะเวลาการยืม"
+          aria-valuemin={0}
+          aria-valuemax={elapsed}
+          aria-valuenow={elapsed}
+          aria-valuetext={`${percentage}% เกินกำหนด ${-remaining} วัน`}
+          style={{
+            position: 'relative',
+            height: 9,
+            display: 'flex',
+            borderRadius: 999,
+            overflow: 'hidden',
+          }}
+        >
+          <Box bg="red.5" style={{ width: `${(total / elapsed) * 100}%` }} />
+          <Box bg="red.8" style={{ flex: 1, borderLeft: '2px solid white' }} />
+        </Box>
+      ) : (
+        <Progress
+          value={Math.min(100, (elapsed / total) * 100)}
+          color={color}
+          radius="xl"
+          size={9}
+          aria-label="ระยะเวลาการยืม"
+        />
+      )}
+      <Text size="xs" c={color} fw={600}>
+        {overdue
+          ? `เกินกำหนด ${-remaining} วัน`
+          : remaining === 0
+            ? 'ครบกำหนดวันนี้'
+            : `เหลือ ${remaining} วัน`}
+      </Text>
+    </Stack>
+  );
+}

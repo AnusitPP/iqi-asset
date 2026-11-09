@@ -1,4 +1,5 @@
 'use client';
+import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
 import { Button, Group, SimpleGrid, Stack, Textarea } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { Controller } from 'react-hook-form';
@@ -25,12 +26,7 @@ export function LoanRequestForm() {
   });
   const { form, busy } = request;
   const start = form.watch('start');
-  const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  const today = bangkokIsoDate();
   const earliestReturn = start && start > today ? start : today;
   const latestReturn = dayjs(earliestReturn).add(7, 'day').format('YYYY-MM-DD');
 

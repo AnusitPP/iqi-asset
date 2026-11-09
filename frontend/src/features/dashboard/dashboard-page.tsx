@@ -1,4 +1,5 @@
 'use client';
+import { RefreshButton, ResetFiltersButton } from '@/components/core/action-buttons';
 import {
   Accordion,
   Progress,
@@ -238,8 +239,7 @@ export function DashboardPage() {
           >
             เพิ่มจาก IQI
           </Button>
-          <Button
-            variant="default"
+          <RefreshButton
             disabled={saveStatusDraftsMutation.isPending}
             loading={data.isFetching}
             onClick={() => {
@@ -253,9 +253,7 @@ export function DashboardPage() {
               setNotice('');
               void data.refetch();
             }}
-          >
-            โหลดข้อมูลล่าสุด
-          </Button>
+          />
         </Group>
       </Group>
       <Box
@@ -379,17 +377,15 @@ export function DashboardPage() {
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
         />
-        <Button
-          variant="default"
+        <ResetFiltersButton
+          ml="auto"
           onClick={() => {
             setQuery('');
             setInspection('');
             setComparison('');
             setTeamFilter('');
           }}
-        >
-          ล้างตัวกรอง
-        </Button>
+        />
       </Group>
       {mobile && <Box mb="md">{renderTeamFilter()}</Box>}
       <Box className="dash-list-head">

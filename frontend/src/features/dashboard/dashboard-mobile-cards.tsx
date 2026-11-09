@@ -1,7 +1,7 @@
 'use client';
 import { memo } from 'react';
 import { Badge, Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { CopyableText } from '@/components/ui/feedback';
+import { CopyableText } from '@/components/core/copyable-text';
 import { getStatusColorClass } from '@/lib/display';
 import type { DashboardRecord } from '@/types/contracts';
 import type { StatusDraft } from './save-drafts';
