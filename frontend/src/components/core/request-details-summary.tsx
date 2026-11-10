@@ -24,9 +24,11 @@ export type RequestDetailRecord = {
 export function RequestDetailsSummary({
   record: details,
   today,
+  showCountdown = true,
 }: {
   record: RequestDetailRecord;
   today: string;
+  showCountdown?: boolean;
 }) {
   const displayDate = (value: string) =>
     isIsoCalendarDate(value)
@@ -93,7 +95,7 @@ export function RequestDetailsSummary({
           <Text size="sm">{displayDate(details.due)}</Text>
         </Group>
       </SimpleGrid>
-      {countdown() && (
+      {showCountdown && countdown() && (
         <Text c={countdown()!.color} fw={600}>
           {countdown()!.text}
         </Text>

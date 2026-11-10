@@ -78,6 +78,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         })
       : value || '—';
   const countdown = (entry: z.infer<typeof myRequestsSchema>['records'][number]) => {
+    if (approvals && entry.status !== 'กำลังยืม') return null;
     if (entry.kind !== 'ยืม' || entry.completed || !isIsoCalendarDate(entry.due)) return null;
     const days = calendarDaysBetween(today, entry.due);
     return {
@@ -410,7 +411,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                     )
                   }
                 >
-                  {entry.kind === 'ยืม' && (
+                  {approvals && entry.kind === 'ยืม' && (
                     <Text size="xs" c={entry.pickupDate ? undefined : 'dimmed'}>
                       {pickupLabel(entry)}
                     </Text>
@@ -488,7 +489,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                         </Text>
                       )}
                     </Stack>
-                    {entry.kind === 'ยืม' && (
+                    {approvals && entry.kind === 'ยืม' && (
                       <Text
                         size="xs"
                         c={entry.pickupDate ? undefined : 'dimmed'}
@@ -534,7 +535,11 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
       >
         {details && (
           <Stack gap="sm">
-            <RequestDetailsSummary record={details} today={today} />
+            <RequestDetailsSummary
+              record={details}
+              today={today}
+              showCountdown={!approvals || details.status === 'กำลังยืม'}
+            />
             {details.kind === 'ยืม' && approvals && !details.statusLocked ? (
               <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <DatePickerInput

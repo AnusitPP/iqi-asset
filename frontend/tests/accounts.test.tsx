@@ -145,6 +145,30 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it.each(['รอดำเนินการ', 'กำลังยืม', 'รอดำเนินการคืน', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก'])(
+  'approval countdown is shown only while borrowing: %s',
+  async (status) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-10T12:00:00+07:00'));
+    transport.mockImplementation(async () => Response.json({ records: [{
+      id: 'L-countdown', kind: 'ยืม', name: 'Countdown Mouse', asset: 'A-countdown',
+      date: '2026-11-09', due: '2026-11-13', status,
+    }] }));
+    try {
+      mount(<MyRequestsPage approvals />);
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'แสดงทุกสถานะ' }));
+      await screen.findByText('Countdown Mouse');
+      expect(screen.queryByText('เหลือ 3 วัน') !== null).toBe(status === 'กำลังยืม');
+      await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).queryByText('เหลือ 3 วัน') !== null).toBe(status === 'กำลังยืม');
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+
 it('admins choose a pickup date and scrolling time, save without changing status and reopen the schedule', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-09T12:00:00+07:00'));
