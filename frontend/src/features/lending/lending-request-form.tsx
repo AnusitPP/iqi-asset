@@ -13,6 +13,7 @@ import {
   Modal,
   SimpleGrid,
   Badge,
+  Checkbox,
 } from '@mantine/core';
 import { Layers } from 'lucide-react';
 import { RequestDetailsSummary } from '@/components/core/request-details-summary';
@@ -212,9 +213,9 @@ export function LendingRequestForm({
                       color="portalGreen"
                       size="xs"
                       maw="100%"
-                      title={catalogCategory(selected?.name ?? '')}
+                      title={selected?.category || catalogCategory(selected?.name ?? '')}
                     >
-                      {catalogCategory(selected?.name ?? '')}
+                      {selected?.category || catalogCategory(selected?.name ?? '')}
                     </Badge>
                     <Text fw={700} size="sm" lh={1.4} style={{ overflowWrap: 'anywhere' }}>
                       {selected?.name}
@@ -237,12 +238,21 @@ export function LendingRequestForm({
               </Paper>
             </>
           )}
+          {request.canProvideService && (
+            <Checkbox
+              label="ให้บริการ"
+              description="ทำรายการยืมให้ผู้อื่น โดยระบุชื่อและอีเมลผู้ยืม"
+              checked={request.serviceMode}
+              onChange={(event) => request.setServiceMode(event.currentTarget.checked)}
+              disabled={busy}
+            />
+          )}
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
             <TextInput
               label="ชื่อ - สกุล"
               withAsterisk
               maxLength={200}
-              readOnly={mode === 'loan' || borrowerReadOnly}
+              readOnly={borrowerReadOnly}
 
               {...(mode === 'return'
                 ? { value: form.watch('borrower') }
@@ -270,6 +280,18 @@ export function LendingRequestForm({
               />
             )}
           </SimpleGrid>
+          {mode === 'loan' && (
+            <TextInput
+              label="อีเมลผู้ยืม"
+              type="email"
+              maxLength={254}
+              withAsterisk={request.serviceMode}
+              readOnly={!request.serviceMode}
+              disabled={busy}
+              {...form.register('email')}
+              error={form.formState.errors.email?.message}
+            />
+          )}
           {mode === 'return' && sectionTitle && <Text fw={600}>{sectionTitle}</Text>}
           {mode === 'return' &&
             terms.map((text) => (

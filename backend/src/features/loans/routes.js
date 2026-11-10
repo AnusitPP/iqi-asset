@@ -3,6 +3,7 @@ import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 import { sendLoanConfirmation } from '../mail/loan-confirmation.js';
+import { bangkokIsoDate, isIsoCalendarDate } from '../../../../shared/core/extensions/dates.js';
 export function registerLoansRoutes(
   app,
   { lendingLedger, loanRequests, confirmLoan = sendLoanConfirmation },
@@ -55,6 +56,8 @@ export function registerLoansRoutes(
           purpose: row[10] || '',
           notes: row[13] || '',
           adminComment: row[19] || '',
+          pickupDate: row[20] || '',
+          pickupTime: row[21] || '',
           team: row[4] || '',
           borrower: row[3] || '',
           photo: photo(row[7], row[8]),
@@ -96,6 +99,19 @@ export function registerLoansRoutes(
       if (comment !== undefined && (typeof comment !== 'string' || comment.length > 2000))
         return res.status(400).json({ error: 'คอมเมนต์ต้องเป็นข้อความไม่เกิน 2000 ตัวอักษร' });
       const returning = req.body?.kind === 'คืน';
+      let pickup;
+      if (req.body?.pickupDate !== undefined || req.body?.pickupTime !== undefined) {
+        const { pickupDate, pickupTime } = req.body;
+        if (
+          returning ||
+          typeof pickupDate !== 'string' ||
+          typeof pickupTime !== 'string' ||
+          ((pickupDate || pickupTime) &&
+            (!isIsoCalendarDate(pickupDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(pickupTime)))
+        )
+          return res.status(400).json({ error: 'กรุณาระบุวันและเวลานัดรับให้ครบและถูกต้อง' });
+        pickup = { date: pickupDate, time: pickupTime };
+      }
       const statuses = approvalStatuses(returning ? 'คืน' : 'ยืม');
       if (!statuses.includes(req.body?.status))
         return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
@@ -107,6 +123,12 @@ export function registerLoansRoutes(
         if (matches.length !== 1)
           throw Object.assign(new Error('ไม่พบรายการยืมหรือรหัสซ้ำ'), { status: 409 });
         const record = matches[0];
+        if (
+          pickup?.date &&
+          pickup.date < bangkokIsoDate() &&
+          (pickup.date !== (record[20] || '') || pickup.time !== (record[21] || ''))
+        )
+          throw Object.assign(new Error('วันนัดรับต้องไม่ย้อนหลัง'), { status: 400 });
         if (
           ['เสร็จสิ้น', 'รับคืนแล้ว'].includes(record[14]) ||
           (!returning &&
@@ -130,6 +152,7 @@ export function registerLoansRoutes(
             req.body.status,
             req.user.name,
             comment,
+            pickup,
           );
         await req.authStorage.write([
           auditEntry(
@@ -138,7 +161,10 @@ export function registerLoansRoutes(
             returning ? 'Return' : 'Loan',
             req.params.id,
             { status: matches[0][14] },
-            { status: req.body.status },
+            {
+              status: req.body.status,
+              ...(pickup ? { pickupDate: pickup.date, pickupTime: pickup.time } : {}),
+            },
           ),
         ]);
       });
@@ -157,11 +183,15 @@ export function registerLoansRoutes(
   app.post('/api/loans', async (req, res, next) => {
     try {
       const body = req.body || {};
+      if (body.serviceMode !== undefined && typeof body.serviceMode !== 'boolean')
+        return res.status(400).json({ error: 'รูปแบบตัวเลือกให้บริการไม่ถูกต้อง' });
+      if (body.serviceMode && !['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
+        return res.status(403).json({ error: 'เฉพาะแอดมินเท่านั้นที่ทำรายการให้บริการได้' });
       const request = req.user
         ? {
             ...body,
-            borrower: req.user.name,
-            email: req.user.email,
+            borrower: body.serviceMode ? body.borrower : req.user.name,
+            email: body.serviceMode ? body.email : req.user.email,
             requestId: createHash('sha256')
               .update(req.user.id + ':' + body.requestId)
               .digest('hex'),
@@ -169,9 +199,20 @@ export function registerLoansRoutes(
         : body;
       const result = await loanRequests.submit(request);
       if (req.authStorage)
-        await req.authStorage.write([auditEntry(req.user, 'LOAN_CREATED', 'Loan', result.id)]);
+        await req.authStorage.write([
+          auditEntry(
+            req.user,
+            'LOAN_CREATED',
+            'Loan',
+            result.id,
+            null,
+            body.serviceMode
+              ? { serviceMode: true, borrower: request.borrower, email: request.email }
+              : null,
+          ),
+        ]);
       if (req.user && !result.unchanged)
-        result.mailNotification = await confirmLoan(lendingLedger, result, req.user.email);
+        result.mailNotification = await confirmLoan(lendingLedger, result, request.email.trim());
       res.json(result);
     } catch (error) {
       next(error);

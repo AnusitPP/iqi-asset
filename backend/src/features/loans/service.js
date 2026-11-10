@@ -27,8 +27,13 @@ export class LoanRequestService {
         due: validateIsoDate(body.due),
       };
       const email = typeof body.email === 'string' ? body.email.trim() : '';
+      if (body.serviceMode === true && !email) throwHttpError(400, 'กรุณาระบุอีเมลผู้ยืม');
       if (email && (email.length > 254 || !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(email)))
         throwHttpError(400, 'อีเมลผู้ยืมไม่ถูกต้อง');
+      if (body.serviceMode === true) {
+        requestData.email = email;
+        requestData.serviceMode = true;
+      }
       if (requestData.due < requestData.start) throwHttpError(400, 'กำหนดคืนต้องไม่ก่อนวันที่ยืม');
       const today = bangkokIsoDate();
       if (requestData.start < today) throwHttpError(400, 'วันที่ยืมต้องไม่ย้อนหลัง');

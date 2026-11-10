@@ -27,6 +27,8 @@ const emptyValues: FormValues = {
   start: '',
   due: '',
   date: '',
+  serviceMode: false,
+  email: '',
 };
 type FormSnapshot = { values: FormValues; selected: CatalogRecord | null; requestId: string };
 export type SubmitLendingRequest = (
@@ -48,6 +50,8 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
   const isSubmitCurrent = useSessionTaskGuard();
   const cacheKey = ['workspace-state', `${mode}-form`];
   const [initial] = useState(() => client.getQueryData<FormSnapshot>(cacheKey));
+  const canProvideService =
+    mode === 'loan' && !!user && ['ADMIN', 'SUPER_ADMIN'].includes(user.role);
   const [selected, setSelected] = useState<CatalogRecord | null>(initial?.selected ?? null),
     [selectionError, setSelectionError] = useState(''),
     [error, setError] = useState<unknown>(null),
@@ -59,11 +63,29 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     mode: 'onBlur',
     defaultValues: {
       ...(initial?.values ?? { ...emptyValues, mode }),
-      borrower: user?.name ?? initial?.values.borrower ?? '',
+      borrower:
+        canProvideService && initial?.values.serviceMode
+          ? initial.values.borrower
+          : (user?.name ?? ''),
+      email:
+        canProvideService && initial?.values.serviceMode
+          ? initial.values.email
+          : (user?.email ?? ''),
+      serviceMode: canProvideService && initial?.values.serviceMode === true,
     },
     resolver: zodResolver(lendingFormSchema),
   });
   const busy = form.formState.isSubmitting;
+  const serviceMode = canProvideService && form.watch('serviceMode') === true;
+  const setServiceMode = (enabled: boolean) => {
+    if (!canProvideService) return;
+    requestId.current = crypto.randomUUID();
+    form.setValue('serviceMode', enabled, { shouldDirty: true, shouldValidate: true });
+    if (!enabled) {
+      form.setValue('borrower', user?.name ?? '', { shouldDirty: true, shouldValidate: true });
+      form.setValue('email', user?.email ?? '', { shouldDirty: true, shouldValidate: true });
+    }
+  };
   useUnsavedChangesGuard(Object.keys(form.formState.dirtyFields).length > 0 || busy);
   useEffect(() => {
     const subscription = form.watch((_values, info) => {
@@ -84,7 +106,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     });
   }, [selected, client, mode, form]);
   const resetLendingRequestForm = (keepSelection = false) => {
-    form.reset({ ...emptyValues, mode, borrower: user?.name ?? '' });
+    form.reset({ ...emptyValues, mode, borrower: user?.name ?? '', email: user?.email ?? '' });
     if (!keepSelection) setSelected(null);
     setSelectionError('');
     setError(null);
@@ -108,7 +130,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     }
     const selection: LendingSelection = {
       requestId: requestId.current,
-      category: catalogCategory(selected.name),
+      category: selected.category || catalogCategory(selected.name),
       selectedAsset: { asset: selected.asset, serial: selected.serial },
       identifier: [selected.asset, selected.serial].filter(Boolean).join(' / '),
     };
@@ -152,7 +174,10 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
   };
   return {
     mode,
-    borrowerReadOnly: !!user,
+    borrowerReadOnly: !!user && !serviceMode,
+    canProvideService,
+    serviceMode,
+    setServiceMode,
     form,
     busy,
     selected,

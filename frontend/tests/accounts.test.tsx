@@ -145,6 +145,63 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it('admins choose a pickup date and scrolling time, save without changing status and reopen the schedule', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-09T12:00:00+07:00'));
+  const record = {
+    id: 'L-pickup',
+    kind: 'ยืม',
+    name: 'Pickup Mouse',
+    asset: 'A-pickup',
+    date: '2026-11-09',
+    status: 'รอดำเนินการ',
+    notes: 'Original note',
+    pickupDate: '',
+    pickupTime: '',
+  };
+  transport.mockImplementation(async (path, options) => {
+    if (options?.method === 'PATCH') {
+      Object.assign(record, JSON.parse(String(options.body)));
+      return Response.json({ id: record.id });
+    }
+    if (path === '/api/approval-requests') return Response.json({ records: [record] });
+    throw new Error(`Unexpected request ${path}`);
+  });
+  try {
+    mount(<MyRequestsPage approvals />);
+    const user = userEvent.setup();
+    await screen.findByText('Pickup Mouse');
+    await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
+    const save = screen.getByRole('button', { name: 'บันทึก' });
+    expect(save).toHaveProperty('disabled', true);
+    await user.click(screen.getByLabelText('วันที่มารับ'));
+    const day = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date('2026-11-12T12:00:00+07:00'));
+    await user.click(screen.getByRole('button', { name: day }));
+    expect(save).toHaveProperty('disabled', true);
+    await user.click(screen.getByLabelText('ชั่วโมงมารับ'));
+    await user.click(screen.getAllByRole('button', { name: '09' })[0]!);
+    await user.click(screen.getByRole('button', { name: '35' }));
+    await user.click(screen.getByText('Original note'));
+    expect(save).toHaveProperty('disabled', false);
+    await user.click(save);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(record).toMatchObject({
+      status: 'รอดำเนินการ',
+      pickupDate: '2026-11-12',
+      pickupTime: '09:35',
+    });
+    await user.click(screen.getByRole('button', { name: 'ดูรายละเอียด' }));
+    expect(screen.getByLabelText('ชั่วโมงมารับ')).toHaveProperty('value', '09');
+    expect(screen.getByLabelText('นาทีมารับ')).toHaveProperty('value', '35');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('shows mobile user cards and opens account details without a wide table', async () => {
   const originalMatchMedia = vi.mocked(window.matchMedia).getMockImplementation()!;
   const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({

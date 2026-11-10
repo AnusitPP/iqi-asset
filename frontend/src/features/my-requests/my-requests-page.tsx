@@ -1,5 +1,8 @@
 'use client';
 import { RefreshButton, ResetFiltersButton } from '@/components/core/action-buttons';
+import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { CalendarDays, Clock } from 'lucide-react';
+import 'dayjs/locale/th';
 import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
 import { SearchInput } from '@/components/core/search-input';
 import { useEffect, useState } from 'react';
@@ -44,12 +47,17 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const [search, setSearch] = useState('');
   const [currentLoansOnly, setCurrentLoansOnly] = useState(true);
   const [requestKind, setRequestKind] = useState('ยืม');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(approvals ? 'รอดำเนินการ' : '');
   const [view, setView] = useState('grid');
   const [sort, setSort] = useState(approvals ? 'newest' : 'due');
   const [conditionError, setConditionError] = useState('');
   const [conditions, setConditions] = useState<Record<string, string>>({});
   const [comment, setComment] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
+  const pickupIncomplete =
+    Boolean(pickupDate || pickupTime) &&
+    (!isIsoCalendarDate(pickupDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(pickupTime));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [details, setDetails] = useState<
     z.infer<typeof myRequestsSchema>['records'][number] | null
@@ -78,6 +86,10 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
       color: days < 0 ? 'red' : days <= 2 ? 'yellow' : 'portalGreen',
     };
   };
+  const pickupLabel = (entry: z.infer<typeof myRequestsSchema>['records'][number]) =>
+    entry.pickupDate
+      ? `มารับ: ${displayDate(entry.pickupDate)}${entry.pickupTime ? ` เวลา ${entry.pickupTime} น.` : ''}`
+      : 'ยังไม่ระบุวันรับ';
   const { api, can, user } = useAuthSession();
   const readKey = user ? `request-reads:${user.id}:${approvals ? 'approvals' : 'own'}` : '';
   const [readState, setReadState] = useState<{ key: string; ids: string[] }>({ key: '', ids: [] });
@@ -96,6 +108,8 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const openDetails = (entry: z.infer<typeof myRequestsSchema>['records'][number]) => {
     setDetails(entry);
     setComment(entry.adminComment);
+    setPickupDate(entry.pickupDate);
+    setPickupTime(entry.pickupTime);
     setConditionError('');
     update.reset();
     const id = `${entry.kind}:${entry.id}`;
@@ -126,7 +140,13 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         z.object({ id: z.string() }),
         {
           method: 'PATCH',
-          body: { status, kind: requestKind, condition: conditions[id], adminComment: comment },
+          body: {
+            status,
+            kind: requestKind,
+            condition: conditions[id],
+            adminComment: comment,
+            ...(details?.kind === 'ยืม' ? { pickupDate, pickupTime } : {}),
+          },
         },
       ),
     onSuccess: async (_result, variables) => {
@@ -221,7 +241,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
           onChange={(value) => {
             if (value) {
               setRequestKind(value);
-              setStatusFilter('');
+              setStatusFilter('รอดำเนินการ');
             }
           }}
           mb="md"
@@ -389,7 +409,13 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                       />
                     )
                   }
-                />
+                >
+                  {entry.kind === 'ยืม' && (
+                    <Text size="xs" c={entry.pickupDate ? undefined : 'dimmed'}>
+                      {pickupLabel(entry)}
+                    </Text>
+                  )}
+                </BorrowedEquipmentCard>
               ) : (
                 <Paper
                   key={`${entry.kind}-${entry.id}`}
@@ -462,6 +488,15 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                         </Text>
                       )}
                     </Stack>
+                    {entry.kind === 'ยืม' && (
+                      <Text
+                        size="xs"
+                        c={entry.pickupDate ? undefined : 'dimmed'}
+                        style={{ flex: '1 1 160px' }}
+                      >
+                        {pickupLabel(entry)}
+                      </Text>
+                    )}
                     <RequestStatusBadge record={entry} />
                     <Button size="xs" variant="outline" onClick={() => openDetails(entry)}>
                       ดูรายละเอียด
@@ -500,6 +535,50 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         {details && (
           <Stack gap="sm">
             <RequestDetailsSummary record={details} today={today} />
+            {details.kind === 'ยืม' && approvals && !details.statusLocked ? (
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <DatePickerInput
+                  label="วันที่มารับ"
+                  placeholder="เลือกวันที่มารับ"
+                  locale="th"
+                  valueFormat="DD MMMM YYYY"
+                  firstDayOfWeek={0}
+                  defaultDate={pickupDate || today}
+                  minDate={today}
+                  highlightToday
+                  getDayProps={(date) => ({ autoFocus: date === (pickupDate || today) })}
+                  value={pickupDate || null}
+                  onChange={(value) => setPickupDate(value || '')}
+                  clearable
+                  disabled={update.isPending || !can('LOAN_APPROVE')}
+                  leftSection={<CalendarDays size={16} aria-hidden="true" />}
+                  popoverProps={{ withinPortal: true, zIndex: 400, radius: 'lg', shadow: 'md' }}
+                  previousLabel="เดือนก่อนหน้า"
+                  nextLabel="เดือนถัดไป"
+                />
+                <TimePicker
+                  label="เวลามารับ"
+                  description="เวลาไทย (24 ชั่วโมง)"
+                  inputWrapperOrder={['label', 'input', 'description', 'error']}
+                  value={pickupTime}
+                  onChange={setPickupTime}
+                  format="24h"
+                  withDropdown
+                  hoursStep={1}
+                  minutesStep={1}
+                  hoursInputLabel="ชั่วโมงมารับ"
+                  minutesInputLabel="นาทีมารับ"
+                  clearable
+                  clearButtonProps={{ 'aria-label': 'ล้างเวลามารับ' }}
+                  error={pickupIncomplete ? 'กรุณาเลือกวันและเวลามารับให้ครบ' : undefined}
+                  disabled={update.isPending || !can('LOAN_APPROVE')}
+                  leftSection={<Clock size={16} aria-hidden="true" />}
+                  popoverProps={{ withinPortal: true, zIndex: 400, radius: 'lg', shadow: 'md' }}
+                />
+              </SimpleGrid>
+            ) : (
+              details.kind === 'ยืม' && <Text size="sm">{pickupLabel(details)}</Text>
+            )}
             {approvals && !details.statusLocked && (
               <Stack className={styles.controls}>
                 <Box className={styles.statusRow}>
@@ -571,8 +650,11 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                     leftSection={<Save size={19} aria-hidden="true" />}
                     disabled={
                       ((drafts[details.id] ?? details.status) === details.status &&
-                        comment === details.adminComment) ||
+                        comment === details.adminComment &&
+                        pickupDate === details.pickupDate &&
+                        pickupTime === details.pickupTime) ||
                       update.isPending ||
+                      (details.kind === 'ยืม' && pickupIncomplete) ||
                       !can('LOAN_APPROVE')
                     }
                     loading={update.isPending && update.variables?.id === details.id}

@@ -1,5 +1,6 @@
 'use client';
 import { SearchInput } from '@/components/core/search-input';
+import { AddEquipment } from './add-equipment';
 import {
   Badge,
   Button,
@@ -65,9 +66,14 @@ export function LendingCatalogPicker({
   const matches = matchCatalog(catalog.data?.records ?? [], mode === 'loan' ? query : '');
   {
     const records = catalog.data?.records ?? [];
-    const categories = [...new Set(records.map((record) => catalogCategory(record.name)))];
+    const categories = [
+      ...new Set(records.map((record) => record.category || catalogCategory(record.name))),
+    ];
     const visible = matches.filter(
-      (record) => mode === 'return' || !category || catalogCategory(record.name) === category,
+      (record) =>
+        mode === 'return' ||
+        !category ||
+        (record.category || catalogCategory(record.name)) === category,
     );
     return (
       <Stack>
@@ -107,6 +113,7 @@ export function LendingCatalogPicker({
                 />
 
                 <ViewToggle value={view} onChange={setView} />
+                <AddEquipment disabled={disabled} />
                 <ResetFiltersButton
                   ml="auto"
                   disabled={disabled}
@@ -132,7 +139,9 @@ export function LendingCatalogPicker({
                     >
                       {value || 'ทั้งหมด'} (
                       {value
-                        ? records.filter((record) => catalogCategory(record.name) === value).length
+                        ? records.filter(
+                            (record) => (record.category || catalogCategory(record.name)) === value,
+                          ).length
                         : records.length}
                       )
                     </Button>
@@ -255,9 +264,9 @@ export function LendingCatalogPicker({
                           c="dimmed"
                           truncate
                           maw={170}
-                          title={catalogCategory(record.name)}
+                          title={record.category || catalogCategory(record.name)}
                         >
-                          {catalogCategory(record.name)}
+                          {record.category || catalogCategory(record.name)}
                         </Text>
                       </Table.Td>
                       <Table.Td>
@@ -336,7 +345,7 @@ export function LendingCatalogPicker({
                   key={record.row}
                   photo={record.photo}
                   name={record.name || 'ไม่ระบุชื่ออุปกรณ์'}
-                  category={catalogCategory(record.name)}
+                  category={record.category || catalogCategory(record.name)}
                   detail={`S/N: ${record.serial || '—'}`}
                   overlay={
                     <UnstyledButton

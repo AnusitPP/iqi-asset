@@ -1,5 +1,55 @@
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
-export function registerCatalogRoutes(app, { lendingLedger }) {
+import express from 'express';
+import { preparePhoto } from '../photos/prepareUpload.js';
+export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUploadBytes }) {
+  app.post(
+    '/api/loan-catalog/preview',
+    express.raw({ type: 'application/octet-stream', limit: maxUploadBytes }),
+    async (req, res, next) => {
+      try {
+        const bytes = await preparePhoto(req.body);
+        res.json({ preview: `data:image/jpeg;base64,${bytes.toString('base64')}` });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  app.post('/api/loan-catalog', async (req, res, next) => {
+    try {
+      res.status(201).json(await catalogEditor.create(req.body));
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post(
+    '/api/loan-catalog/:row/photos',
+    express.raw({ type: 'application/octet-stream', limit: maxUploadBytes }),
+    async (req, res, next) => {
+      try {
+        res.json(
+          await catalogEditor.upload(
+            Number(req.params.row),
+            req.get('X-Record-Revision'),
+            req.body,
+          ),
+        );
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  app.get('/api/catalog-photos/:id', async (req, res, next) => {
+    try {
+      const bytes = await catalogEditor.readPhoto(req.params.id);
+      res
+        .set('Cache-Control', 'private, no-store')
+        .set('X-Content-Type-Options', 'nosniff')
+        .type('image/jpeg')
+        .send(Buffer.from(bytes));
+    } catch (error) {
+      next(error);
+    }
+  });
   app.get('/api/loan-catalog', async (req, res, next) => {
     try {
       res.json(await lendingLedger.readAvailableAssets());

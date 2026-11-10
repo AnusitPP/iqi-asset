@@ -8,6 +8,7 @@ export const catalogRecordSchema = z.object({
   asset: z.string().min(1),
   serial: z.string(),
   name: z.string(),
+  category: z.string().optional(),
   photo: z.string().optional(),
   team: z.string().optional(),
   loanId: z.string().optional(),
@@ -34,9 +35,25 @@ const commonFields = {
   team: z.string().refine((value) => FORM_TEAMS.includes(value), 'กรุณาเลือกทีมจากรายการ'),
   notes: z.string().max(2000, 'หมายเหตุยาวเกิน 2000 ตัวอักษร'),
 };
+const serviceFields = {
+  serviceMode: z.boolean().optional(),
+  email: z.string().trim().max(254, 'อีเมลยาวเกินกำหนด').optional(),
+};
 export const loanFormSchema = z
-  .object({ ...commonFields, purpose: requiredText(500), start: calendarDate, due: calendarDate })
+  .object({
+    ...commonFields,
+    ...serviceFields,
+    purpose: requiredText(500),
+    start: calendarDate,
+    due: calendarDate,
+  })
   .superRefine((values, context) => {
+    if (values.serviceMode && !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(values.email || ''))
+      context.addIssue({
+        code: 'custom',
+        path: ['email'],
+        message: 'กรุณาระบุอีเมลผู้ยืมให้ถูกต้อง',
+      });
     const today = bangkokIsoDate();
     if (isIsoCalendarDate(values.start) && values.start < today)
       context.addIssue({ code: 'custom', path: ['start'], message: 'วันที่ยืมต้องไม่ย้อนหลัง' });
@@ -77,6 +94,7 @@ export const lendingFormSchema = z
   .object({
     mode: z.enum(['loan', 'return']),
     ...commonFields,
+    ...serviceFields,
     purpose: z.string(),
     start: z.string(),
     due: z.string(),

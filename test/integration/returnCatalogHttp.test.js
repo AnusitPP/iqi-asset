@@ -44,7 +44,24 @@ test('return catalog requires Google session and lists only own approved loans w
   const response = await fetch(url, { headers: { Cookie: fixture.cookie } });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    records: [{ row: 2, asset: 'OWN', serial: 'SN1', name: 'Mouse', team: '' }],
+    records: [
+      {
+        row: 2,
+        asset: 'OWN',
+        serial: 'SN1',
+        name: 'Mouse',
+        team: '',
+        loanId: 'OWN',
+        start: '',
+        due: '',
+        status: 'กำลังยืม',
+        borrower: '',
+        purpose: '',
+        notes: '',
+        adminComment: '',
+        photo: '',
+      },
+    ],
   });
   const pendingReturn = Array(19).fill('');
   pendingReturn[0] = 'R1';

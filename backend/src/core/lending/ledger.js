@@ -127,7 +127,7 @@ export class LendingLedger {
       throwHttpError(409, 'ไม่พบอุปกรณ์ในชีตพร้อมยืมหรือข้อมูลซ้ำ กรุณาค้นหาใหม่');
     const record = matches[0];
     requestData.identifier = record.asset;
-    requestData.category = catalogCategory(record.name);
+    requestData.category = record.category || catalogCategory(record.name);
     requestData.selected = { asset: record.asset, serial: record.serial, name: record.name };
   }
 }

@@ -186,15 +186,76 @@ export class GoogleSheets {
   async readReadyToBorrow() {
     const { data } = await this.api.spreadsheets.values.get({
       spreadsheetId: this.config.spreadsheetId,
-      range: "'พร้อมยืม'!A:E",
+      range: "'พร้อมยืม'!A:AZ",
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return data.values || [];
   }
+  async appendReadyToBorrow(row) {
+    await this.api.spreadsheets.values.append({
+      spreadsheetId: this.config.spreadsheetId,
+      range: "'พร้อมยืม'!A:AZ",
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] },
+    });
+  }
+  async addReadyToBorrowCategory(index) {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const sheet = data.sheets.find((entry) => entry.properties.title === 'พร้อมยืม')?.properties;
+    if (!sheet) throw Object.assign(new Error('ไม่พบชีตพร้อมยืม'), { status: 404 });
+    const requests = [];
+    if (sheet.gridProperties.columnCount <= index)
+      requests.push({
+        appendDimension: {
+          sheetId: sheet.sheetId,
+          dimension: 'COLUMNS',
+          length: index + 1 - sheet.gridProperties.columnCount,
+        },
+      });
+    requests.push({
+      updateCells: {
+        range: {
+          sheetId: sheet.sheetId,
+          startRowIndex: 0,
+          endRowIndex: 1,
+          startColumnIndex: index,
+          endColumnIndex: index + 1,
+        },
+        rows: [{ values: [{ userEnteredValue: { stringValue: 'หมวดหมู่' } }] }],
+        fields: 'userEnteredValue',
+      },
+    });
+    await this.api.spreadsheets.batchUpdate({
+      spreadsheetId: this.config.spreadsheetId,
+      requestBody: { requests },
+    });
+  }
+  async writeReadyToBorrowPhoto(row, headers, url, at) {
+    await this.api.spreadsheets.values.batchUpdate({
+      spreadsheetId: this.config.spreadsheetId,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: [
+          {
+            range: `'พร้อมยืม'!${columnName(headers.indexOf('รูป (ลิงก์)'))}${row}`,
+            values: [[url]],
+          },
+          {
+            range: `'พร้อมยืม'!${columnName(headers.indexOf('วันที่อัปเดตล่าสุด'))}${row}`,
+            values: [[at]],
+          },
+        ],
+      },
+    });
+  }
   async readLoanSheets() {
     const { data } = await this.api.spreadsheets.values.batchGet({
       spreadsheetId: this.config.spreadsheetId,
-      ranges: ["'รายการยืมครุภัณฑ์'!A:U", "'รายการคืนครุภัณฑ์'!A:T"],
+      ranges: ["'รายการยืมครุภัณฑ์'!A:AZ", "'รายการคืนครุภัณฑ์'!A:T"],
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return { loans: data.valueRanges[0].values || [], returns: data.valueRanges[1].values || [] };
@@ -234,7 +295,7 @@ export class GoogleSheets {
       requestBody: { valueInputOption: 'RAW', data: updates },
     });
   }
-  async updateLoanStatus(id, status, responsible, comment) {
+  async updateLoanStatus(id, status, responsible, comment, pickup) {
     const data = await this.readLoanSheets();
     const { indices } = loanColumnMapping(data.loans[0]);
     const indexes = data.loans.flatMap((row, index) =>
@@ -242,14 +303,56 @@ export class GoogleSheets {
     );
     if (indexes.length !== 1)
       throw Object.assign(new Error('รายการยืมเปลี่ยนไป กรุณาโหลดใหม่'), { status: 409 });
+    const headers = [...data.loans[0]];
+    const extraUpdates = [];
+    const addField = (name, value) => {
+      let index = headers.indexOf(name);
+      if (index < 0) {
+        index = headers.length;
+        headers.push(name);
+        extraUpdates.push({ range: `'รายการยืมครุภัณฑ์'!${columnName(index)}1`, values: [[name]] });
+      }
+      extraUpdates.push({
+        range: `'รายการยืมครุภัณฑ์'!${columnName(index)}${indexes[0]}`,
+        values: [[value]],
+      });
+    };
+    if (comment !== undefined) addField('comment', comment);
+    if (pickup !== undefined) {
+      addField('วันที่นัดรับ', pickup.date);
+      addField('เวลานัดรับ', pickup.time);
+    }
+    if (headers.length > data.loans[0].length) {
+      const metadata = await this.api.spreadsheets.get({
+        spreadsheetId: this.config.spreadsheetId,
+        fields: 'sheets.properties',
+      });
+      const sheet = metadata.data.sheets.find(
+        (entry) => entry.properties.title === 'รายการยืมครุภัณฑ์',
+      )?.properties;
+      if (!sheet) throw Object.assign(new Error('ไม่พบชีตรายการยืมครุภัณฑ์'), { status: 404 });
+      if (headers.length > sheet.gridProperties.columnCount)
+        await this.api.spreadsheets.batchUpdate({
+          spreadsheetId: this.config.spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                appendDimension: {
+                  sheetId: sheet.sheetId,
+                  dimension: 'COLUMNS',
+                  length: headers.length - sheet.gridProperties.columnCount,
+                },
+              },
+            ],
+          },
+        });
+    }
     await this.api.spreadsheets.values.batchUpdate({
       spreadsheetId: this.config.spreadsheetId,
       requestBody: {
         valueInputOption: 'RAW',
         data: [
-          ...(comment === undefined
-            ? []
-            : this.commentUpdates('รายการยืมครุภัณฑ์', data.loans, indexes[0], comment)),
+          ...extraUpdates,
           {
             range: `'รายการยืมครุภัณฑ์'!${columnName(indices[14])}${indexes[0]}`,
             values: [[status]],

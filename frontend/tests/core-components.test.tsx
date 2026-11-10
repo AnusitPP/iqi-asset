@@ -8,6 +8,43 @@ import { CatalogPhoto } from '../src/components/core/catalog-photo';
 import { SearchInput } from '../src/components/core/search-input';
 afterEach(cleanup);
 
+it('catalog gallery switches between three sheet links without opening the equipment', async () => {
+  const open = vi.fn();
+  render(
+    <MantineProvider>
+      <div onClick={open}>
+        <CatalogPhoto
+          url={[1, 2, 3].map((n) => `https://drive.google.com/file/d/photo-${n}/view`).join('\n')}
+          name="Mouse"
+        />
+      </div>
+    </MantineProvider>,
+  );
+  expect(screen.getByRole('img', { name: 'Mouse' }).getAttribute('src')).toBe(
+    '/api/catalog-photos/photo-1',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'รูปถัดไปของ Mouse' }));
+  expect(screen.getByRole('img', { name: 'Mouse' }).getAttribute('src')).toBe(
+    '/api/catalog-photos/photo-2',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'รูปถัดไปของ Mouse' }));
+  expect(screen.getByRole('img', { name: 'Mouse' }).getAttribute('src')).toBe(
+    '/api/catalog-photos/photo-3',
+  );
+  expect(open).not.toHaveBeenCalled();
+});
+
+it('catalog photo uses the authenticated preview API for private Drive files', () => {
+  render(
+    <MantineProvider>
+      <CatalogPhoto url="https://drive.google.com/file/d/photo-123/view" name="Mouse" />
+    </MantineProvider>,
+  );
+  expect(screen.getByRole('img', { name: 'Mouse' }).getAttribute('src')).toBe(
+    '/api/catalog-photos/photo-123',
+  );
+});
+
 it('shared view toggle reports the selected view and emits the requested view', async () => {
   const change = vi.fn();
   render(

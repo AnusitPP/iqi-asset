@@ -3,6 +3,7 @@ import { protectApi } from '../features/auth/middleware/protect-api.js';
 import { registerAuditRoutes } from '../features/audit/routes.js';
 import { configureRequestSecurity } from '../core/http/security.js';
 import { registerCatalogRoutes } from '../features/catalog/routes.js';
+import { CatalogEditor } from '../features/catalog/service.js';
 import { registerLoansRoutes } from '../features/loans/routes.js';
 import { registerReturnsRoutes } from '../features/returns/routes.js';
 import { registerDashboardRoutes } from '../features/dashboard/routes.js';
@@ -47,7 +48,11 @@ export function createApp(service, config) {
     if (service.ready) await service.ready();
     next();
   });
-  registerCatalogRoutes(app, { lendingLedger });
+  registerCatalogRoutes(app, {
+    lendingLedger,
+    catalogEditor: new CatalogEditor(lendingLedger, photos.store),
+    maxUploadBytes,
+  });
   registerMailRoutes(app, { lendingLedger });
   registerLoansRoutes(app, { lendingLedger, loanRequests, confirmLoan: config.confirmLoan });
   registerReturnsRoutes(app, { returnRequests });

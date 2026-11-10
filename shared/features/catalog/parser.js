@@ -17,6 +17,7 @@ function parseCatalogRows(values, sheetName) {
         asset,
         serial: get('S/N'),
         name: get('ชื่ออุปกรณ์'),
+        ...(get('หมวดหมู่') ? { category: get('หมวดหมู่') } : {}),
         ...(photo ? { photo } : {}),
       },
     ];

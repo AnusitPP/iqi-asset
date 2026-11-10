@@ -48,9 +48,13 @@ export function loanColumnMapping(headers = []) {
     names.length !==
       LOAN_HEADERS.length +
         (names.includes('email') ? 1 : 0) +
-        (names.includes('comment') ? 1 : 0) ||
+        (names.includes('comment') ? 1 : 0) +
+        (names.includes('วันที่นัดรับ') ? 1 : 0) +
+        (names.includes('เวลานัดรับ') ? 1 : 0) ||
     LOAN_HEADERS.some((header) => names.filter((name) => name === header).length !== 1) ||
-    names.filter((name) => name === 'email').length > 1
+    ['email', 'comment', 'วันที่นัดรับ', 'เวลานัดรับ'].some(
+      (header) => names.filter((name) => name === header).length > 1,
+    )
   )
     throw Object.assign(new Error('หัวคอลัมน์ชีตยืม–คืนไม่ตรง กรุณาตรวจสอบ'), { status: 422 });
   return {
@@ -67,7 +71,15 @@ export function normalizeLoanGrid(values = []) {
       .slice(1)
       .map((row) => [
         ...indices.map((index) => row[index] ?? ''),
-        ...(values[0].includes('comment') ? [row[values[0].indexOf('comment')] ?? ''] : []),
+        ...(['comment', 'วันที่นัดรับ', 'เวลานัดรับ'].some((header) => values[0].includes(header))
+          ? [row[values[0].indexOf('comment')] ?? '']
+          : []),
+        ...(['วันที่นัดรับ', 'เวลานัดรับ'].some((header) => values[0].includes(header))
+          ? [
+              row[values[0].indexOf('วันที่นัดรับ')] ?? '',
+              row[values[0].indexOf('เวลานัดรับ')] ?? '',
+            ]
+          : []),
       ]),
   ];
 }

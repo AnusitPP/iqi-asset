@@ -16,7 +16,9 @@ import {
 
 const transport = vi.fn<typeof fetch>();
 const api = new ApiClient(undefined, transport);
-const authState = vi.hoisted(() => ({ user: { id: 'user-1', name: 'Fixture User' } }));
+const authState = vi.hoisted(() => ({
+  user: { id: 'user-1', name: 'Fixture User', email: 'fixture@example.invalid', role: 'STAFF' },
+}));
 vi.mock('../src/features/auth/auth-provider', () => ({
   useAuthSession: () => ({
     api,
@@ -34,6 +36,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-30T12:00:00+07:00'));
   authState.user.name = 'Fixture User';
+  authState.user.role = 'STAFF';
   submitted = [];
   transport.mockReset();
   transport.mockImplementation(async (path, options) => {
@@ -91,6 +94,58 @@ async function setLoanDates() {
   }
 }
 describe('Google authenticated loan and return forms', () => {
+  it('keeps staff identity locked and hides the service option', async () => {
+    mount('loan');
+    await selectAsset('loan');
+    expect(screen.queryByRole('checkbox', { name: 'ให้บริการ' })).toBeNull();
+    expect(screen.getByLabelText('อีเมลผู้ยืม')).toHaveProperty('readOnly', true);
+    expect(screen.getByLabelText('อีเมลผู้ยืม')).toHaveProperty('value', authState.user.email);
+  });
+  it.each(['ADMIN', 'SUPER_ADMIN'])(
+    'allows %s to edit the service borrower and email and restores profile when unchecked',
+    async (role) => {
+      authState.user.role = role;
+      mount('loan');
+      const user = await selectAsset('loan');
+      await user.click(screen.getByRole('checkbox', { name: 'ให้บริการ' }));
+      const borrower = screen.getByLabelText(/^ชื่อ - สกุล/),
+        email = screen.getByLabelText(/^อีเมลผู้ยืม/);
+      expect(borrower).toHaveProperty('readOnly', false);
+      expect(email).toHaveProperty('readOnly', false);
+      await user.clear(borrower);
+      await user.type(borrower, 'Borrower');
+      await user.clear(email);
+      await user.type(email, 'borrower@example.invalid');
+      await user.click(screen.getByRole('checkbox', { name: 'ให้บริการ' }));
+      expect(borrower).toHaveProperty('value', authState.user.name);
+      expect(email).toHaveProperty('value', authState.user.email);
+      expect(borrower).toHaveProperty('readOnly', true);
+    },
+  );
+  it('submits edited service identity and rejects an invalid email before submission', async () => {
+    authState.user.role = 'ADMIN';
+    mount('loan');
+    const user = await selectAsset('loan');
+    await user.click(screen.getByRole('checkbox', { name: 'ให้บริการ' }));
+    await user.clear(screen.getByLabelText(/^ชื่อ - สกุล/));
+    await user.type(screen.getByLabelText(/^ชื่อ - สกุล/), 'Service Borrower');
+    await user.clear(screen.getByLabelText(/^อีเมลผู้ยืม/));
+    await user.type(screen.getByLabelText(/^อีเมลผู้ยืม/), 'bad');
+    await user.type(screen.getByLabelText(/^เหตุผล/), 'Meeting');
+    await setLoanDates();
+    await user.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }));
+    expect(await screen.findByText('กรุณาระบุอีเมลผู้ยืมให้ถูกต้อง')).toBeTruthy();
+    expect(submitted).toHaveLength(0);
+    await user.clear(screen.getByLabelText(/^อีเมลผู้ยืม/));
+    await user.type(screen.getByLabelText(/^อีเมลผู้ยืม/), 'borrower@example.invalid');
+    await user.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }));
+    await screen.findByText(/ส่งคำร้องยืมสำเร็จ/);
+    expect(submitted[0]).toMatchObject({
+      serviceMode: true,
+      borrower: 'Service Borrower',
+      email: 'borrower@example.invalid',
+    });
+  });
   it('reports a saved loan with failed email without another submission', async () => {
     const original = transport.getMockImplementation()!;
     transport.mockImplementation((path, options) =>
