@@ -77,6 +77,9 @@ export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUp
           (entry) => entry.actor_user_id === req.user.id && entry.action === 'LOAN_CREATED',
         ).map((entry) => entry.entity_id),
       );
+      const email = String(req.user.email || '')
+        .trim()
+        .toLowerCase();
       const catalog = lendingLedger.adapter?.readReadyToBorrow
         ? readyToBorrowData(await lendingLedger.adapter.readReadyToBorrow()).records
         : [];
@@ -84,7 +87,7 @@ export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUp
         records: state.active
           .filter(
             (row) =>
-              own.has(row[0]) &&
+              (own.has(row[0]) || (email && state.loanEmails?.get(row[1]) === email)) &&
               row[14] === 'กำลังยืม' &&
               !state.returns.some((returned) => returned[2] === row[1]),
           )

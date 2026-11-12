@@ -42,8 +42,14 @@ test('only admins may serve another borrower; chosen identity reaches Sheets, au
       ['A3', 'SN3', 'Mouse'],
     ],
     appendLoanRows: async (kind, rows, options) => {
-      grids[kind].push(...rows.map((row) => [...row, options.email]));
-      emails.push(options.email);
+      if (kind === 'loans') {
+        grids.loans.push(...rows.map((row) => [...row, options.email]));
+        emails.push(options.email);
+      } else {
+        grids.returns.push(...rows);
+        for (const row of rows)
+          grids.loans.find((loan) => loan[1] === row[2])[14] = 'รอดำเนินการคืน';
+      }
     },
   };
   fixture.config.confirmLoan = async (_ledger, _result, email) => {
@@ -146,13 +152,67 @@ test('only admins may serve another borrower; chosen identity reaches Sheets, au
   assert.deepEqual(await mine(borrowerToken), [grids.loans[1][0], grids.loans[2][0]]);
   assert.deepEqual(await mine(staffToken), [grids.loans[3][0]]);
   assert.deepEqual(await mine(otherToken), []);
-  const returned = Array(RETURN_HEADERS.length).fill('');
-  returned[0] = 'R-served';
-  returned[1] = grids.loans[1][0];
-  returned[2] = grids.loans[1][1];
-  returned[14] = 'เสร็จสิ้น';
-  grids.returns.push(returned);
-  assert.deepEqual(await mine(adminToken), [grids.loans[1][0], 'R-served']);
-  assert.deepEqual(await mine(borrowerToken), [grids.loans[1][0], grids.loans[2][0], 'R-served']);
+  const returnCatalog = async (token) => {
+    const response = await fetch(base + '/api/return-catalog', {
+      headers: { Cookie: `iqi_session=${token}` },
+    });
+    assert.equal(response.status, 200);
+    return (await response.json()).records.map((record) => record.asset);
+  };
+  assert.deepEqual(await returnCatalog(borrowerToken), [], 'pending loans cannot be returned');
+  grids.loans[1][14] = 'กำลังยืม';
+  grids.loans[2][14] = 'กำลังยืม';
+  assert.deepEqual(await returnCatalog(adminToken), ['A1']);
+  assert.deepEqual(await returnCatalog(fixture.token), ['A2']);
+  assert.deepEqual(await returnCatalog(borrowerToken), ['A1', 'A2']);
+  assert.deepEqual(await returnCatalog(otherToken), []);
+  assert.deepEqual(await returnCatalog(staffToken), []);
+  const submitReturn = (token, asset, serial) =>
+    fetch(base + '/api/returns', {
+      method: 'POST',
+      headers: {
+        Cookie: `iqi_session=${token}`,
+        'Content-Type': 'application/json',
+        'X-IQI-Request': csrf,
+      },
+      body: JSON.stringify({
+        requestId: crypto.randomUUID(),
+        team: 'IQI',
+        category: body.category,
+        identifier: asset,
+        selectedAsset: { asset, serial },
+        notes: '',
+        date: '2026-11-09',
+        ownLoanIds: [grids.loans[1][0]],
+        borrowerEmail: 'borrower@example.invalid',
+      }),
+    });
+  assert.equal(
+    (await submitReturn(otherToken, 'A1', 'SN1')).status,
+    409,
+    'client-supplied ownership cannot grant return access',
+  );
+  const borrowerReturn = await submitReturn(borrowerToken, 'A1', 'SN1');
+  assert.equal(borrowerReturn.status, 200);
+  const firstReturn = (await borrowerReturn.json()).id;
+  assert.deepEqual(await returnCatalog(adminToken), []);
+  assert.deepEqual(await returnCatalog(borrowerToken), ['A2']);
+  assert.equal(
+    (await submitReturn(adminToken, 'A1', 'SN1')).status,
+    409,
+    'creator cannot submit a second return for the same item',
+  );
+  const creatorReturn = await submitReturn(fixture.token, 'A2', 'SN2');
+  assert.equal(creatorReturn.status, 200);
+  const secondReturn = (await creatorReturn.json()).id;
+  assert.deepEqual(await returnCatalog(borrowerToken), []);
+  assert.equal(grids.returns.length, 3);
+  assert.deepEqual(await mine(adminToken), [grids.loans[1][0], firstReturn]);
+  assert.deepEqual(await mine(borrowerToken), [
+    grids.loans[1][0],
+    grids.loans[2][0],
+    firstReturn,
+    secondReturn,
+  ]);
   assert.deepEqual(await mine(otherToken), []);
 });

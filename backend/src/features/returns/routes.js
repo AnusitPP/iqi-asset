@@ -15,6 +15,7 @@ export function registerReturnsRoutes(app, { returnRequests }) {
         ? {
             ...body,
             borrower: req.user.name,
+            borrowerEmail: req.user.email || '',
             ownLoanIds,
             requestId: createHash('sha256')
               .update(req.user.id + ':' + body.requestId)

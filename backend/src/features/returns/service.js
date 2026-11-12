@@ -21,9 +21,12 @@ export class ReturnRequestService {
       let loan;
       if (body.ownLoanIds) {
         const state = await this.ledger.readLedger();
+        const email =
+          typeof body.borrowerEmail === 'string' ? body.borrowerEmail.trim().toLowerCase() : '';
         const matches = state.active.filter(
           (row) =>
-            body.ownLoanIds.includes(row[0]) &&
+            (body.ownLoanIds.includes(row[0]) ||
+              (email && state.loanEmails?.get(row[1]) === email)) &&
             row[7] === body.selectedAsset?.asset &&
             (row[8] || '') === body.selectedAsset?.serial,
         );
