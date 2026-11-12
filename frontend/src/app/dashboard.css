@@ -282,9 +282,9 @@
 }
 .dash-badge {
   display: inline-block;
-  font-size: 10px;
-  padding: 4px 9px;
-  border-radius: var(--mantine-radius-xs);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 8px;
   white-space: nowrap;
   background: #f2f4f5;
   color: #66716d;
@@ -298,8 +298,8 @@
   color: #805d0e;
 }
 .dash-badge.lost {
-  background: #ffdddd;
-  color: #9b3939;
+  background: #ffe1df;
+  color: #b34848;
 }
 .dash-open {
   padding: 7px 10px;

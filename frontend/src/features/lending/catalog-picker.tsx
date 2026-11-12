@@ -140,8 +140,8 @@ export function LendingCatalogPicker({
                       {value || 'ทั้งหมด'} (
                       {value
                         ? records.filter(
-                            (record) => (record.category || catalogCategory(record.name)) === value,
-                          ).length
+                          (record) => (record.category || catalogCategory(record.name)) === value,
+                        ).length
                         : records.length}
                       )
                     </Button>
@@ -271,6 +271,7 @@ export function LendingCatalogPicker({
                       </Table.Td>
                       <Table.Td>
                         <RequestStatusBadge
+                          variant="filled"
                           status={mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
                           size="xs"
                         />
@@ -369,6 +370,8 @@ export function LendingCatalogPicker({
                         {record.asset}
                       </Badge>
                       <RequestStatusBadge
+                        variant="filled"
+                        color={mode === 'loan' ? 'green.9' : undefined}
                         status={mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
                         size="xs"
                       />

@@ -2,11 +2,19 @@ import { approvalStatuses } from '../../../../shared/features/lending/status.js'
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
-import { sendLoanConfirmation } from '../mail/loan-confirmation.js';
 import { bangkokIsoDate, isIsoCalendarDate } from '../../../../shared/core/extensions/dates.js';
+import {
+  sendLoanConfirmation,
+  sendLoanStatusNotification,
+} from '../mail/loan-confirmation.js';
 export function registerLoansRoutes(
   app,
-  { lendingLedger, loanRequests, confirmLoan = sendLoanConfirmation },
+  {
+    lendingLedger,
+    loanRequests,
+    confirmLoan = sendLoanConfirmation,
+    notifyStatus = sendLoanStatusNotification,
+  },
 ) {
   app.get('/api/ready-to-borrow', async (req, res, next) => {
     try {
@@ -122,6 +130,7 @@ export function registerLoansRoutes(
       const statuses = approvalStatuses(returning ? 'คืน' : 'ยืม');
       if (!statuses.includes(req.body?.status))
         return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
+      let statusChange;
       await lendingLedger.withWriteLock(async () => {
         const state = await lendingLedger.readLedger();
         const matches = (returning ? state.returns : state.loans).filter(
@@ -130,6 +139,7 @@ export function registerLoansRoutes(
         if (matches.length !== 1)
           throw Object.assign(new Error('ไม่พบรายการยืมหรือรหัสซ้ำ'), { status: 409 });
         const record = matches[0];
+        const previousStatus = record[14];
         if (
           pickup?.date &&
           pickup.date < bangkokIsoDate() &&
@@ -174,8 +184,17 @@ export function registerLoansRoutes(
             },
           ),
         ]);
+        if (previousStatus !== req.body.status)
+          statusChange = {
+            kind: returning ? 'คืน' : 'ยืม',
+            id: req.params.id,
+            oldStatus: previousStatus,
+            status: req.body.status,
+          };
       });
-      res.json({ id: req.params.id });
+      const result = { id: req.params.id };
+      if (statusChange) result.mailNotification = await notifyStatus(lendingLedger, statusChange);
+      res.json(result);
     } catch (error) {
       next(error);
     }

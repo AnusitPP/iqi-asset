@@ -132,10 +132,10 @@ export function LendingRequestForm({
             classNames={
               mode === 'return'
                 ? {
-                    header: detailStyles.header,
-                    body: detailStyles.body,
-                    content: detailStyles.content,
-                  }
+                  header: detailStyles.header,
+                  body: detailStyles.body,
+                  content: detailStyles.content,
+                }
                 : undefined
             }
             closeOnClickOutside={!busy}
@@ -262,13 +262,11 @@ export function LendingRequestForm({
               label="ชื่อ - สกุล"
               withAsterisk
               maxLength={200}
-              readOnly={borrowerReadOnly}
-
               {...(mode === 'return'
                 ? { value: form.watch('borrower') }
                 : form.register('borrower'))}
               error={form.formState.errors.borrower?.message}
-              disabled={busy || mode === 'return'}
+              disabled={borrowerReadOnly}
             />
             {mode === 'return' ? (
               <TextInput
@@ -296,8 +294,7 @@ export function LendingRequestForm({
               type="email"
               maxLength={254}
               withAsterisk={request.serviceMode}
-              readOnly={!request.serviceMode}
-              disabled={busy}
+              disabled={borrowerReadOnly}
               {...form.register('email')}
               error={form.formState.errors.email?.message}
             />

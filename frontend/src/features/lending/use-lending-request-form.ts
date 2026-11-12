@@ -18,6 +18,7 @@ import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
 import { useToast } from '@/providers/toast-provider';
 import { catalogService } from '@/services/catalog.service';
+import dayjs from 'dayjs';
 type FormValues = LendingFormValues;
 const emptyValues: FormValues = {
   mode: 'loan',
@@ -198,8 +199,13 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     setDeleteError(null);
     if (record && (mode === 'return' || !form.getValues('start'))) {
       const today = bangkokIsoDate();
-      form.setValue(mode === 'return' ? 'date' : 'start', today, { shouldDirty: false });
-      if (mode === 'return') form.setValue('team', record.team ?? '', { shouldDirty: false });
+      form.setValue('date', today, { shouldDirty: false });
+      form.setValue('team', record.team ?? '', { shouldDirty: false });
+    } else if (record && mode === 'loan') {
+      const start = form.getValues('start') || bangkokIsoDate();
+      const due = form.getValues('due') || dayjs(start).add(7, 'day').format('YYYY-MM-DD');
+      if (!form.getValues('start')) form.setValue('start', start, { shouldDirty: false });
+      if (!form.getValues('due')) form.setValue('due', due, { shouldDirty: false });
     }
     requestId.current = crypto.randomUUID();
     setSelected(record);
