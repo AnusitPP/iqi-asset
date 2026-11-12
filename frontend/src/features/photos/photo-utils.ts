@@ -40,33 +40,42 @@ export async function preparePhotoForUpload(file: File, maxUploadBytes: number):
     return blob;
   };
   if (file.size > 25 * 1024 * 1024) throw new Error('เลือกภาพขนาดไม่เกิน 25 MB');
-  if (/\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type))
-    return validatePreparedPhotoSize(file);
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
+    if (/\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type))
+      return validatePreparedPhotoSize(file);
     throw new Error('อ่านรูปไม่ได้ กรุณาเลือก JPEG, PNG, WebP หรือ HEIC');
   }
   try {
     const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height)),
       canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    let width = Math.max(1, Math.round(bitmap.width * scale));
+    let height = Math.max(1, Math.round(bitmap.height * scale));
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการย่อรูป');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return validatePreparedPhotoSize(
-      await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(
-          (blob) => (blob ? resolve(blob) : reject(new Error('ย่อรูปไม่สำเร็จ'))),
-          'image/jpeg',
-          0.82,
-        ),
-      ),
-    );
+    for (;;) {
+      canvas.width = width;
+      canvas.height = height;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      for (const quality of [0.82, 0.68, 0.54]) {
+        const blob = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob(
+            (blob) => (blob ? resolve(blob) : reject(new Error('ย่อรูปไม่สำเร็จ'))),
+            'image/jpeg',
+            quality,
+          ),
+        );
+        if (blob.size <= maxUploadBytes) return blob;
+      }
+      if (Math.max(width, height) <= 320)
+        throw new Error('ย่อรูปแล้วยังเกินขนาดที่เซิร์ฟเวอร์รับได้ กรุณาเลือกรูปอื่น');
+      width = Math.max(1, Math.round(width * 0.75));
+      height = Math.max(1, Math.round(height * 0.75));
+    }
   } finally {
     bitmap.close();
   }

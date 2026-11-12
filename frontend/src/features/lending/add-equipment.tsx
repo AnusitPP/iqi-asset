@@ -22,11 +22,12 @@ import { z } from 'zod';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { ErrorAlert } from '@/components/ui/feedback';
 import { catalogSchema } from '@/types/lending';
-import { validatePhotoUploadSelection } from '@/features/photos/photo-utils';
+import { preparePhotoForUpload, validatePhotoUploadSelection } from '@/features/photos/photo-utils';
+import { photosService } from '@/services/photos.service';
 import { getErrorMessage } from '@/lib/api-client';
 import { LOAN_TYPES } from '@shared/features/lending/formConstants.js';
 
-type SelectedPhoto = { file: File; preview: string; uploaded: boolean };
+type SelectedPhoto = { file: File; binary: Blob; preview: string; uploaded: boolean };
 
 export function AddEquipment({ disabled }: { disabled: boolean }) {
   const { api, user } = useAuthSession();
@@ -53,7 +54,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
       for (const photo of photos.filter((entry) => !entry.uploaded)) {
         await api.request(`/api/loan-catalog/${record.row}/photos`, z.object({ url: z.string() }), {
           method: 'POST',
-          binary: photo.file,
+          binary: photo.binary,
           revision: encodeURIComponent(JSON.stringify([record.asset, record.serial])),
         });
         setPhotos((current) =>
@@ -82,14 +83,16 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
     try {
       validatePhotoUploadSelection(files, replace === undefined ? 3 - photos.length : 1);
       setPreparing(true);
+      const { maxUploadBytes } = await photosService.fetchUploadLimits(api);
       const selected: SelectedPhoto[] = [];
       for (const file of files) {
+        const binary = await preparePhotoForUpload(file, maxUploadBytes);
         const { preview } = await api.request(
           '/api/loan-catalog/preview',
           z.object({ preview: z.string().startsWith('data:image/jpeg;base64,') }),
-          { method: 'POST', binary: file },
+          { method: 'POST', binary },
         );
-        selected.push({ file, preview, uploaded: false });
+        selected.push({ file, binary, preview, uploaded: false });
       }
       setPhotos((current) =>
         replace === undefined

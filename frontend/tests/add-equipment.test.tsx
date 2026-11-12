@@ -4,7 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AddEquipment } from '../src/features/lending/add-equipment';
-const state = vi.hoisted(() => ({ role: 'STAFF', request: vi.fn() }));
+const state = vi.hoisted(() => ({ role: 'STAFF', request: vi.fn(), prepare: vi.fn() }));
+vi.mock('../src/services/photos.service', () => ({
+  photosService: {
+    fetchUploadLimits: vi.fn().mockResolvedValue({ maxUploadBytes: 4 * 1024 * 1024 }),
+  },
+}));
+vi.mock('../src/features/photos/photo-utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/features/photos/photo-utils')>()),
+  preparePhotoForUpload: state.prepare.mockImplementation(
+    async (file: File) => new File(['compressed'], file.name, { type: 'image/jpeg' }),
+  ),
+}));
 vi.mock('../src/features/auth/auth-provider', () => ({
   useAuthSession: () => ({ user: { role: state.role }, api: { request: state.request } }),
 }));
@@ -132,4 +143,9 @@ it('uploads three photos and retries the remaining photos without repeating succ
     .filter(([path]) => path.endsWith('/photos'))
     .map(([, , options]) => options.binary.name);
   expect(uploadedNames).toEqual(['1.jpg', '2.jpg', '2.jpg', '3.jpg']);
+  const previews = state.request.mock.calls.filter(([path]) => path.endsWith('/preview'));
+  const uploadsSent = state.request.mock.calls.filter(([path]) => path.endsWith('/photos'));
+  expect(state.prepare).toHaveBeenCalledTimes(3);
+  expect(uploadsSent[0]![2].binary).toBe(previews[0]![2].binary);
+  expect(uploadsSent[0]![2].binary.size).toBe('compressed'.length);
 });
