@@ -61,6 +61,7 @@ export function registerLoansRoutes(
         ...ledger.loans.map((row, index) => ({
           order: index,
           id: row[0],
+          itemId: row[1],
           kind: 'ยืม',
           asset: row[7],
           name: row[9],
@@ -85,6 +86,8 @@ export function registerLoansRoutes(
         ...ledger.returns.map((row, index) => ({
           order: index,
           id: row[0],
+          loanId: row[1],
+          itemId: row[2],
           kind: 'คืน',
           asset: row[8],
           name: row[10],

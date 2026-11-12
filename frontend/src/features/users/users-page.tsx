@@ -1,6 +1,6 @@
 'use client';
 import { RefreshButton } from '@/components/core/action-buttons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Group, Text, Badge, Box, Title } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -18,10 +18,17 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<UserSelection | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
   const users = useQuery({
     queryKey: ['users', filters],
     queryFn: ({ signal }) => usersService.list(api, filters, signal),
     enabled: can('USER_VIEW'),
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
   });
   const records = [...(users.data?.records ?? [])].sort(
     (a, b) =>
@@ -73,6 +80,7 @@ export function UsersPage() {
             records={records.slice(currentPage * pageSize, (currentPage + 1) * pageSize)}
             canManage={can('USER_MANAGE')}
             onSelect={setSelected}
+            now={now}
           />
           <Group justify="space-between" wrap="nowrap" gap="xs" my="md">
             <Button

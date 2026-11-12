@@ -17,6 +17,11 @@ declare module '@shared/features/lending/status.js' {
     completed?: boolean;
   }): string;
   export function requestStatusPresentation(status: string): { label: string; color: string };
+  export function isReturnPending(record: {
+    status?: string;
+    kind?: string;
+    completed?: boolean;
+  }): boolean;
   export function approvalStatuses(kind: string): string[];
 }
 declare module '@shared/features/catalog/search.js' {

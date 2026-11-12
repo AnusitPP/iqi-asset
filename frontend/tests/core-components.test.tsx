@@ -185,6 +185,11 @@ it('shared status badge uses central labels and normalizes completed requests', 
     </MantineProvider>,
   );
   expect(screen.getByText('รอดำเนินการ')).toBeTruthy();
+  expect(
+    (
+      screen.getByText('รอดำเนินการ').closest('.mantine-Badge-root') as HTMLElement
+    ).style.getPropertyValue('--badge-bg'),
+  ).toContain('blue');
 });
 import { LoanPeriod } from '../src/components/core/loan-period';
 import { LoanTimeBadge } from '../src/components/core/loan-time-badge';

@@ -39,6 +39,8 @@ export function RequestFilters({
   setView,
   currentLoansOnly,
   setCurrentLoansOnly,
+  showCompleted,
+  setShowCompleted,
 }: {
   approvals: boolean;
   requestKind: string;
@@ -58,6 +60,8 @@ export function RequestFilters({
   setView: (value: string) => void;
   currentLoansOnly: boolean;
   setCurrentLoansOnly: (value: boolean) => void;
+  showCompleted: boolean;
+  setShowCompleted: (value: boolean) => void;
 }) {
   const displayStatus = requestStatusValue;
   return (
@@ -165,16 +169,24 @@ export function RequestFilters({
                   onClick={() => {
                     setSearch('');
                     setSort('due');
-                    setCurrentLoansOnly(true);
+                    setCurrentLoansOnly(false);
+                    setShowCompleted(false);
                   }}
                 />
               </Group>
             </Group>
-            <Checkbox
-              label="แสดงรายการที่ยืมปัจจุบัน"
-              checked={currentLoansOnly}
-              onChange={(event) => setCurrentLoansOnly(event.currentTarget.checked)}
-            />
+            <Group gap="lg">
+              <Checkbox
+                label="แสดงรายการที่ยืมปัจจุบัน"
+                checked={currentLoansOnly}
+                onChange={(event) => setCurrentLoansOnly(event.currentTarget.checked)}
+              />
+              <Checkbox
+                label="แสดงรายการที่เสร็จสิ้น"
+                checked={showCompleted}
+                onChange={(event) => setShowCompleted(event.currentTarget.checked)}
+              />
+            </Group>
           </Stack>
         </Paper>
       )}

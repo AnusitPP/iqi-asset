@@ -1,6 +1,10 @@
 'use client';
 import { Badge, type BadgeProps } from '@mantine/core';
-import { requestStatusPresentation, requestStatusValue } from '@shared/features/lending/status.js';
+import {
+  requestStatusPresentation,
+  requestStatusValue,
+  isReturnPending,
+} from '@shared/features/lending/status.js';
 
 export function RequestStatusBadge({
   status = '',
@@ -14,7 +18,9 @@ export function RequestStatusBadge({
   color?: string;
   record?: { status: string; kind?: string; completed?: boolean };
 }) {
-  const presentation = requestStatusPresentation(requestStatusValue(record ?? { status }));
+  const presentation = isReturnPending(record ?? { status })
+    ? { label: 'รอดำเนินการ', color: 'blue' }
+    : requestStatusPresentation(requestStatusValue(record ?? { status }));
   return (
     <Badge
       variant={variant}

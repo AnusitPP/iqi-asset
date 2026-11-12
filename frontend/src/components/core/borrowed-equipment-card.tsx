@@ -1,5 +1,6 @@
 'use client';
-import { Box } from '@mantine/core';
+import { Box, Text } from '@mantine/core';
+import { isReturnPending } from '@shared/features/lending/status.js';
 import type { ReactNode } from 'react';
 import { catalogCategory } from '@shared/features/catalog/search.js';
 import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/dates.js';
@@ -27,8 +28,9 @@ export function BorrowedEquipmentCard({
   children?: ReactNode;
   categoryIndicator?: ReactNode;
 }) {
+  const returnPending = isReturnPending(record);
   const days =
-    record.kind === 'ยืม' && !record.completed && isIsoCalendarDate(record.due)
+    record.kind === 'ยืม' && !record.completed && !returnPending && isIsoCalendarDate(record.due)
       ? calendarDaysBetween(today, record.due)
       : null;
   const timeLabel =
@@ -53,6 +55,8 @@ export function BorrowedEquipmentCard({
           {days === null ? <Box /> : <LoanTimeBadge text={timeLabel} overdue={days < 0} />}
           <RequestStatusBadge
             record={record}
+            variant="filled"
+            c="white"
             size="md"
             radius="xl"
             className={styles.statusBadge}
@@ -60,9 +64,11 @@ export function BorrowedEquipmentCard({
         </>
       }
       progress={
-        record.kind === 'ยืม' &&
-        !record.completed &&
-        ['กำลังยืม', 'รอดำเนินการคืน'].includes(record.status) ? (
+        returnPending ? (
+          <Text size="lg" c="blue" fw={700}>
+            รอดำเนินการ
+          </Text>
+        ) : record.kind === 'ยืม' && !record.completed && record.status === 'กำลังยืม' ? (
           <LoanPeriod start={record.date} due={record.due} today={today} />
         ) : undefined
       }

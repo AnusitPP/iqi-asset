@@ -9,6 +9,27 @@ import { TestAuthStorage } from '../helpers/authStorage.js';
 const config = { bootstrapSuperAdminEmail: 'owner@step.cmu.ac.th' };
 const identity = { sub: 'staff-google-sub', name: 'Staff', email: 'staff@step.cmu.ac.th' };
 
+test('user management reports latest own activity across sessions without exposing session data', async () => {
+  const storage = new TestAuthStorage();
+  const sessions = new SheetSessionService(storage, config);
+  await sessions.login(identity);
+  const id = storage.tables.Users[0].id;
+  storage.tables.Users[0].last_login_at = '2026-11-12T01:00:00Z';
+  storage.tables.Sessions = [
+    { user_id: id, last_seen_at: '2026-11-12T01:05:00Z', session_token_hash: 'secret' },
+    { user_id: id, last_seen_at: '2026-11-12T01:10:00Z', revoked_at: '2026-11-12T01:11:00Z' },
+    { user_id: id, last_seen_at: 'invalid' },
+    { user_id: 'other-user', last_seen_at: '2026-11-12T02:00:00Z' },
+  ];
+  const service = new UserManagementService(storage, config);
+  const user = await service.detail(id);
+  assert.equal(user.last_seen_at, '2026-11-12T01:11:00.000Z');
+  assert.equal((await service.list())[0].last_seen_at, user.last_seen_at);
+  assert.equal(user.session_token_hash, undefined);
+  storage.tables.Sessions = [];
+  assert.equal((await service.detail(id)).last_seen_at, '2026-11-12T01:00:00.000Z');
+});
+
 test('sessions last 30 minutes and old eight-hour sessions are capped from original creation', async () => {
   const storage = new TestAuthStorage();
   const sessions = new SheetSessionService(storage, config);

@@ -94,6 +94,12 @@ async function setLoanDates() {
   }
 }
 describe('Google authenticated loan and return forms', () => {
+  it('prefills the first loan with today and a return date seven days later', async () => {
+    mount('loan');
+    await selectAsset('loan');
+    expect(screen.getByLabelText(/^วันที่ต้องการยืม/).textContent).toContain('30 ตุลาคม 2026');
+    expect(screen.getByLabelText(/^กำหนดวันส่งคืน/).textContent).toContain('06 พฤศจิกายน 2026');
+  });
   it('keeps the confirmation and form values after rejected deletion so an admin can retry or cancel', async () => {
     authState.user.role = 'ADMIN';
     const original = transport.getMockImplementation()!;

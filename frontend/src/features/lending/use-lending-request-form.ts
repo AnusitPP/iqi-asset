@@ -197,7 +197,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     setNotice('');
     setError(null);
     setDeleteError(null);
-    if (record && (mode === 'return' || !form.getValues('start'))) {
+    if (record && mode === 'return') {
       const today = bangkokIsoDate();
       form.setValue('date', today, { shouldDirty: false });
       form.setValue('team', record.team ?? '', { shouldDirty: false });

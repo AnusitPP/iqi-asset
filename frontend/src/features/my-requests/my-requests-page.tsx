@@ -16,12 +16,14 @@ import {
   approvalStatuses,
   requestStatusValue,
   requestStatusPresentation,
+  isReturnPending,
 } from '@shared/features/lending/status.js';
 import { myRequestsService } from '@/services/my-requests.service';
 export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const client = useQueryClient();
   const [search, setSearch] = useState('');
-  const [currentLoansOnly, setCurrentLoansOnly] = useState(true);
+  const [currentLoansOnly, setCurrentLoansOnly] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [requestKind, setRequestKind] = useState('ยืม');
   const [statusFilter, setStatusFilter] = useState(approvals ? 'รอดำเนินการ' : '');
   const [view, setView] = useState('grid');
@@ -54,6 +56,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         })
       : value || '—';
   const countdown = (entry: z.infer<typeof myRequestsSchema>['records'][number]) => {
+    if (!approvals && isReturnPending(entry)) return { text: 'รอดำเนินการ', color: 'blue' };
     if (approvals && entry.status !== 'กำลังยืม') return null;
     if (entry.kind !== 'ยืม' || entry.completed || !isIsoCalendarDate(entry.due)) return null;
     const days = calendarDaysBetween(today, entry.due);
@@ -146,8 +149,19 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
     (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role) || !can('LOAN_VIEW_ALL'))
   )
     return <Text>คุณไม่มีสิทธิ์เข้าถึงหน้านี้</Text>;
-  const kindRequests = (requests.data?.records ?? []).filter(
-    (entry) => !approvals || entry.kind === requestKind,
+  const allRequests = requests.data?.records ?? [];
+  const loanKeys = new Set(
+    allRequests
+      .filter((entry) => entry.kind === 'ยืม')
+      .map((entry) => JSON.stringify([entry.id, entry.itemId])),
+  );
+  const kindRequests = allRequests.filter((entry) =>
+    approvals
+      ? entry.kind === requestKind
+      : entry.kind !== 'คืน' ||
+        !entry.loanId ||
+        !entry.itemId ||
+        !loanKeys.has(JSON.stringify([entry.loanId, entry.itemId])),
   );
   const displayStatus = requestStatusValue;
   const searchTerms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -159,6 +173,12 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
       ? Date.parse(entry.due)
       : Infinity;
   const visibleRequests = kindRequests
+    .filter(
+      (entry) =>
+        approvals ||
+        showCompleted ||
+        !['เสร็จสิ้น', 'รับคืนแล้ว', 'คืนแล้ว'].includes(displayStatus(entry)),
+    )
     .filter(
       (entry) =>
         approvals ||
@@ -231,6 +251,8 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         setView={setView}
         currentLoansOnly={currentLoansOnly}
         setCurrentLoansOnly={setCurrentLoansOnly}
+        showCompleted={showCompleted}
+        setShowCompleted={setShowCompleted}
       />
       <RequestList
         approvals={approvals}

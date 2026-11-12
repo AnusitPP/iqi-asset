@@ -7,6 +7,19 @@ import {
 } from '../../../../shared/features/auth/permissions.js';
 import { auditEntry } from '../audit/repository.js';
 import { throwHttpError } from '../../core/errors/errors.js';
+function withLastActivity(user, tables) {
+  if (!user) return user;
+  const timestamps = [
+    user.last_login_at,
+    ...(tables.Sessions || [])
+      .filter((session) => session.user_id === user.id)
+      .flatMap((session) => [session.last_seen_at, session.created_at, session.revoked_at]),
+  ]
+    .map((value) => Date.parse(value))
+    .filter(Number.isFinite);
+  const latest = timestamps.reduce((maximum, value) => Math.max(maximum, value), -Infinity);
+  return { ...user, last_seen_at: Number.isFinite(latest) ? new Date(latest).toISOString() : '' };
+}
 export class UserManagementService {
   constructor(storage, config) {
     this.storage = storage;
@@ -22,7 +35,7 @@ export class UserManagementService {
     const tables = await this.storage.read();
     const search = (query.search || '').toLowerCase();
     return [...new Set(tables.Users.map((user) => user.id))]
-      .map((id) => publicUser(currentUser(tables, id)))
+      .map((id) => withLastActivity(publicUser(currentUser(tables, id)), tables))
       .filter(
         (user) =>
           (!query.role || user.role === query.role) &&
@@ -34,7 +47,7 @@ export class UserManagementService {
     const tables = await this.storage.read();
     const user = publicUser(currentUser(tables, id));
     if (!user) throwHttpError(404, 'ไม่พบผู้ใช้');
-    return user;
+    return withLastActivity(user, tables);
   }
   async update(actor, id, field, value) {
     if (
@@ -57,7 +70,7 @@ export class UserManagementService {
       ((field === 'role' && value !== 'SUPER_ADMIN') || (field === 'status' && value !== 'ACTIVE'))
     )
       throwHttpError(409, 'ไม่สามารถลดสิทธิ์หรือปิดบัญชี SUPER_ADMIN หลักได้');
-    if (before[field] === value) return publicUser(before);
+    if (before[field] === value) return withLastActivity(publicUser(before), tables);
     const now = new Date().toISOString();
     const operations = [];
     if (field === 'status') {

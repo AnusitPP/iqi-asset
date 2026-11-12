@@ -14,6 +14,7 @@ export const userSchema = z.object({
   created_at: z.string().optional().default(''),
   updated_at: z.string().optional().default(''),
   last_login_at: z.string().optional().default(''),
+  last_seen_at: z.string().optional(),
 });
 export type AccountUser = z.infer<typeof userSchema>;
 export type AccountRole = z.infer<typeof roleSchema>;
@@ -40,6 +41,8 @@ export const myRequestsSchema = z.object({
     z.object({
       id: z.string(),
       kind: z.string(),
+      loanId: z.string().optional().default(''),
+      itemId: z.string().optional().default(''),
       asset: z.string().optional().default(''),
       name: z.string().optional().default(''),
       date: z.string().optional().default(''),

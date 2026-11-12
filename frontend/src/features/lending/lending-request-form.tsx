@@ -262,11 +262,12 @@ export function LendingRequestForm({
               label="ชื่อ - สกุล"
               withAsterisk
               maxLength={200}
+              readOnly={borrowerReadOnly}
               {...(mode === 'return'
                 ? { value: form.watch('borrower') }
                 : form.register('borrower'))}
               error={form.formState.errors.borrower?.message}
-              disabled={borrowerReadOnly}
+              disabled={busy || mode === 'return'}
             />
             {mode === 'return' ? (
               <TextInput
@@ -294,7 +295,8 @@ export function LendingRequestForm({
               type="email"
               maxLength={254}
               withAsterisk={request.serviceMode}
-              disabled={borrowerReadOnly}
+              readOnly={!request.serviceMode}
+              disabled={busy}
               {...form.register('email')}
               error={form.formState.errors.email?.message}
             />

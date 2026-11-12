@@ -272,6 +272,7 @@ export function LendingCatalogPicker({
                       <Table.Td>
                         <RequestStatusBadge
                           variant="filled"
+                          c="white"
                           status={mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
                           size="xs"
                         />
@@ -371,7 +372,7 @@ export function LendingCatalogPicker({
                       </Badge>
                       <RequestStatusBadge
                         variant="filled"
-                        color={mode === 'loan' ? 'green.9' : undefined}
+                        c="white"
                         status={mode === 'loan' ? 'พร้อมยืม' : 'กำลังยืม'}
                         size="xs"
                       />

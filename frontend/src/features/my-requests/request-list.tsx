@@ -170,7 +170,7 @@ export function RequestList({
                       </Text>
                       {entry.due && <Text size="xs">กำหนดคืน: {displayDate(entry.due)}</Text>}
                       {countdown(entry) && (
-                        <Text size="xs" fw={600} c={countdown(entry)!.color}>
+                        <Text size="lg" fw={700} c={countdown(entry)!.color}>
                           {countdown(entry)!.text}
                         </Text>
                       )}
@@ -185,7 +185,15 @@ export function RequestList({
                       </Text>
                     )}
                     <RequestStatusBadge record={entry} />
-                    <Button size="xs" variant="outline" onClick={() => onOpenDetails(entry)}>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      style={{
+                        borderWidth: '0.1px',
+                        borderColor: 'var(--mantine-color-default-border)',
+                      }}
+                      onClick={() => onOpenDetails(entry)}
+                    >
                       ดูรายละเอียด
                     </Button>
                   </Group>

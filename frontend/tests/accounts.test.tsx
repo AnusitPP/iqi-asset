@@ -150,10 +150,21 @@ it.each(['รอดำเนินการ', 'กำลังยืม', 'ร�
   async (status) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-10T12:00:00+07:00'));
-    transport.mockImplementation(async () => Response.json({ records: [{
-      id: 'L-countdown', kind: 'ยืม', name: 'Countdown Mouse', asset: 'A-countdown',
-      date: '2026-11-09', due: '2026-11-13', status,
-    }] }));
+    transport.mockImplementation(async () =>
+      Response.json({
+        records: [
+          {
+            id: 'L-countdown',
+            kind: 'ยืม',
+            name: 'Countdown Mouse',
+            asset: 'A-countdown',
+            date: '2026-11-09',
+            due: '2026-11-13',
+            status,
+          },
+        ],
+      }),
+    );
     try {
       mount(<MyRequestsPage approvals />);
       const user = userEvent.setup();
@@ -390,9 +401,13 @@ it('loads own requests with the current API contract', async () => {
   currentUser = makeUser('staff');
   mount(<MyRequestsPage />);
   const user = userEvent.setup();
-  expect(await screen.findByText('ไม่พบรายการที่ตรงกับตัวกรอง')).toBeTruthy();
+  expect(await screen.findByText('Mouse')).toBeTruthy();
   const currentOnly = screen.getByRole('checkbox', { name: 'แสดงรายการที่ยืมปัจจุบัน' });
-  expect((currentOnly as HTMLInputElement).checked).toBe(true);
+  expect((currentOnly as HTMLInputElement).checked).toBe(false);
+  expect(
+    (screen.getByRole('checkbox', { name: 'แสดงรายการที่เสร็จสิ้น' }) as HTMLInputElement).checked,
+  ).toBe(false);
+  await user.click(currentOnly);
   expect(screen.queryByText('Mouse')).toBeNull();
   await user.click(currentOnly);
   expect(await screen.findByText('Mouse')).toBeTruthy();
@@ -403,6 +418,68 @@ it('loads own requests with the current API contract', async () => {
   await user.type(screen.getByLabelText('ค้นหารายการของฉัน'), 'missing');
   expect(screen.queryByText('Mouse')).toBeNull();
   expect(screen.getByText('ไม่พบรายการที่ตรงกับตัวกรอง')).toBeTruthy();
+});
+it('shows pending requests by default, optionally shows completed requests, hides duplicate returns, and shows blue return-pending text', async () => {
+  currentUser = makeUser('staff');
+  const records = [
+    { id: 'L-pending', kind: 'ยืม', name: 'Pending Monitor', asset: 'A1', status: 'รอดำเนินการ' },
+    {
+      id: 'L-waiting',
+      itemId: 'item-2',
+      kind: 'ยืม',
+      name: 'Waiting Monitor',
+      asset: 'A2',
+      status: 'รอดำเนินการคืน',
+      date: '2026-11-12',
+      due: '2026-11-12',
+    },
+    {
+      id: 'R-waiting',
+      loanId: 'L-waiting',
+      itemId: 'item-2',
+      kind: 'คืน',
+      name: 'Duplicate Return',
+      asset: 'A2',
+      status: 'รอดำเนินการ',
+      completed: true,
+    },
+    {
+      id: 'L-done',
+      kind: 'ยืม',
+      name: 'Completed Monitor',
+      asset: 'A3',
+      status: 'เสร็จสิ้น',
+      completed: true,
+    },
+  ];
+  transport.mockResolvedValue(Response.json({ records }));
+  mount(<MyRequestsPage />);
+  const user = userEvent.setup();
+  await screen.findByText('Waiting Monitor');
+  expect(screen.getByText('Pending Monitor')).toBeTruthy();
+  expect(screen.queryByText('Completed Monitor')).toBeNull();
+  expect(screen.queryByText('Duplicate Return')).toBeNull();
+  const card = within(
+    screen.getByText('Waiting Monitor').closest('.mantine-Paper-root') as HTMLElement,
+  );
+  expect(card.queryByRole('progressbar')).toBeNull();
+  expect(card.queryByText('กำหนดคืนวันนี้')).toBeNull();
+  expect(
+    card
+      .getAllByText('รอดำเนินการ')
+      .some((element) => element.style.color === 'var(--mantine-color-blue-text)'),
+  ).toBe(true);
+  await user.click(screen.getByRole('checkbox', { name: 'แสดงรายการที่เสร็จสิ้น' }));
+  expect(screen.getByText('Completed Monitor')).toBeTruthy();
+  await user.click(screen.getByRole('checkbox', { name: 'แสดงรายการที่เสร็จสิ้น' }));
+  expect(screen.queryByText('Completed Monitor')).toBeNull();
+  expect(screen.getByText('Pending Monitor')).toBeTruthy();
+  await user.click(screen.getByRole('checkbox', { name: 'แสดงรายการที่ยืมปัจจุบัน' }));
+  expect(screen.queryByText('Pending Monitor')).toBeNull();
+  expect(screen.getByText('Waiting Monitor')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'ล้างตัวกรอง' }));
+  expect(screen.queryByText('Completed Monitor')).toBeNull();
+  expect(screen.getByText('Pending Monitor')).toBeTruthy();
 });
 it('derives landing pages and permissions from server-issued grants', () => {
   expect(defaultWorkspacePath(makeUser('staff'))).toBe('/loans');

@@ -215,4 +215,12 @@ test('only admins may serve another borrower; chosen identity reaches Sheets, au
     secondReturn,
   ]);
   assert.deepEqual(await mine(otherToken), []);
+  const linked = await fetch(base + '/api/my-requests', {
+    headers: { Cookie: `iqi_session=${borrowerToken}` },
+  }).then((response) => response.json());
+  const linkedLoan = linked.records.find((record) => record.id === grids.loans[1][0]);
+  const linkedReturn = linked.records.find((record) => record.id === firstReturn);
+  assert.equal(linkedLoan.itemId, grids.loans[1][1]);
+  assert.equal(linkedReturn.loanId, linkedLoan.id);
+  assert.equal(linkedReturn.itemId, linkedLoan.itemId);
 });

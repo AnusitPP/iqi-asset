@@ -17,7 +17,7 @@ export const REQUEST_STATUS_PRESENTATION = {
   ไม่อนุมัติ: { label: 'ไม่อนุมัติ', color: 'red' },
   ยกเลิก: { label: 'ยกเลิก', color: 'gray' },
   กำลังยืม: { label: 'กำลังยืม', color: 'grape' },
-  รอดำเนินการคืน: { label: 'รอดำเนินการคืน', color: 'orange' },
+  รอดำเนินการคืน: { label: 'รอดำเนินการ', color: 'blue' },
   รอรับคืน: { label: 'รอรับคืน', color: 'orange' },
   รับคืนแล้ว: { label: 'รับคืนแล้ว', color: 'teal' },
   คืนแล้ว: { label: 'คืนแล้ว', color: 'teal' },
@@ -35,6 +35,11 @@ export const RETURN_APPROVAL_STATUSES = ['รอดำเนินการ', '�
 export function requestStatusValue({ status = '', kind, completed = false }) {
   if (kind === 'คืน') return { รอรับคืน: 'รอดำเนินการ', รับคืนแล้ว: 'เสร็จสิ้น' }[status] ?? status;
   return kind === 'ยืม' && completed ? 'เสร็จสิ้น' : status;
+}
+export function isReturnPending({ status = '', kind, completed = false }) {
+  return kind === 'คืน'
+    ? ['รอดำเนินการ', 'รอรับคืน'].includes(status)
+    : kind === 'ยืม' && !completed && status === 'รอดำเนินการคืน';
 }
 export function requestStatusPresentation(status) {
   return Object.hasOwn(REQUEST_STATUS_PRESENTATION, status)
