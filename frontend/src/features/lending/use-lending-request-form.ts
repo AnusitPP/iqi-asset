@@ -17,6 +17,7 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
 import { useToast } from '@/providers/toast-provider';
+import { catalogService } from '@/services/catalog.service';
 type FormValues = LendingFormValues;
 const emptyValues: FormValues = {
   mode: 'loan',
@@ -57,6 +58,8 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     [error, setError] = useState<unknown>(null),
     [notice, setNotice] = useState(''),
     [pickerVersion, setPickerVersion] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<unknown>(null);
   const requestId = useRef(initial?.requestId ?? crypto.randomUUID()),
     submitting = useRef(false);
   const form = useForm<FormValues>({
@@ -75,7 +78,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     },
     resolver: zodResolver(lendingFormSchema),
   });
-  const busy = form.formState.isSubmitting;
+  const busy = form.formState.isSubmitting || deleting;
   const serviceMode = canProvideService && form.watch('serviceMode') === true;
   const setServiceMode = (enabled: boolean) => {
     if (!canProvideService) return;
@@ -110,6 +113,7 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     if (!keepSelection) setSelected(null);
     setSelectionError('');
     setError(null);
+    setDeleteError(null);
     setNotice('');
     requestId.current = crypto.randomUUID();
     if (!keepSelection) setPickerVersion((value) => value + 1);
@@ -121,6 +125,32 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
         requestId: requestId.current,
       });
     client.removeQueries({ queryKey: ['workspace-state', `${mode}-catalog-query`], exact: true });
+  };
+  const deleteLendingAsset = async () => {
+    if (!canProvideService || !selected || submitting.current) return false;
+    submitting.current = true;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const result = await catalogService.remove(api, selected);
+      if (!isSubmitCurrent()) return false;
+      resetLendingRequestForm();
+      const message = result.photosPending
+        ? `ลบรายการจาก Sheet แล้ว แต่ยังย้ายรูป ${result.photosPending} รูปไปถังขยะ Drive ไม่สำเร็จ กรุณาตรวจสอบใน Drive`
+        : 'ลบรายการเรียบร้อยแล้ว';
+      setNotice(message);
+      showToast(message);
+      await client.invalidateQueries({ queryKey: ['loan-catalog'] });
+      await client.invalidateQueries({ queryKey: ['return-catalog'] });
+      return true;
+    } catch (caught) {
+      setDeleteError(caught);
+      await client.invalidateQueries({ queryKey: ['loan-catalog'] });
+      return false;
+    } finally {
+      submitting.current = false;
+      setDeleting(false);
+    }
   };
   const handleSubmitLendingRequest = async (values: FormValues) => {
     if (submitting.current) return;
@@ -163,6 +193,9 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     }
   };
   const selectLendingAsset = (record: CatalogRecord | null) => {
+    setNotice('');
+    setError(null);
+    setDeleteError(null);
     if (record && (mode === 'return' || !form.getValues('start'))) {
       const today = bangkokIsoDate();
       form.setValue(mode === 'return' ? 'date' : 'start', today, { shouldDirty: false });
@@ -176,6 +209,10 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     mode,
     borrowerReadOnly: !!user && !serviceMode,
     canProvideService,
+    canDeleteCatalogItem: canProvideService,
+    deleting,
+    deleteError,
+    deleteLendingAsset,
     serviceMode,
     setServiceMode,
     form,

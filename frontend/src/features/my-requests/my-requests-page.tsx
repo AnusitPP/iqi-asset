@@ -83,7 +83,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
     const days = calendarDaysBetween(today, entry.due);
     return {
       text:
-        days < 0 ? `เกินกำหนด ${-days} วัน` : days === 0 ? 'ครบกำหนดวันนี้' : `เหลือ ${days} วัน`,
+        days < 0 ? `เกินกำหนด ${-days} วัน` : days === 0 ? 'กำหนดคืนวันนี้' : `เหลือ ${days} วัน`,
       color: days < 0 ? 'red' : days <= 2 ? 'yellow' : 'portalGreen',
     };
   };
@@ -484,7 +484,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                       </Text>
                       {entry.due && <Text size="xs">กำหนดคืน: {displayDate(entry.due)}</Text>}
                       {countdown(entry) && (
-                        <Text size="xs" fw={600} c={countdown(entry)!.color}>
+                        <Text size="lg" fw={700} c={countdown(entry)!.color}>
                           {countdown(entry)!.text}
                         </Text>
                       )}
@@ -499,7 +499,15 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
                       </Text>
                     )}
                     <RequestStatusBadge record={entry} />
-                    <Button size="xs" variant="outline" onClick={() => openDetails(entry)}>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      style={{
+                        borderWidth: '0.1px',
+                        borderColor: 'var(--mantine-color-default-border)',
+                      }}
+                      onClick={() => openDetails(entry)}
+                    >
                       ดูรายละเอียด
                     </Button>
                   </Group>

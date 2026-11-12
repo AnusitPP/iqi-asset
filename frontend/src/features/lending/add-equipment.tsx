@@ -16,7 +16,7 @@ import {
   Badge,
   Progress,
 } from '@mantine/core';
-import { ImagePlus, Upload, Trash2, Check } from 'lucide-react';
+import { ImagePlus, Trash2, Check } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -24,6 +24,7 @@ import { ErrorAlert } from '@/components/ui/feedback';
 import { catalogSchema } from '@/types/lending';
 import { preparePhotoForUpload, validatePhotoUploadSelection } from '@/features/photos/photo-utils';
 import { photosService } from '@/services/photos.service';
+import { PhotoDropzone } from '@/features/photos/photo-dropzone';
 import { getErrorMessage } from '@/lib/api-client';
 import { LOAN_TYPES } from '@shared/features/lending/formConstants.js';
 
@@ -78,10 +79,15 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
     mutation.reset();
   }
   async function selectPhotos(files: File[], replace?: number) {
-    if (!files.length) return;
+    if (!files.length || preparing || mutation.isPending) return;
     setPhotoError('');
     try {
       validatePhotoUploadSelection(files, replace === undefined ? 3 - photos.length : 1);
+    } catch (error) {
+      setPhotoError(getErrorMessage(error));
+      return;
+    }
+    try {
       setPreparing(true);
       const { maxUploadBytes } = await photosService.fetchUploadLimits(api);
       const selected: SelectedPhoto[] = [];
@@ -99,14 +105,14 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
           ? [...current, ...selected]
           : current.map((entry, index) => (index === replace ? (selected[0] ?? entry) : entry)),
       );
-    } catch (error) {
-      setPhotoError(getErrorMessage(error));
+    } catch {
+      setPhotoError('อัปโหลดไม่สำเร็จ กรุณาลองใหม่');
     } finally {
       setPreparing(false);
     }
   }
   const busy = preparing || mutation.isPending;
-  const accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+  const accept = 'image/*,.heic,.heif';
   if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role)) return null;
   return (
     <>
@@ -171,32 +177,14 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                   <Badge variant="light">{photos.length}/3 รูป</Badge>
                 </Group>
                 <Text size="xs" c="dimmed">
-                  เลือกได้สูงสุด 3 รูป ดูตัวอย่างก่อนบันทึก · JPEG, PNG, WebP, HEIC/HEIF ไม่เกิน 25
-                  MB ต่อรูป
+                  เลือกได้สูงสุด 3 รูป เว็บจะแปลงและย่อรูปให้อัตโนมัติก่อนอัปโหลด
                 </Text>
-                <FileButton
-                  multiple
-                  accept={accept}
-                  inputProps={{
-                    onClick: (event) => {
-                      event.currentTarget.value = '';
-                    },
-                  }}
-                  onChange={(files) => void selectPhotos(files)}
-                >
-                  {(props) => (
-                    <Button
-                      {...props}
-                      type="button"
-                      variant="light"
-                      leftSection={<Upload size={18} />}
-                      disabled={busy || photos.length === 3}
-                      loading={preparing}
-                    >
-                      เลือกรูปอุปกรณ์
-                    </Button>
-                  )}
-                </FileButton>
+                <PhotoDropzone
+                  onSelect={(files) => void selectPhotos(files)}
+                  disabled={busy || photos.length === 3}
+                  label="เลือกรูปอุปกรณ์"
+                  inputLabel="เลือกรูปอุปกรณ์"
+                />
                 <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
                   {[0, 1, 2].map((index) => {
                     const photo = photos[index];
@@ -229,6 +217,24 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                               />
                             )}
                           </Box>
+                          {photo && (
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant={index === 0 ? 'filled' : 'light'}
+                              aria-label={`ตั้งรูปที่ ${index + 1} เป็นรูปแรก`}
+                              aria-pressed={index === 0}
+                              disabled={busy || !!saved || index === 0}
+                              onClick={() =>
+                                setPhotos((current) => [
+                                  photo,
+                                  ...current.filter((entry) => entry !== photo),
+                                ])
+                              }
+                            >
+                              {index === 0 ? 'รูปแรก' : 'ตั้งเป็นรูปแรก'}
+                            </Button>
+                          )}
                           <Text size="xs" c="dimmed" truncate title={photo?.file.name}>
                             {photo?.file.name || `รูปที่ ${index + 1}`}
                           </Text>
@@ -319,7 +325,13 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                 หรือปิดเพื่อใช้รูปที่บันทึกแล้ว
               </Text>
             )}
-            <ErrorAlert error={mutation.error} />
+            <ErrorAlert
+              error={
+                mutation.error && saved
+                  ? new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่')
+                  : mutation.error
+              }
+            />
             <Group justify="flex-end">
               <Button type="button" variant="default" disabled={busy} onClick={close}>
                 ปิด

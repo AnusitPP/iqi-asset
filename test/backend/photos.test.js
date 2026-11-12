@@ -110,3 +110,38 @@ test('Sheets slots write URLs into exactly รูป1 รูป2 รูป3 with
   assert.ok(writes.every((w) => w.range.startRowIndex === 1));
   await assert.rejects(adapter.writeDashboardPhotoSlots(2, ['a', 'b', 'c', 'd'], 'today'), /3/);
 });
+
+test('setting a primary photo persists order, preserves archives, and rejects stale or unrelated photos', async () => {
+  const url = (id) => `https://drive.google.com/file/d/${id}/view`;
+  const grid = [
+    [
+      'ผลตรวจ Apps Script',
+      'สถานะการเทียบ',
+      'เลขครุภัณฑ์ Apps Script',
+      'รูป1',
+      'รูป2',
+      'รูป3',
+      'ลิงก์รูปครุภัณฑ์',
+    ],
+    ['ดี', 'ตรงกัน', '001', url('one'), url('two'), '', url('archive')],
+  ];
+  let writes = 0;
+  const adapter = {
+    readDashboard: async () => structuredClone(grid),
+    writeDashboardPhotoSlots: async (row, urls) => {
+      writes++;
+      grid[row - 1].splice(3, 3, ...urls);
+    },
+  };
+  const service = new DashboardPhotos(adapter, {}, new DashboardEditor(adapter));
+  const revision = () => dashboardData(grid).records[0].revision;
+  const stale = revision();
+  const result = await service.setPrimary(2, stale, 'archive');
+  assert.deepEqual(grid[1].slice(3, 6), [url('archive'), url('one'), url('two')]);
+  assert.equal(grid[1][6], url('archive'));
+  assert.equal(result.revision, revision());
+  await assert.rejects(service.setPrimary(2, stale, 'one'), /เปลี่ยน/);
+  await assert.rejects(service.setPrimary(2, revision(), 'unrelated'), /ไม่พบ/);
+  await assert.rejects(service.setPrimary(2, revision(), { id: 'one' }), /ไม่ถูกต้อง/);
+  assert.equal(writes, 1);
+});

@@ -1,5 +1,12 @@
 import express from 'express';
 export function registerPhotosRoutes(app, { photos, maxUploadBytes }) {
+  app.post('/api/dashboard/:row/photos/primary', async (req, res, next) => {
+    try {
+      res.json(await photos.setPrimary(Number(req.params.row), req.body?.revision, req.body?.id));
+    } catch (error) {
+      next(error);
+    }
+  });
   app.post(
     '/api/dashboard/:row/photos',
     express.raw({ type: 'application/octet-stream', limit: maxUploadBytes }),

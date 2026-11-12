@@ -147,7 +147,7 @@ describe('business presentation', () => {
     expect(() => validatePhotoUploadSelection([file, file], 1)).toThrow('เลือกได้อีก');
     expect(() =>
       validatePhotoUploadSelection([new File(['x'], 'a.html', { type: 'text/html' })], 3),
-    ).toThrow('JPEG');
+    ).toThrow('ไฟล์รูปภาพ');
     expect(() => validatePhotoUploadSelection([new File(['x'], 'a.heic')], 1)).not.toThrow();
   });
   it('bulk saves include hidden drafts, retain failures, and continue after failures', async () => {

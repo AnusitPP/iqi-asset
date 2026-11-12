@@ -17,6 +17,43 @@ export class DashboardPhotos {
     this.editor.queue = work.catch(() => {});
     return work;
   }
+  setPrimary(row, revision, id) {
+    const work = this.editor.queue.then(() =>
+      writeLocked(this.adapter, async () => {
+        if (!Number.isInteger(row) || row < 2 || typeof id !== 'string' || !/^[\w-]+$/.test(id))
+          fail(400, 'ข้อมูลรูปไม่ถูกต้อง');
+        const data = dashboardData(await this.adapter.readDashboard());
+        const record = data.records.find((entry) => entry.row === row);
+        if (
+          !record ||
+          record.revision !== revision ||
+          data.records.filter((entry) => entry.revision === revision).length !== 1
+        )
+          fail(409, 'ข้อมูลเปลี่ยนไปแล้ว กรุณาโหลดข้อมูลล่าสุด');
+        const photos = recordPhotos(data.headers, record.values);
+        const primary = photos.find((photo) => photo.id === id);
+        if (!primary) fail(404, 'ไม่พบรูปของรายการนี้');
+        if (photos.length > MAX_PHOTOS) fail(409, 'รายการนี้มีรูปเกิน 3 รูป กรุณาตรวจสอบข้อมูล');
+        if (photos[0].id === id) return { revision: record.revision };
+        const ordered = [primary, ...photos.filter((photo) => photo.id !== id)].map(
+          (photo) => photo.url,
+        );
+        await this.adapter.writeDashboardPhotoSlots(row, ordered, formatBangkokTimestamp());
+        const saved = dashboardData(await this.adapter.readDashboard());
+        const result = saved.records.find((entry) => entry.row === row);
+        if (
+          !result ||
+          result.asset !== record.asset ||
+          JSON.stringify(recordPhotos(saved.headers, result.values).map((photo) => photo.url)) !==
+            JSON.stringify(ordered)
+        )
+          fail(409, 'ยืนยันลำดับรูปไม่ได้ กรุณาโหลดข้อมูลล่าสุด');
+        return { revision: result.revision };
+      }),
+    );
+    this.editor.queue = work.catch(() => {});
+    return work;
+  }
   async perform(row, revision, input, type) {
     if (type !== undefined) fail(400, 'กรุณาโหลดหน้าเว็บใหม่เพื่อใช้ช่องอัปโหลดรูปแบบรวม');
     const values = await this.adapter.readDashboard(),

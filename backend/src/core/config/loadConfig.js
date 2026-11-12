@@ -39,7 +39,7 @@ export function loadConfig(env = process.env) {
     ),
     photoFolderId: env.GOOGLE_PHOTO_FOLDER_ID || '1C42KW3QDHJ2X4scDba0p11TV1xM4L8-z',
     driveOAuthFile: resolveProjectFile(env.GOOGLE_DRIVE_OAUTH_FILE || ''),
-    maxUploadBytes: hosted ? 4 * 1024 * 1024 : 25 * 1024 * 1024,
+    maxUploadBytes: 4 * 1024 * 1024,
     publicPhotoPreview: env.PUBLIC_PHOTO_PREVIEW === 'true',
     port: Number(env.PORT || 3000),
     host: env.HOST || '0.0.0.0',

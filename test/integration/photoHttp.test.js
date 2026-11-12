@@ -54,4 +54,35 @@ test('HTTP sequential multi-photo upload fills three slots and rejects overflow 
     grid[1].slice(3),
     [1, 2, 3].map((i) => `https://drive.google.com/file/d/http-${i}/view`),
   );
+  const primaryUrl = base + '/api/dashboard/2/photos/primary';
+  const headers = {
+    Cookie: cookie,
+    'Content-Type': 'application/json',
+    'X-IQI-Request': session.csrf,
+  };
+  const body = JSON.stringify({ id: 'http-3', revision });
+  assert.equal(
+    (
+      await fetch(primaryUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await fetch(primaryUrl, { method: 'POST', headers: { ...headers, Cookie: '' }, body })).status,
+    401,
+  );
+  const primary = await fetch(primaryUrl, { method: 'POST', headers, body });
+  assert.equal(primary.status, 200);
+  const saved = await primary.json();
+  assert.equal(saved.revision, dashboardData(grid).records[0].revision);
+  assert.deepEqual(
+    grid[1].slice(3),
+    [3, 1, 2].map((i) => `https://drive.google.com/file/d/http-${i}/view`),
+  );
+  assert.equal((await fetch(primaryUrl, { method: 'POST', headers, body })).status, 409);
+  assert.equal(uploaded, 3);
 });

@@ -31,7 +31,7 @@ export function createApp(service, config) {
   const csrf = config.appSecret
     ? createHmac('sha256', config.appSecret).update('iqi:csrf').digest('hex')
     : randomBytes(32).toString('hex');
-  const maxUploadBytes = config.maxUploadBytes || 25 * 1024 * 1024;
+  const maxUploadBytes = config.maxUploadBytes || 4 * 1024 * 1024;
   if (config.hosted) app.set('trust proxy', 1);
   const dashboardEditor = new DashboardEditor(service.adapter);
   const photos = new DashboardPhotos(service.adapter, new PhotoStore(config), dashboardEditor);

@@ -2,6 +2,15 @@ import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js
 import express from 'express';
 import { preparePhoto } from '../photos/prepareUpload.js';
 export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUploadBytes }) {
+  app.delete('/api/loan-catalog/:row', async (req, res, next) => {
+    try {
+      if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
+        return res.status(403).json({ error: 'เฉพาะแอดมินเท่านั้นที่ลบรายการได้' });
+      res.json(await catalogEditor.remove(Number(req.params.row), req.body));
+    } catch (error) {
+      next(error);
+    }
+  });
   app.post(
     '/api/loan-catalog/preview',
     express.raw({ type: 'application/octet-stream', limit: maxUploadBytes }),

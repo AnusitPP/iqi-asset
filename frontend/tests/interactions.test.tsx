@@ -92,7 +92,11 @@ beforeEach(() => {
   mocks.request.mockReset();
   mocks.replace.mockReset();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 describe('migrated interactions', () => {
   it('searches after typing and sends authoritative revision for review selection', async () => {
     mocks.request.mockImplementation(async (path: string) =>
@@ -255,6 +259,91 @@ describe('migrated interactions', () => {
 });
 
 describe('forms and photos', () => {
+  it('makes a newly uploaded photo primary and uses the returned revision for the next upload', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockResolvedValue({ width: 1600, height: 1200, close: vi.fn() }),
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      fillRect: vi.fn(),
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) =>
+      callback(new Blob(['jpeg'], { type: 'image/jpeg' })),
+    );
+    let uploads = 0;
+    mocks.request.mockImplementation(async (path: string) => {
+      if (path === '/api/upload-config') return { maxUploadBytes: 4 * 1024 * 1024 };
+      if (path.endsWith('/primary')) return { revision: 'primary-new' };
+      return {
+        url: `https://drive.google.com/file/d/new-${++uploads}/view`,
+        revision: `photo-${uploads}`,
+        bytes: 4,
+        at: 'now',
+      };
+    });
+    renderWithAppProviders(
+      <AssetPhotoEditor
+        record={dashboardRecordSchema.parse({
+          ...dashRecord,
+          values: ['https://drive.google.com/file/d/old/view'],
+        })}
+        headers={['รูป1']}
+        busy={false}
+        onBusy={vi.fn()}
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+    const user = userEvent.setup();
+    await waitFor(() =>
+      expect(mocks.request).toHaveBeenCalledWith(
+        '/api/upload-config',
+        expect.anything(),
+        expect.anything(),
+      ),
+    );
+    fireEvent.drop(screen.getByRole('group', { name: 'พื้นที่วางรูปภาพ' }), {
+      dataTransfer: {
+        files: [
+          new File(['one'], 'one.heic', { type: 'image/heic' }),
+          new File(['two'], 'two.heic', { type: 'image/heic' }),
+        ],
+      },
+    });
+    await user.click(screen.getByRole('button', { name: 'ตั้งรูป two.heic เป็นรูปแรก' }));
+    await user.click(screen.getByRole('button', { name: 'อัปโหลด' }));
+    await screen.findByText('เพิ่มแล้ว 2/2 รูป');
+    expect(mocks.request).toHaveBeenCalledWith(
+      '/api/dashboard/2/photos/primary',
+      expect.anything(),
+      { method: 'POST', body: { id: 'new-1', revision: 'photo-1' } },
+    );
+    const calls = mocks.request.mock.calls.filter(([path]) => path === '/api/dashboard/2/photos');
+    expect(calls[1]?.[2].revision).toBe('primary-new');
+  });
+  it('persists the chosen existing primary photo with the current revision', async () => {
+    mocks.request.mockResolvedValue({ revision: 'primary-2' });
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    const url = (id: string) => `https://drive.google.com/file/d/${id}/view`;
+    renderWithAppProviders(
+      <AssetPhotoEditor
+        record={dashboardRecordSchema.parse({ ...dashRecord, values: [url('one'), url('two')] })}
+        headers={['รูป1', 'รูป2']}
+        busy={false}
+        onBusy={vi.fn()}
+        onRefresh={onRefresh}
+      />,
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: 'ตั้งรูปที่ 2 เป็นรูปแรก' }));
+    await waitFor(() =>
+      expect(mocks.request).toHaveBeenCalledWith(
+        '/api/dashboard/2/photos/primary',
+        expect.anything(),
+        { method: 'POST', body: { id: 'two', revision: 'd1' } },
+      ),
+    );
+    await waitFor(() => expect(onRefresh).toHaveBeenCalledOnce());
+  });
   it('preserves untouched CRLF, sends revision and keeps edits after a rejected save', async () => {
     const detail = {
       sheet: 'IQI',
@@ -327,6 +416,15 @@ describe('forms and photos', () => {
     expect(onClose).toHaveBeenCalled();
   });
   it('uploads sequential HEIC binaries with the revision returned by the prior upload', async () => {
+    const decode = vi.fn().mockResolvedValue({ width: 1600, height: 1200, close: vi.fn() });
+    vi.stubGlobal('createImageBitmap', decode);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      fillRect: vi.fn(),
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) =>
+      callback(new Blob(['jpeg'], { type: 'image/jpeg' })),
+    );
     let count = 0;
     mocks.request.mockImplementation(async (path: string) =>
       path === '/api/upload-config'
@@ -350,20 +448,36 @@ describe('forms and photos', () => {
       />,
     );
     const user = userEvent.setup();
-    await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, [
+    const selected = [
       new File(['a'], 'one.heic', { type: 'image/heic' }),
       new File(['b'], 'two.heic', { type: 'image/heic' }),
       new File(['c'], 'remove.heic', { type: 'image/heic' }),
-    ]);
+    ];
+    fireEvent.drop(screen.getByRole('group', { name: 'พื้นที่วางรูปภาพ' }), {
+      dataTransfer: { files: selected.slice(0, 2) },
+    });
+    await user.upload(
+      document.querySelector<HTMLInputElement>('input[type="file"]')!,
+      selected[2]!,
+    );
+    expect(screen.getAllByText('เลือกแล้ว 3 รูป').length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: 'นำรูป remove.heic ออก' }));
     expect(screen.queryByText('remove.heic')).toBeNull();
     expect(screen.getAllByText('เลือกแล้ว 2 รูป').length).toBeGreaterThan(0);
+    fireEvent.drop(screen.getByRole('group', { name: 'พื้นที่วางรูปภาพ' }), {
+      dataTransfer: { files: selected.slice(0, 2) },
+    });
+    expect(screen.getByText('เลือกได้อีก 3 รูปเท่านั้น')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'ตั้งรูป two.heic เป็นรูปแรก' }));
     await user.click(screen.getByRole('button', { name: 'อัปโหลด' }));
     expect(await screen.findByText('เพิ่มแล้ว 2/2 รูป')).toBeTruthy();
     const calls = mocks.request.mock.calls.filter(([path]) => path === '/api/dashboard/2/photos');
     expect(calls).toHaveLength(2);
     expect(calls[0]?.[2]).toMatchObject({ method: 'POST', revision: 'd1' });
     expect(calls[1]?.[2]).toMatchObject({ method: 'POST', revision: 'photo-1' });
+    expect(calls[0]?.[2].binary.type).toBe('image/jpeg');
+    expect(calls[1]?.[2].binary.type).toBe('image/jpeg');
+    expect(decode.mock.calls.map(([file]) => file.name)).toEqual(['two.heic', 'one.heic']);
     expect(onRefresh).toHaveBeenCalledOnce();
   });
 });

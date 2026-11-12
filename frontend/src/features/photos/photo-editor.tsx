@@ -5,7 +5,6 @@ import {
   Text,
   Group,
   Progress,
-  FileButton,
   Image,
   Box,
   Title,
@@ -21,6 +20,7 @@ import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { photosService } from '@/services/photos.service';
 import { ErrorAlert } from '@/components/ui/feedback';
 import { getErrorMessage } from '@/lib/api-client';
+import { PhotoDropzone } from './photo-dropzone';
 import {
   extractUniqueDrivePhotos,
   preparePhotoForUpload,
@@ -50,7 +50,7 @@ export function AssetPhotoEditor({
     [previews, setPreviews] = useState<{ url: string; file: File }[]>([]),
     [notice, setNotice] = useState(''),
     [progress, setProgress] = useState(0),
-    [inputKey, setInputKey] = useState(0);
+    [primaryFile, setPrimaryFile] = useState<File | null>(null);
   const photos = extractUniqueDrivePhotos(headers, record.values),
     remaining = Math.max(0, 3 - photos.length);
   useEffect(() => {
@@ -77,6 +77,12 @@ export function AssetPhotoEditor({
           const saved = await photosService.uploadAssetPhoto(api, record.row, binary, revision);
           revision = saved.revision;
           completed++;
+          if (file === primaryFile && photos.length > 0) {
+            const id = saved.url.match(/\/file\/d\/([\w-]+)\/view$/)?.[1];
+            if (!id) throw new Error('Invalid photo URL');
+            const updated = await photosService.setPrimaryPhoto(api, record.row, id, revision);
+            revision = updated.revision;
+          }
           setProgress((completed / files.length) * 100);
         }
         if (isUploadCurrent()) {
@@ -84,11 +90,11 @@ export function AssetPhotoEditor({
           showToast(`เพิ่มแล้ว ${completed}/${files.length} รูป`);
         }
       } catch (error) {
-        setNotice(`เพิ่มแล้ว ${completed}/${files.length} รูป · ${getErrorMessage(error)}`);
+        setNotice(`เพิ่มแล้ว ${completed}/${files.length} รูป · อัปโหลดไม่สำเร็จ กรุณาลองใหม่`);
         throw error;
       } finally {
         setFiles([]);
-        setInputKey((v) => v + 1);
+        setPrimaryFile(null);
         try {
           if (isUploadCurrent()) await onRefresh();
         } catch (error) {
@@ -98,57 +104,72 @@ export function AssetPhotoEditor({
       }
     },
   });
+  const primaryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      onBusy(true);
+      try {
+        await photosService.setPrimaryPhoto(api, record.row, id, record.revision);
+        await onRefresh();
+        setNotice('ตั้งเป็นรูปแรกแล้ว');
+      } finally {
+        onBusy(false);
+      }
+    },
+    onError: () => setNotice('เปลี่ยนรูปแรกไม่สำเร็จ กรุณาลองใหม่'),
+  });
+  const locked = busy || uploadPhotosMutation.isPending || primaryMutation.isPending;
+  function selectFiles(selected: File[]) {
+    if (!selected.length || locked) return;
+    try {
+      const combined = [...files, ...selected];
+      validatePhotoUploadSelection(combined, remaining);
+      setFiles(combined);
+      setNotice(`เลือกแล้ว ${combined.length} รูป`);
+    } catch (error) {
+      setNotice(getErrorMessage(error));
+    }
+  }
   return (
     <Box component="section" className="dash-photo-section">
       <Title order={3}>รูปครุภัณฑ์ · {photos.length}/3</Title>
       <Box className="dash-photo-gallery">
         {photos.map((photo, index) => (
-          <DrivePhotoPreview
-            key={photo.id}
-            row={record.row}
-            photo={photo}
-            label={`รูป${index + 1} ${record.asset}`}
-          />
+          <Stack key={photo.id} gap="xs">
+            <DrivePhotoPreview
+              row={record.row}
+              photo={photo}
+              label={`รูป${index + 1} ${record.asset}`}
+            />
+            <Button
+              type="button"
+              size="xs"
+              variant={index === 0 ? 'filled' : 'light'}
+              aria-label={`ตั้งรูปที่ ${index + 1} เป็นรูปแรก`}
+              aria-pressed={index === 0}
+              disabled={locked || index === 0}
+              onClick={() => primaryMutation.mutate(photo.id)}
+            >
+              {index === 0 ? 'รูปแรก' : 'ตั้งเป็นรูปแรก'}
+            </Button>
+          </Stack>
         ))}
       </Box>
       {remaining ? (
         <>
-          <Text size="sm">เลือกพร้อมกันได้อีก {remaining} รูป · ไม่เกิน 25 MB/รูป</Text>
-          <FileButton
-            key={inputKey}
-            multiple
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-            inputProps={{ 'aria-label': `เลือกรูปครุภัณฑ์ ${record.asset}` }}
-            disabled={busy || uploadPhotosMutation.isPending}
-            onChange={(selected) => {
-              if (!selected.length) return;
-              try {
-                validatePhotoUploadSelection(selected, remaining);
-                setFiles(selected);
-                setNotice(`เลือกแล้ว ${selected.length} รูป`);
-              } catch (error) {
-                setFiles([]);
-                setNotice(getErrorMessage(error));
-              }
-            }}
-          >
-            {(props) => (
-              <Group mt="xs">
-                <Button
-                  {...props}
-                  variant="default"
-                  disabled={busy || uploadPhotosMutation.isPending}
-                >
-                  เลือกไฟล์รูปภาพ
-                </Button>
-                {files.length > 0 && (
-                  <Text size="sm" c="dimmed">
-                    เลือกแล้ว {files.length} รูป
-                  </Text>
-                )}
-              </Group>
-            )}
-          </FileButton>
+          <Text size="sm">
+            เลือกพร้อมกันได้อีก {remaining} รูป · เว็บจะแปลงและย่อรูปให้อัตโนมัติ
+          </Text>
+          <PhotoDropzone
+            onSelect={selectFiles}
+            disabled={locked || files.length >= remaining}
+            label="เลือกไฟล์รูปภาพ"
+            inputLabel={`เลือกรูปครุภัณฑ์ ${record.asset}`}
+          />
+          {files.length > 0 && (
+            <Text size="sm" c="dimmed">
+              เลือกแล้ว {files.length} รูป
+            </Text>
+          )}
           <Group align="stretch" my={8}>
             {files.map((file, index) => {
               const preview = previews.find((item) => item.file === file);
@@ -167,19 +188,39 @@ export function AssetPhotoEditor({
                     </Text>
                     <Button
                       type="button"
+                      size="xs"
+                      variant={
+                        primaryFile === file || (!photos.length && !primaryFile && index === 0)
+                          ? 'filled'
+                          : 'light'
+                      }
+                      aria-label={`ตั้งรูป ${file.name} เป็นรูปแรก`}
+                      aria-pressed={
+                        primaryFile === file || (!photos.length && !primaryFile && index === 0)
+                      }
+                      disabled={locked}
+                      onClick={() => {
+                        setPrimaryFile(file);
+                        setFiles((current) => [file, ...current.filter((entry) => entry !== file)]);
+                      }}
+                    >
+                      {primaryFile === file || (!photos.length && !primaryFile && index === 0)
+                        ? 'รูปแรก'
+                        : 'ตั้งเป็นรูปแรก'}
+                    </Button>
+                    <Button
+                      type="button"
                       color="red"
                       variant="light"
                       size="xs"
                       aria-label={`นำรูป ${file.name} ออก`}
-                      disabled={busy || uploadPhotosMutation.isPending}
+                      disabled={locked}
                       onClick={() => {
                         const remainingFiles = files.filter((_, fileIndex) => fileIndex !== index);
                         setFiles(remainingFiles);
-                        setInputKey((value) => value + 1);
+                        if (primaryFile === file) setPrimaryFile(null);
                         setNotice(
-                          remainingFiles.length
-                            ? `เลือกแล้ว ${remainingFiles.length} รูป`
-                            : '',
+                          remainingFiles.length ? `เลือกแล้ว ${remainingFiles.length} รูป` : '',
                         );
                       }}
                     >
@@ -192,7 +233,7 @@ export function AssetPhotoEditor({
           </Group>
           <Group>
             <Button
-              disabled={!files.length || !config.data || busy}
+              disabled={!files.length || !config.data || locked}
               loading={uploadPhotosMutation.isPending}
               onClick={() => uploadPhotosMutation.mutate()}
             >
@@ -212,7 +253,9 @@ export function AssetPhotoEditor({
               ลองอ่านขนาดอัปโหลดอีกครั้ง
             </Button>
           )}
-          <ErrorAlert error={uploadPhotosMutation.error} />
+          <ErrorAlert
+            error={uploadPhotosMutation.error ? new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่') : null}
+          />
         </>
       ) : (
         <Text>ครบ 3 รูปแล้ว</Text>

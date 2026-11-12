@@ -6,6 +6,33 @@ import path from 'node:path';
 import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
 import { PhotoStore } from '../../backend/src/integrations/google/photoStorage.js';
 
+test('photo cleanup trashes only images within the configured root and never deletes folders or external files', async () => {
+  const store = new PhotoStore({ photoFolderId: 'root' });
+  const trashed = [];
+  const files = {
+    local: { mimeType: 'image/jpeg', parents: ['asset-folder'], capabilities: { canTrash: true } },
+    'asset-folder': { mimeType: 'application/vnd.google-apps.folder', parents: ['root'] },
+    external: { mimeType: 'image/jpeg', parents: ['elsewhere'], capabilities: { canTrash: true } },
+    elsewhere: { mimeType: 'application/vnd.google-apps.folder', parents: ['other-root'] },
+    denied: { mimeType: 'image/jpeg', parents: ['root'], capabilities: { canTrash: false } },
+    root: { mimeType: 'application/vnd.google-apps.folder' },
+  };
+  store.drive.files.get = async ({ fileId }) => ({ data: files[fileId] });
+  store.drive.files.update = async (request) => {
+    assert.deepEqual(request.requestBody, { trashed: true });
+    assert.equal(request.supportsAllDrives, true);
+    trashed.push(request.fileId);
+    return { data: { trashed: true } };
+  };
+  store.drive.files.delete = () => assert.fail('No permanent deletion');
+  assert.equal(await store.trash('local'), true);
+  assert.equal(await store.trash('external'), false);
+  assert.equal(await store.trash('asset-folder'), false);
+  assert.equal(await store.trash('root'), false);
+  await assert.rejects(store.trash('denied'), /สิทธิ์/);
+  assert.deepEqual(trashed, ['local']);
+});
+
 test('asset folders reuse exact names within the configured root and share concurrent creation', async () => {
   const store = new PhotoStore({ photoFolderId: 'root' });
   let created = 0;

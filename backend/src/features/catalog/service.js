@@ -68,6 +68,87 @@ export class CatalogEditor {
       }),
     );
   }
+  remove(row, expected) {
+    return this.ledger.withWriteLock(() =>
+      writeLocked(this.adapter, async () => {
+        if (!Number.isInteger(row) || row < 2) fail(400, 'ข้อมูลอ้างอิงรายการไม่ถูกต้อง');
+        const grid = await this.adapter.readReadyToBorrow();
+        catalogHeaders(grid);
+        const records = readyToBorrowData(grid).records;
+        const record = records.find((entry) => entry.row === row);
+        if (
+          !record ||
+          !expected ||
+          !['asset', 'serial', 'name', 'photo', 'category'].every(
+            (key) => (record[key] ?? '') === (expected[key] ?? ''),
+          ) ||
+          records.filter((entry) => assetIdentityKey(entry) === assetIdentityKey(record)).length !==
+            1
+        )
+          fail(409, 'ข้อมูลรายการเปลี่ยนไปแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนลบ');
+        const state = await this.ledger.readLedger();
+        if (
+          state.active.some(
+            (entry) =>
+              assetIdentityKey({ asset: entry[7], serial: entry[8] || '' }) ===
+              assetIdentityKey(record),
+          )
+        )
+          fail(409, 'ลบไม่ได้ เนื่องจากมีคำขอยืมหรือกำลังยืมรายการนี้อยู่');
+        const fresh = await this.adapter.readReadyToBorrow();
+        if (
+          JSON.stringify(fresh[0]) !== JSON.stringify(grid[0]) ||
+          JSON.stringify(fresh[row - 1]) !== JSON.stringify(grid[row - 1])
+        )
+          fail(409, 'ข้อมูลรายการเปลี่ยนไปแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนลบ');
+        // Clear values without shifting the row numbers used by other open forms.
+        await this.adapter.clearReadyToBorrow(row);
+        if (
+          readyToBorrowData(await this.adapter.readReadyToBorrow()).records.some(
+            (entry) => entry.row === row,
+          )
+        )
+          fail(409, 'ยังยืนยันการลบไม่ได้ กรุณาโหลดรายการล่าสุด');
+        const ids = new Set();
+        for (const value of (record.photo || '').split('\n')) {
+          try {
+            const url = new URL(value.trim());
+            const id =
+              url.pathname.match(/^\/file\/d\/([\w-]+)\/view$/)?.[1] || url.searchParams.get('id');
+            if (
+              url.protocol === 'https:' &&
+              url.hostname === 'drive.google.com' &&
+              /^[\w-]+$/.test(id || '')
+            )
+              ids.add(id);
+          } catch {
+            /* Keep unrecognized external links untouched. */
+          }
+        }
+        const result = { deleted: true, photosTrashed: 0, photosKept: 0, photosPending: 0 };
+        if (!ids.size) return result;
+        let references;
+        try {
+          references = await this.adapter.readPhotoReferences();
+        } catch {
+          return { ...result, photosPending: ids.size };
+        }
+        for (const id of ids) {
+          if (references.some((value) => String(value).includes(id))) {
+            result.photosKept++;
+            continue;
+          }
+          try {
+            if (await this.store.trash(id)) result.photosTrashed++;
+            else result.photosKept++;
+          } catch {
+            result.photosPending++;
+          }
+        }
+        return result;
+      }),
+    );
+  }
   upload(row, identity, input) {
     try {
       identity = decodeURIComponent(identity);

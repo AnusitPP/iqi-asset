@@ -4,12 +4,18 @@ import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/
 
 export function LoanPeriod({ start, due, today }: { start: string; due: string; today: string }) {
   if (![start, due, today].every(isIsoCalendarDate)) return null;
-  const total = calendarDaysBetween(start, due);
-  if (total <= 0) return null;
-  const elapsed = Math.max(0, calendarDaysBetween(start, today));
+  const duration = calendarDaysBetween(start, due);
+  if (duration < 0) return null;
+  const total = Math.max(1, duration);
+  const elapsed = Math.max(0, calendarDaysBetween(start, today) + (duration === 0 ? 1 : 0));
   const remaining = calendarDaysBetween(today, due);
   const overdue = remaining < 0;
   const color = overdue ? 'red' : remaining > 2 ? 'green' : 'yellow';
+  const message = overdue
+    ? `เกินกำหนด ${-remaining} วัน`
+    : remaining === 0
+      ? 'กำหนดคืนวันนี้'
+      : `เหลือ ${remaining} วัน`;
   const percentage = Math.round((elapsed / total) * 100);
   return (
     <Stack gap={4} mt={4}>
@@ -49,12 +55,8 @@ export function LoanPeriod({ start, due, today }: { start: string; due: string; 
           aria-label="ระยะเวลาการยืม"
         />
       )}
-      <Text size="xs" c={color} fw={600}>
-        {overdue
-          ? `เกินกำหนด ${-remaining} วัน`
-          : remaining === 0
-            ? 'ครบกำหนดวันนี้'
-            : `เหลือ ${remaining} วัน`}
+      <Text size="lg" c={color} fw={700}>
+        {message}
       </Text>
     </Stack>
   );

@@ -267,7 +267,7 @@
 .dash-asset {
   display: block;
   font:
-    600 13px 'Segoe UI',
+    600 13px 'LINE Seed Sans TH',
     sans-serif;
 }
 .dash-item-name {
@@ -278,7 +278,7 @@
 }
 .dash-serial {
   max-width: 180px;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: 'LINE Seed Sans TH', Tahoma, sans-serif;
 }
 .dash-badge {
   display: inline-block;
