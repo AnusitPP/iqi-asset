@@ -46,7 +46,13 @@ export function AuditList({
               <Text size="xs" style={{ overflowWrap: 'anywhere' }}>
                 {entry.entity_type} · {entry.entity_id || '—'}
               </Text>
-              <Button variant="default" radius={8} h={40} onClick={() => onSelect(entry)}>
+              <Button
+                variant="default"
+                radius={8}
+                h={40}
+                style={{ borderWidth: '0.1px', borderColor: 'var(--mantine-color-default-border)' }}
+                onClick={() => onSelect(entry)}
+              >
                 ดูรายละเอียด
               </Button>
             </Stack>
@@ -135,6 +141,10 @@ export function AuditList({
                     h={36}
                     px={16}
                     fw={600}
+                    style={{
+                      borderWidth: '0.1px',
+                      borderColor: 'var(--mantine-color-default-border)',
+                    }}
                     onClick={() => onSelect(entry)}
                   >
                     ดูรายละเอียด

@@ -2,6 +2,39 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GoogleSheets } from '../../backend/src/integrations/google/googleSheets.js';
 
+test('catalog deletion clears only one data row and scans every tab including formula image references', async () => {
+  const adapter = Object.create(GoogleSheets.prototype);
+  adapter.config = { spreadsheetId: 'fixture' };
+  let clear;
+  adapter.api = {
+    spreadsheets: {
+      get: async () => ({
+        data: {
+          sheets: [{ properties: { title: 'พร้อมยืม' } }, { properties: { title: "Other's tab" } }],
+        },
+      }),
+      values: {
+        clear: async (request) => {
+          clear = request;
+        },
+        batchGet: async (request) => {
+          assert.deepEqual(request.ranges, ["'พร้อมยืม'", "'Other''s tab'"]);
+          assert.equal(request.valueRenderOption, 'FORMULA');
+          return {
+            data: { valueRanges: [{ values: [['one']] }, { values: [['=IMAGE("shared")']] }] },
+          };
+        },
+      },
+    },
+  };
+  await adapter.clearReadyToBorrow(2);
+  assert.deepEqual(clear, { spreadsheetId: 'fixture', range: "'พร้อมยืม'!2:2" });
+  await assert.rejects(adapter.clearReadyToBorrow(1), { status: 400 });
+  assert.deepEqual(await adapter.readPhotoReferences(), ['one', '=IMAGE("shared")']);
+  adapter.api.spreadsheets.values.batchGet = async () => ({ data: { valueRanges: [{}] } });
+  await assert.rejects(adapter.readPhotoReferences(), /ไม่ครบ/);
+});
+
 for (const columnCount of [5, 26]) {
   test(`category header safely fits a sheet with ${columnCount} physical columns`, async () => {
     const adapter = Object.create(GoogleSheets.prototype);

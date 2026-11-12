@@ -20,11 +20,16 @@ function fixture(headers = CATALOG_HEADERS) {
       grid[row - 1][names.indexOf('วันที่อัปเดตล่าสุด')] = at;
     },
     readLoanSheets: async () => ({ loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] }),
+    clearReadyToBorrow: async (row) => {
+      grid[row - 1] = [];
+    },
+    readPhotoReferences: async () => grid.flat(),
   };
   const ledger = new LendingLedger(adapter);
   const store = {
     upload: async () => ({ url: 'https://drive.google.com/file/d/photo-1/view' }),
     read: async (id) => id,
+    trash: async () => true,
   };
   return { grid, ledger, store, editor: new CatalogEditor(ledger, store) };
 }
@@ -38,6 +43,89 @@ test('catalog creation maps reordered sheet headers, preserves literal input and
   await assert.rejects(editor.create({ asset: 'A-1', serial: 'SN1', name: 'Other' }), {
     status: 409,
   });
+});
+
+test('catalog deletion clears only the selected item, preserves shared photos and loan history', async () => {
+  const { editor, grid, ledger, store } = fixture();
+  const record = await editor.create({ asset: 'DELETE', serial: 'SN', name: 'Mouse' });
+  await editor.create({ asset: 'KEEP', name: 'Keyboard' });
+  record.photo = ['unique', 'shared']
+    .map((id) => `https://drive.google.com/file/d/${id}/view`)
+    .join('\n');
+  grid[1][4] = record.photo;
+  grid[2][4] = 'https://drive.google.com/file/d/shared/view';
+  const trashed = [];
+  store.trash = async (id) => {
+    trashed.push(id);
+    return true;
+  };
+  const result = await editor.remove(2, record);
+  assert.equal(result.deleted, true);
+  assert.equal(result.photosTrashed, 1);
+  assert.equal(result.photosKept, 1);
+  assert.deepEqual(trashed, ['unique']);
+  assert.deepEqual(
+    (await ledger.readAvailableAssets()).records.map((entry) => entry.asset),
+    ['KEEP'],
+  );
+  assert.equal(grid.length, 3);
+});
+
+test('catalog deletion rejects stale, invalid, duplicate and borrowed items before touching Sheet or Drive', async () => {
+  const { editor, grid, ledger, store } = fixture();
+  const record = await editor.create({ asset: 'A', serial: 'SN', name: 'Mouse' });
+  editor.adapter.clearReadyToBorrow = () => assert.fail('Must not clear Sheets');
+  store.trash = () => assert.fail('Must not trash Drive');
+  await assert.rejects(editor.remove(1, record), { status: 400 });
+  await assert.rejects(editor.remove(2, { ...record, asset: 'wrong' }), { status: 409 });
+  await assert.rejects(editor.remove(2, { ...record, name: 'stale' }), { status: 409 });
+  grid.push([...grid[1]]);
+  await assert.rejects(editor.remove(2, record), { status: 409 });
+  grid.pop();
+  const active = Array(20).fill('');
+  active[7] = 'A';
+  active[8] = 'SN';
+  ledger.readLedger = async () => ({ active: [active] });
+  await assert.rejects(editor.remove(2, record), /คำขอยืม|กำลังยืม/);
+});
+
+test('catalog deletion leaves Drive intact on Sheet failure and reports pending Drive cleanup after successful deletion', async () => {
+  const { editor, grid, store } = fixture();
+  const record = await editor.create({ asset: 'A', name: 'Mouse' });
+  record.photo = 'https://drive.google.com/file/d/photo/view';
+  grid[1][4] = record.photo;
+  const clear = editor.adapter.clearReadyToBorrow;
+  editor.adapter.clearReadyToBorrow = async () => {
+    throw new Error('Sheets offline');
+  };
+  store.trash = () => assert.fail('Sheet failure must preserve photos');
+  await assert.rejects(editor.remove(2, record), /Sheets offline/);
+  editor.adapter.clearReadyToBorrow = clear;
+  store.trash = async () => {
+    throw new Error('Drive offline');
+  };
+  const result = await editor.remove(2, record);
+  assert.equal(result.deleted, true);
+  assert.equal(result.photosPending, 1);
+  assert.equal(grid[1].length, 0);
+});
+
+test('catalog deletion never trashes a photo when Sheet deletion or reference checks cannot be confirmed', async () => {
+  const { editor, grid, store } = fixture();
+  const record = await editor.create({ asset: 'A', name: 'Mouse' });
+  record.photo = 'https://drive.google.com/file/d/photo/view';
+  grid[1][4] = record.photo;
+  store.trash = () => assert.fail('Keep photos when checks are incomplete');
+  const clear = editor.adapter.clearReadyToBorrow;
+  editor.adapter.clearReadyToBorrow = async () => {};
+  await assert.rejects(editor.remove(2, record), /ยืนยันการลบ/);
+  editor.adapter.clearReadyToBorrow = clear;
+  editor.adapter.readPhotoReferences = async () => {
+    throw new Error('Cannot read all tabs');
+  };
+  const result = await editor.remove(2, record);
+  assert.equal(result.deleted, true);
+  assert.equal(result.photosPending, 1);
 });
 test('catalog rejects missing fields and unexpected sheet schema before writing', async () => {
   const { editor, grid } = fixture();

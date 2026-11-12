@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -32,6 +32,37 @@ function mount() {
     </MantineProvider>,
   );
 }
+it('drops multiple photos, adds another selection, and uploads the chosen first photo first', async () => {
+  state.role = 'ADMIN';
+  state.request.mockImplementation(async (path) => {
+    if (path.endsWith('/preview')) return { preview: 'data:image/jpeg;base64,cGhvdG8=' };
+    if (path === '/api/loan-catalog') return { row: 19, asset: 'A', serial: '', name: 'Mouse' };
+    return { url: 'https://drive.google.com/file/d/photo/view' };
+  });
+  mount();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'เพิ่มครุภัณฑ์' }));
+  await user.type(screen.getByLabelText(/เลขครุภัณฑ์/), 'A');
+  await user.type(screen.getByLabelText(/ชื่ออุปกรณ์/), 'Mouse');
+  const files = [1, 2, 3].map((n) => new File(['photo'], `${n}.jpg`, { type: 'image/jpeg' }));
+  fireEvent.drop(screen.getByRole('group', { name: 'พื้นที่วางรูปภาพ' }), {
+    dataTransfer: { files: files.slice(0, 2) },
+  });
+  await screen.findByText('2.jpg');
+  await user.upload(document.querySelector('input[type=file]') as HTMLInputElement, files[2]!);
+  await screen.findByText('3.jpg');
+  await user.click(screen.getByRole('button', { name: 'ตั้งรูปที่ 2 เป็นรูปแรก' }));
+  expect(
+    screen.getByRole('button', { name: 'ตั้งรูปที่ 1 เป็นรูปแรก' }).getAttribute('aria-pressed'),
+  ).toBe('true');
+  await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(
+    state.request.mock.calls
+      .filter(([path]) => path.endsWith('/photos'))
+      .map(([, , options]) => options.binary.name),
+  ).toEqual(['2.jpg', '1.jpg', '3.jpg']);
+});
 it('hides add equipment from staff', () => {
   state.role = 'STAFF';
   mount();
@@ -76,6 +107,8 @@ it('retries only the photo after equipment was saved', async () => {
   await user.upload(input, new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }));
   await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
   await screen.findByText(/เพิ่มครุภัณฑ์แล้ว แต่ยังเพิ่มรูปไม่สำเร็จ/);
+  expect(screen.getByRole('alert').textContent).toContain('อัปโหลดไม่สำเร็จ กรุณาลองใหม่');
+  expect(screen.queryByText('Drive offline')).toBeNull();
   await user.click(screen.getByRole('button', { name: 'บันทึกรูป' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(state.request.mock.calls.filter(([path]) => path === '/api/loan-catalog')).toHaveLength(1);

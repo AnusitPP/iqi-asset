@@ -30,7 +30,7 @@ test('only admins may serve another borrower; chosen identity reaches Sheets, au
       },
     },
   ]);
-  const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
+  const grids = { loans: [[...LOAN_HEADERS, 'email']], returns: [RETURN_HEADERS] };
   const recipients = [],
     emails = [];
   const adapter = {
@@ -42,7 +42,7 @@ test('only admins may serve another borrower; chosen identity reaches Sheets, au
       ['A3', 'SN3', 'Mouse'],
     ],
     appendLoanRows: async (kind, rows, options) => {
-      grids[kind].push(...rows);
+      grids[kind].push(...rows.map((row) => [...row, options.email]));
       emails.push(options.email);
     },
   };
@@ -122,4 +122,37 @@ test('only admins may serve another borrower; chosen identity reaches Sheets, au
   assert.equal(grids.loans[3][3], 'Staff');
   assert.equal(emails.at(-1), 'staff@example.invalid');
   assert.equal(recipients.at(-1), 'staff@example.invalid');
+  const borrowerToken = await fixture.sessions.login({
+    sub: 'borrower',
+    name: 'Service Borrower',
+    email: 'BORROWER@example.invalid',
+  });
+  const otherToken = await fixture.sessions.login({
+    sub: 'other',
+    name: 'Service Borrower',
+    email: 'other@example.invalid',
+  });
+  const mine = async (token) => {
+    const response = await fetch(base + '/api/my-requests', {
+      headers: { Cookie: `iqi_session=${token}` },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    return (await response.json()).records.map((record) => record.id);
+  };
+  grids.loans[1][LOAN_HEADERS.length] = ' Borrower@Example.Invalid ';
+  assert.deepEqual(await mine(adminToken), [grids.loans[1][0]]);
+  assert.deepEqual(await mine(fixture.token), [grids.loans[2][0]]);
+  assert.deepEqual(await mine(borrowerToken), [grids.loans[1][0], grids.loans[2][0]]);
+  assert.deepEqual(await mine(staffToken), [grids.loans[3][0]]);
+  assert.deepEqual(await mine(otherToken), []);
+  const returned = Array(RETURN_HEADERS.length).fill('');
+  returned[0] = 'R-served';
+  returned[1] = grids.loans[1][0];
+  returned[2] = grids.loans[1][1];
+  returned[14] = 'เสร็จสิ้น';
+  grids.returns.push(returned);
+  assert.deepEqual(await mine(adminToken), [grids.loans[1][0], 'R-served']);
+  assert.deepEqual(await mine(borrowerToken), [grids.loans[1][0], grids.loans[2][0], 'R-served']);
+  assert.deepEqual(await mine(otherToken), []);
 });

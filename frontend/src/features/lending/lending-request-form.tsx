@@ -12,20 +12,18 @@ import {
   Title,
   Modal,
   SimpleGrid,
-  Badge,
   Checkbox,
 } from '@mantine/core';
-import { Layers } from 'lucide-react';
+import { Layers, Trash2 } from 'lucide-react';
 import { RequestDetailsSummary } from '@/components/core/request-details-summary';
 import { CopyableText } from '@/components/core/copyable-text';
 import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
 import detailStyles from '@/components/core/request-details.module.css';
 import { useState, type ReactNode } from 'react';
 import { FORM_TEAMS } from '@shared/features/lending/formConstants.js';
-import { catalogCategory } from '@shared/features/catalog/search.js';
 import { ErrorAlert } from '@/components/ui/feedback';
 import { LendingCatalogPicker } from './catalog-picker';
-import { CatalogPhoto } from '@/components/core/catalog-photo';
+import { CatalogPhotoGallery } from '@/components/core/catalog-photo-gallery';
 import type { LendingRequestController } from './use-lending-request-form';
 
 type LendingRequestFormProps = {
@@ -58,6 +56,7 @@ export function LendingRequestForm({
     handleSubmitLendingRequest,
   } = request;
   const [detailsStep, setDetailsStep] = useState(false);
+  const [deleteOpened, setDeleteOpened] = useState(false);
   const showSelection = true;
   return (
     <Box component="section">
@@ -152,6 +151,55 @@ export function LendingRequestForm({
           </Text>
         )}
       </Paper>
+      <Modal
+        opened={deleteOpened && detailsStep && selected !== null && request.canDeleteCatalogItem}
+        onClose={() => {
+          if (!busy) setDeleteOpened(false);
+        }}
+        title="ยืนยันการลบรายการ"
+        centered
+        size="sm"
+        closeOnClickOutside={!busy}
+        closeOnEscape={!busy}
+        withCloseButton={!busy}
+      >
+        <Stack>
+          <Text>ต้องการลบ {selected?.name} ใช่ไหม?</Text>
+          <Text size="sm">
+            เลขครุภัณฑ์: {selected?.asset} · S/N: {selected?.serial || '—'}
+          </Text>
+          <Text size="sm" c="dimmed">
+            รายการนี้จะถูกลบจากชีตพร้อมยืม
+            รูปในโฟลเดอร์ของระบบที่ไม่มีการอ้างอิงในชีตอื่นจะถูกย้ายไปถังขยะ Drive
+            โดยไม่ลบประวัติยืม–คืน
+          </Text>
+          <ErrorAlert error={request.deleteError} />
+          <Group justify="flex-end">
+            <Button
+              type="button"
+              variant="default"
+              disabled={busy}
+              onClick={() => setDeleteOpened(false)}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              type="button"
+              color="red"
+              loading={request.deleting}
+              disabled={busy && !request.deleting}
+              onClick={async () => {
+                if (await request.deleteLendingAsset()) {
+                  setDeleteOpened(false);
+                  setDetailsStep(false);
+                }
+              }}
+            >
+              ยืนยันการลบ
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Box>
   );
   function renderForm() {
@@ -177,66 +225,28 @@ export function LendingRequestForm({
             </Text>
           )}
           {selected && mode !== 'return' && (
-            <>
-              <Paper
-                withBorder
-                p={8}
-                radius="md"
-                bg="portalGreen.0"
-                style={{
-                  borderColor: 'var(--mantine-color-portalGreen-2)',
-                  boxShadow: '0 2px 6px rgba(17, 108, 78, 0.04)',
-                }}
-              >
-                <Group wrap="nowrap" align="center" gap={10}>
-                  <Box
-                    w={80}
-                    p={2}
-                    bg="white"
-                    style={{
-                      flexShrink: 0,
-                      borderRadius: 12,
-                      overflow: 'hidden',
-                      border: '1px solid var(--mantine-color-gray-2)',
-                    }}
-                  >
-                    <CatalogPhoto
-                      key={selected?.photo}
-                      url={selected?.photo}
-                      name={selected?.name ?? ''}
-                      height={72}
-                    />
-                  </Box>
-                  <Stack gap={3} style={{ minWidth: 0, flex: 1 }}>
-                    <Badge
-                      variant="light"
-                      color="portalGreen"
-                      size="xs"
-                      maw="100%"
-                      title={selected?.category || catalogCategory(selected?.name ?? '')}
-                    >
-                      {selected?.category || catalogCategory(selected?.name ?? '')}
-                    </Badge>
-                    <Text fw={700} size="sm" lh={1.4} style={{ overflowWrap: 'anywhere' }}>
-                      {selected?.name}
+            <Stack gap={6}>
+              <CatalogPhotoGallery
+                key={`${selected.asset}-${selected.serial}-${selected.photo || ''}`}
+                url={selected.photo}
+                name={selected.name}
+              />
+              <Paper p="sm" radius="sm" bg="portalGreen.0">
+                <Stack gap={3} style={{ minWidth: 0, flex: 1 }}>
+                  <Text fw={700} size="sm" lh={1.4} style={{ overflowWrap: 'anywhere' }}>
+                    {selected?.name}
+                  </Text>
+                  <Group gap={6} wrap="wrap">
+                    <Text size="xs" c="portalGreen.7" fw={600} style={{ overflowWrap: 'anywhere' }}>
+                      {selected?.asset}
                     </Text>
-                    <Group gap={6} wrap="wrap">
-                      <Text
-                        size="xs"
-                        c="portalGreen.7"
-                        fw={600}
-                        style={{ overflowWrap: 'anywhere' }}
-                      >
-                        {selected?.asset}
-                      </Text>
-                      <Text size="xs" c="dimmed" style={{ overflowWrap: 'anywhere' }}>
-                        S/N: {selected?.serial || '—'}
-                      </Text>
-                    </Group>
-                  </Stack>
-                </Group>
+                    <Text size="xs" c="dimmed" style={{ overflowWrap: 'anywhere' }}>
+                      S/N: {selected?.serial || '—'}
+                    </Text>
+                  </Group>
+                </Stack>
               </Paper>
-            </>
+            </Stack>
           )}
           {request.canProvideService && (
             <Checkbox
@@ -331,6 +341,19 @@ export function LendingRequestForm({
             >
               ล้างแบบฟอร์ม
             </Button>
+            {request.canDeleteCatalogItem && selected && (
+              <Button
+                type="button"
+                color="red"
+                variant="light"
+                ml="auto"
+                disabled={busy}
+                leftSection={<Trash2 size={16} aria-hidden="true" />}
+                onClick={() => setDeleteOpened(true)}
+              >
+                ลบรายการ
+              </Button>
+            )}
           </Group>
         </Stack>
       </form>

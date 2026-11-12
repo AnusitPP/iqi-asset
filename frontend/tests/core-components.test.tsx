@@ -5,6 +5,45 @@ import { MantineProvider } from '@mantine/core';
 import { ViewToggle } from '../src/components/core/view-toggle';
 import { EquipmentCard } from '../src/components/core/equipment-card';
 import { CatalogPhoto } from '../src/components/core/catalog-photo';
+import { CatalogPhotoGallery } from '../src/components/core/catalog-photo-gallery';
+
+it('shows three private photos together and supports choosing photos without submitting the form', async () => {
+  const submit = vi.fn((event) => event.preventDefault());
+  render(
+    <MantineProvider>
+      <form onSubmit={submit}>
+        <CatalogPhotoGallery
+          name="Monitor"
+          url={[1, 2, 3].map((n) => `https://drive.google.com/file/d/p${n}/view`).join('\n')}
+        />
+      </form>
+    </MantineProvider>,
+  );
+  expect(screen.getAllByRole('img')).toHaveLength(3);
+  expect(screen.getByRole('img', { name: 'Monitor รูปที่ 2' }).getAttribute('src')).toBe(
+    '/api/catalog-photos/p2',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'แสดงรูปที่ 2 ของ Monitor' }));
+  expect(
+    screen.getByRole('button', { name: 'แสดงรูปที่ 2 ของ Monitor' }).getAttribute('aria-pressed'),
+  ).toBe('true');
+  await userEvent.click(screen.getByRole('button', { name: 'รูปถัดไปของ Monitor' }));
+  expect(
+    screen.getByRole('button', { name: 'แสดงรูปที่ 3 ของ Monitor' }).getAttribute('aria-pressed'),
+  ).toBe('true');
+  expect(submit).not.toHaveBeenCalled();
+});
+
+it('uses a friendly text placeholder without an equipment icon for absent or unsafe gallery photos', () => {
+  render(
+    <MantineProvider>
+      <CatalogPhotoGallery name="Monitor" url="javascript:alert(1)" />
+    </MantineProvider>,
+  );
+  expect(screen.getByText('ยังไม่มีรูปอุปกรณ์')).toBeTruthy();
+  expect(screen.queryByRole('img')).toBeNull();
+  expect(screen.queryByLabelText('ไม่มีภาพอุปกรณ์')).toBeNull();
+});
 import { SearchInput } from '../src/components/core/search-input';
 afterEach(cleanup);
 
@@ -149,6 +188,33 @@ it('shared status badge uses central labels and normalizes completed requests', 
 });
 import { LoanPeriod } from '../src/components/core/loan-period';
 import { LoanTimeBadge } from '../src/components/core/loan-time-badge';
+
+it('shows a return-today message for same-day loans and an overdue message after midnight', () => {
+  const view = render(
+    <MantineProvider>
+      <LoanPeriod start="2026-11-12" due="2026-11-12" today="2026-11-12" />
+    </MantineProvider>,
+  );
+  expect(screen.getByText('กำหนดคืนวันนี้')).toBeTruthy();
+  expect(screen.getByText('1 / 1 วัน')).toBeTruthy();
+  expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('100');
+  view.rerender(
+    <MantineProvider>
+      <LoanPeriod start="2026-11-12" due="2026-11-12" today="2026-11-13" />
+    </MantineProvider>,
+  );
+  expect(screen.getByText('เกินกำหนด 1 วัน')).toBeTruthy();
+  expect(screen.getByText('2 / 1 วัน')).toBeTruthy();
+  expect(screen.getByRole('progressbar').getAttribute('aria-valuetext')).toBe(
+    '200% เกินกำหนด 1 วัน',
+  );
+  view.rerender(
+    <MantineProvider>
+      <LoanPeriod start="2026-11-11" due="2026-11-12" today="2026-11-12" />
+    </MantineProvider>,
+  );
+  expect(screen.getByText('กำหนดคืนวันนี้')).toBeTruthy();
+});
 
 it('loan period displays the overdue extension and retains the actual elapsed days', () => {
   const view = render(

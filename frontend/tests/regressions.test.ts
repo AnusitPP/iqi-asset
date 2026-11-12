@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ApiClient } from '../src/lib/api-client';
 import { preserveUnchangedAssetValues } from '../src/lib/display';
-import { preparePhotoForUpload } from '../src/features/photos/photo-utils';
 import {
   saveStatusDraftsSequentially,
   type StatusDraft,
@@ -17,12 +16,6 @@ describe('frontend data and transport regressions', () => {
         ['Formula result\nsecond line', 'new note', 'unchanged\nvalue'],
       ),
     ).toEqual(['Formula result\r\nsecond line', 'new note', 'unchanged\rvalue']);
-  });
-  it('rejects hosted HEIC above the server upload limit before decoding or sending it', async () => {
-    const large = new File([new Uint8Array(5 * 1024 * 1024)], 'photo.heic', { type: 'image/heic' });
-    await expect(preparePhotoForUpload(large, 4 * 1024 * 1024)).rejects.toThrow('4 MB');
-    const small = new File([new Uint8Array(1024)], 'photo.heic', { type: 'image/heic' });
-    expect(await preparePhotoForUpload(small, 4 * 1024 * 1024)).toBe(small);
   });
   it('preserves newer edits while stopping a stale bulk save', async () => {
     const drafts = new Map<number, StatusDraft>([

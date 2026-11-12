@@ -47,6 +47,7 @@ test('local config retains file fallback and hosted config rejects missing or ma
     GOOGLE_DRIVE_OAUTH_FILE: './credentials/oauth.json',
   });
   assert.equal(local.serviceAccount, undefined);
+  assert.equal(local.maxUploadBytes, 4 * 1024 * 1024);
   assert.match(local.keyFile, /credentials[\\/]test.json$/);
   assert.equal(local.driveOAuthFile, path.resolve('credentials/oauth.json'));
   for (const key of ['APP_SECRET', 'GOOGLE_SERVICE_ACCOUNT_JSON']) {
@@ -142,6 +143,8 @@ test('local server is API-only with mocked Google setup and no cloud writes', ()
         const response = await fetch(base + path);
         if (!response.ok) throw new Error('Local API failed: ' + path);
       }
+      const upload = await fetch(base + '/api/upload-config').then(res => res.json());
+      if (upload.maxUploadBytes !== 4 * 1024 * 1024) throw new Error('Local upload limit must match production');
       for (const path of ['/', '/js/app.js', '/styles/style.css', '/shared/features/photos/slots.js']) {
         if ((await fetch(base + path)).status !== 404) throw new Error('Archived web route still served: ' + path);
       }

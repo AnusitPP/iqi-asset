@@ -131,4 +131,45 @@ export class PhotoStore {
       )
     ).data;
   }
+  async trash(id) {
+    if (!/^[\w-]+$/.test(id) || id === this.folder) return false;
+    const file = (
+      await this.drive.files.get({
+        fileId: id,
+        supportsAllDrives: true,
+        fields: 'id,mimeType,parents,trashed,capabilities(canTrash)',
+      })
+    ).data;
+    if (!file.mimeType?.startsWith('image/')) return false;
+    let withinRoot = file.parents?.includes(this.folder) || false;
+    if (!withinRoot) {
+      for (const parent of file.parents || []) {
+        const folder = (
+          await this.drive.files.get({
+            fileId: parent,
+            supportsAllDrives: true,
+            fields: 'mimeType,parents',
+          })
+        ).data;
+        if (
+          folder.mimeType === 'application/vnd.google-apps.folder' &&
+          folder.parents?.includes(this.folder)
+        ) {
+          withinRoot = true;
+          break;
+        }
+      }
+    }
+    if (!withinRoot) return false;
+    if (file.trashed) return true;
+    if (!file.capabilities?.canTrash) fail(422, 'บัญชีที่เชื่อม Drive ไม่มีสิทธิ์ย้ายรูปไปถังขยะ');
+    const result = await this.drive.files.update({
+      fileId: id,
+      supportsAllDrives: true,
+      requestBody: { trashed: true },
+      fields: 'id,trashed',
+    });
+    if (!result.data.trashed) fail(422, 'ยืนยันการย้ายรูปไปถังขยะไม่ได้');
+    return true;
+  }
 }

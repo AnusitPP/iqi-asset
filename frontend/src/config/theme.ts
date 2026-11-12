@@ -10,6 +10,7 @@ import {
   Modal,
   createTheme,
 } from '@mantine/core';
+import buttonStyles from './portal-button.module.css';
 
 export const portalTheme = createTheme({
   breakpoints: { sidebar: '64em', compact: '37.5em' },
@@ -33,9 +34,10 @@ export const portalTheme = createTheme({
   black: '#292929',
   defaultRadius: 'md',
   radius: { xs: '6px', sm: '8px', md: '12px', lg: '16px', xl: '20px' },
-  fontFamily: 'Noto Sans Thai, Tahoma, sans-serif',
+  fontFamily: '"LINE Seed Sans TH", Tahoma, sans-serif',
+  fontFamilyMonospace: '"LINE Seed Sans TH", Tahoma, sans-serif',
   headings: {
-    fontFamily: 'Noto Sans Thai, Tahoma, sans-serif',
+    fontFamily: '"LINE Seed Sans TH", Tahoma, sans-serif',
     sizes: {
       h1: { fontSize: '28px', lineHeight: '1.65' },
       h2: { fontSize: '21px', lineHeight: '1.65' },
@@ -44,7 +46,23 @@ export const portalTheme = createTheme({
   },
   components: {
     Anchor: Anchor.extend({ defaultProps: { underline: 'never' } }),
-    Button: Button.extend({ defaultProps: { radius: 'md' } }),
+    Button: Button.extend({
+      defaultProps: { radius: 'md' },
+      classNames: (theme, props) => {
+        const variant = props.variant || 'filled';
+        const primary = !props.color || props.color === theme.primaryColor;
+        return {
+          root: [
+            buttonStyles.root,
+            primary && variant === 'filled' ? buttonStyles.primary : '',
+            variant === 'default' ? buttonStyles.secondary : '',
+            primary && variant === 'outline' ? buttonStyles.outline : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        };
+      },
+    }),
     Paper: Paper.extend({ defaultProps: { radius: 'lg' } }),
     Modal: Modal.extend({ defaultProps: { radius: 'xl' } }),
     Table: Table.extend({ defaultProps: { highlightOnHover: false } }),

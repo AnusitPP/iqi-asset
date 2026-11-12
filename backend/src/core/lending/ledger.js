@@ -5,7 +5,7 @@ import { validateRequiredText as validateText } from '../validation/values.js';
 import { FORM_TEAMS } from '../../../../shared/features/lending/formConstants.js';
 import { catalogCategory } from '../../../../shared/features/catalog/search.js';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
-import { LOAN_HEADERS, normalizeLoanGrid } from './schema.js';
+import { LOAN_HEADERS, normalizeLoanGrid, loanColumnMapping } from './schema.js';
 import { RETURN_HEADERS } from './schema.js';
 function parseLedgerRows(values, headers) {
   if (JSON.stringify(values[0]) !== JSON.stringify(headers))
@@ -20,6 +20,21 @@ export class LendingLedger {
   }
   async readLedger() {
     const sheetData = await this.adapter.readLoanSheets();
+    const mapping = loanColumnMapping(sheetData.loans[0]);
+    const loanEmails = new Map();
+    for (const row of sheetData.loans.slice(1)) {
+      const item = row[mapping.indices[1]];
+      if (!item) continue;
+      // Ambiguous duplicate item IDs must not grant access through email.
+      loanEmails.set(
+        item,
+        loanEmails.has(item)
+          ? ''
+          : String(row[mapping.emailIndex] || '')
+              .trim()
+              .toLowerCase(),
+      );
+    }
     const loans = parseLedgerRows(normalizeLoanGrid(sheetData.loans), LOAN_HEADERS),
       returns = parseLedgerRows(
         [
@@ -40,6 +55,7 @@ export class LendingLedger {
     );
     return {
       loans,
+      loanEmails,
       returns,
       active: loans.filter(
         (sourceRecord) =>

@@ -200,6 +200,30 @@ export class GoogleSheets {
       requestBody: { values: [row] },
     });
   }
+  async clearReadyToBorrow(row) {
+    if (!Number.isInteger(row) || row < 2)
+      throw Object.assign(new Error('ข้อมูลแถวไม่ถูกต้อง'), { status: 400 });
+    await this.api.spreadsheets.values.clear({
+      spreadsheetId: this.config.spreadsheetId,
+      range: `'พร้อมยืม'!${row}:${row}`,
+    });
+  }
+  async readPhotoReferences() {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+    const ranges = data.sheets.map((sheet) => quote(sheet.properties.title));
+    if (!ranges.length) throw new Error('ไม่พบชีตสำหรับตรวจการใช้รูป');
+    const response = await this.api.spreadsheets.values.batchGet({
+      spreadsheetId: this.config.spreadsheetId,
+      ranges,
+      valueRenderOption: 'FORMULA',
+    });
+    if (response.data.valueRanges?.length !== ranges.length)
+      throw new Error('ตรวจการใช้รูปในชีตไม่ครบ');
+    return response.data.valueRanges.flatMap((range) => (range.values || []).flat());
+  }
   async addReadyToBorrowCategory(index) {
     const { data } = await this.api.spreadsheets.get({
       spreadsheetId: this.config.spreadsheetId,

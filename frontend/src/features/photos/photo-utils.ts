@@ -23,30 +23,26 @@ export function validatePhotoUploadSelection(files: File[], remaining: number) {
   if (!files.length) throw new Error('กรุณาเลือกรูปครุภัณฑ์');
   if (files.length > remaining) throw new Error(`เลือกได้อีก ${remaining} รูปเท่านั้น`);
   for (const file of files) {
-    if (file.size > 25 * 1024 * 1024) throw new Error('รูปต้องมีขนาดไม่เกิน 25 MB');
     if (
-      !['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(file.type) &&
-      !/\.hei[cf]$/i.test(file.name)
+      !file.type.startsWith('image/') &&
+      !/\.(jpe?g|png|webp|hei[cf]|gif|avif|bmp|tiff?)$/i.test(file.name)
     )
-      throw new Error('กรุณาเลือก JPEG, PNG, WebP หรือ HEIC');
+      throw new Error('กรุณาเลือกไฟล์รูปภาพ');
   }
 }
 export async function preparePhotoForUpload(file: File, maxUploadBytes: number): Promise<Blob> {
-  const validatePreparedPhotoSize = (blob: Blob) => {
-    if (blob.size > maxUploadBytes)
-      throw new Error(
-        `รูปที่ส่งต้องไม่เกิน ${maxUploadBytes / 1024 / 1024} MB กรุณาย่อหรือแปลงเป็น JPEG ก่อน`,
-      );
-    return blob;
-  };
-  if (file.size > 25 * 1024 * 1024) throw new Error('เลือกภาพขนาดไม่เกิน 25 MB');
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    if (/\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type))
-      return validatePreparedPhotoSize(file);
-    throw new Error('อ่านรูปไม่ได้ กรุณาเลือก JPEG, PNG, WebP หรือ HEIC');
+    try {
+      // Load the HEIC decoder only when native decoding fails, without weakening CSP.
+      const { isHeic, heicTo } = await import('heic-to/csp');
+      if (!(await isHeic(file))) throw new Error('Unsupported image');
+      bitmap = await heicTo({ blob: file, type: 'bitmap' });
+    } catch {
+      throw new Error('ไม่สามารถอ่านรูปนี้ได้ ไฟล์อาจเสียหายหรือเป็นรูปแบบที่ยังไม่รองรับ');
+    }
   }
   try {
     const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height)),

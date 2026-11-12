@@ -32,6 +32,13 @@ export function registerLoansRoutes(
           ['LOAN_CREATED', 'RETURN_CREATED'].includes(entry.action),
       ).map((entry) => entry.entity_id),
     );
+    const email = String(req.user.email || '')
+      .trim()
+      .toLowerCase();
+    for (const row of ledger.loans)
+      if (email && ledger.loanEmails?.get(row[1]) === email) own.add(row[0]);
+    const ownItems = new Set(ledger.loans.filter((row) => own.has(row[0])).map((row) => row[1]));
+    for (const row of ledger.returns) if (own.has(row[1]) && ownItems.has(row[2])) own.add(row[0]);
     const catalog = lendingLedger.adapter?.readReadyToBorrow
       ? readyToBorrowData(await lendingLedger.adapter.readReadyToBorrow()).records
       : [];

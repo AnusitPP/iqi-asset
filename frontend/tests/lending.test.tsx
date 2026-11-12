@@ -94,6 +94,68 @@ async function setLoanDates() {
   }
 }
 describe('Google authenticated loan and return forms', () => {
+  it('keeps the confirmation and form values after rejected deletion so an admin can retry or cancel', async () => {
+    authState.user.role = 'ADMIN';
+    const original = transport.getMockImplementation()!;
+    transport.mockImplementation(async (path, options) =>
+      options?.method === 'DELETE'
+        ? Response.json(
+            { error: 'ลบไม่ได้ เนื่องจากมีคำขอยืมหรือกำลังยืมรายการนี้อยู่' },
+            { status: 409 },
+          )
+        : original(path, options),
+    );
+    mount('loan');
+    const user = await selectAsset('loan');
+    await user.type(screen.getByLabelText('หมายเหตุ (ถ้ามี)'), 'keep my draft');
+    await user.click(screen.getByRole('button', { name: 'ลบรายการ' }));
+    await user.click(screen.getByRole('button', { name: 'ยืนยันการลบ' }));
+    await screen.findByText(/ลบไม่ได้ เนื่องจากมีคำขอยืม/);
+    expect(screen.getByRole('dialog', { name: 'ยืนยันการลบรายการ' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'ยกเลิก' }));
+    expect(screen.getByLabelText('หมายเหตุ (ถ้ามี)')).toHaveProperty('value', 'keep my draft');
+  });
+  it('hides catalog deletion from staff and return forms', async () => {
+    mount('loan');
+    await selectAsset('loan');
+    expect(screen.queryByRole('button', { name: 'ลบรายการ' })).toBeNull();
+    cleanup();
+    authState.user.role = 'ADMIN';
+    mount('return');
+    await selectAsset('return');
+    expect(screen.queryByRole('button', { name: 'ลบรายการ' })).toBeNull();
+  });
+  it.each(['ADMIN', 'SUPER_ADMIN'])(
+    'requires confirmation before %s deletes a catalog item and closes on success',
+    async (role) => {
+      authState.user.role = role;
+      const original = transport.getMockImplementation()!;
+      transport.mockImplementation(async (path, options) =>
+        options?.method === 'DELETE'
+          ? Response.json({ deleted: true, photosTrashed: 1, photosKept: 0, photosPending: 0 })
+          : original(path, options),
+      );
+      mount('loan');
+      const user = await selectAsset('loan');
+      await user.click(screen.getByRole('button', { name: 'ลบรายการ' }));
+      await screen.findByRole('dialog', { name: 'ยืนยันการลบรายการ' });
+      expect(transport.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
+      await user.click(screen.getByRole('button', { name: 'ยกเลิก' }));
+      expect(screen.queryByRole('dialog', { name: 'ยืนยันการลบรายการ' })).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'ลบรายการ' }));
+      await user.click(screen.getByRole('button', { name: 'ยืนยันการลบ' }));
+      await screen.findByText('ลบรายการเรียบร้อยแล้ว');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      const calls = transport.mock.calls.filter(([, options]) => options?.method === 'DELETE');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe('/api/loan-catalog/2');
+      expect(JSON.parse(String(calls[0]?.[1]?.body))).toMatchObject({
+        asset: 'MOUSE-001',
+        serial: 'SN1',
+        name: 'Mouse Wireless',
+      });
+    },
+  );
   it('keeps staff identity locked and hides the service option', async () => {
     mount('loan');
     await selectAsset('loan');
@@ -148,11 +210,20 @@ describe('Google authenticated loan and return forms', () => {
   });
   it('reports a saved loan with failed email without another submission', async () => {
     const original = transport.getMockImplementation()!;
-    transport.mockImplementation((path, options) =>
-      path === '/api/loans'
-        ? Promise.resolve(Response.json({ id: 'L-test', mailNotification: 'failed' }))
-        : original(path, options),
-    );
+    let saved = false;
+    transport.mockImplementation((path, options) => {
+      if (path === '/api/loans') {
+        saved = true;
+        return Promise.resolve(Response.json({ id: 'L-test', mailNotification: 'failed' }));
+      }
+      if (path === '/api/loan-catalog' && saved)
+        return Promise.resolve(
+          Response.json({
+            records: [{ row: 3, asset: 'NEXT-002', serial: 'SN2', name: 'Next Monitor' }],
+          }),
+        );
+      return original(path, options);
+    });
     mount('loan');
     const user = await selectAsset('loan');
     await user.type(screen.getByLabelText(/^เหตุผล/), 'Meeting');
@@ -163,6 +234,10 @@ describe('Google authenticated loan and return forms', () => {
     ).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(transport.mock.calls.filter(([path]) => path === '/api/loans')).toHaveLength(1);
+    await user.click(await screen.findByRole('button', { name: 'ยืม Next Monitor NEXT-002 SN2' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByText(/บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ/)).toBeNull();
+    expect(screen.queryByText(/L-test/)).toBeNull();
   });
   it('keeps Google identity read-only when clearing and reopening a return', async () => {
     authState.user.name = 'Google Profile User';

@@ -2,6 +2,22 @@
 import { ActionIcon, Box, Group, Image, Text } from '@mantine/core';
 import { ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { useState } from 'react';
+export function catalogPhotoSource(value: string) {
+  try {
+    const link = new URL(value);
+    const id = link.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] ?? link.searchParams.get('id');
+    if (
+      link.protocol === 'https:' &&
+      link.hostname === 'drive.google.com' &&
+      id &&
+      /^[\w-]+$/.test(id)
+    )
+      return `/api/catalog-photos/${encodeURIComponent(id)}`;
+  } catch {
+    /* Invalid sheet links use the placeholder. */
+  }
+  return null;
+}
 export function CatalogPhoto({
   url,
   name,
@@ -22,17 +38,9 @@ export function CatalogPhoto({
     .slice(0, 3);
   const position = urls.length ? selected % urls.length : 0;
   const currentUrl = urls[position] || '';
-  let id: string | null = null;
-  try {
-    const link = new URL(currentUrl);
-    if (link.protocol === 'https:' && link.hostname === 'drive.google.com') {
-      id = link.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] ?? link.searchParams.get('id');
-    }
-  } catch {
-    /* Missing or invalid sheet link uses the placeholder. */
-  }
+  const source = catalogPhotoSource(currentUrl);
   const image =
-    !id || !/^[\w-]+$/.test(id) || failed === currentUrl ? (
+    !source || failed === currentUrl ? (
       <Box
         w="100%"
         h={height}
@@ -47,7 +55,7 @@ export function CatalogPhoto({
       </Box>
     ) : (
       <Image
-        src={`/api/catalog-photos/${encodeURIComponent(id)}`}
+        src={source}
         alt={name || 'รูปอุปกรณ์'}
         h={height}
         fit={fit}
