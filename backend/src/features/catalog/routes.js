@@ -1,7 +1,11 @@
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 import express from 'express';
 import { preparePhoto } from '../photos/prepareUpload.js';
-export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUploadBytes }) {
+import { borrowerNickname } from '../loans/staff-nicknames.js';
+export function registerCatalogRoutes(
+  app,
+  { lendingLedger, catalogEditor, maxUploadBytes, readStaffNicknames = async () => new Map() },
+) {
   app.delete('/api/loan-catalog/:row', async (req, res, next) => {
     try {
       if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
@@ -83,6 +87,7 @@ export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUp
       const catalog = lendingLedger.adapter?.readReadyToBorrow
         ? readyToBorrowData(await lendingLedger.adapter.readReadyToBorrow()).records
         : [];
+      const nicknames = await readStaffNicknames();
       return res.json({
         records: state.active
           .filter(
@@ -102,6 +107,7 @@ export function registerCatalogRoutes(app, { lendingLedger, catalogEditor, maxUp
             due: row[12] || '',
             status: row[14] || '',
             borrower: row[3] || '',
+            borrowerNickname: borrowerNickname(nicknames, row[3]),
             purpose: row[10] || '',
             notes: row[13] || '',
             adminComment: row[19] || '',

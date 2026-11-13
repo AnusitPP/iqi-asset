@@ -56,6 +56,7 @@ export const myRequestsSchema = z.object({
       pickupTime: z.string().optional().default(''),
       team: z.string().optional().default(''),
       borrower: z.string().optional().default(''),
+      borrowerNickname: z.string().optional().default(''),
       photo: z.string().optional().default(''),
       completed: z.boolean().optional().default(false),
       statusLocked: z.boolean().optional().default(false),

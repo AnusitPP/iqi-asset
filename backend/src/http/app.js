@@ -5,6 +5,7 @@ import { configureRequestSecurity } from '../core/http/security.js';
 import { registerCatalogRoutes } from '../features/catalog/routes.js';
 import { CatalogEditor } from '../features/catalog/service.js';
 import { registerLoansRoutes } from '../features/loans/routes.js';
+import { createStaffNicknameReader } from '../features/loans/staff-nicknames.js';
 import { registerReturnsRoutes } from '../features/returns/routes.js';
 import { registerDashboardRoutes } from '../features/dashboard/routes.js';
 import { registerPhotosRoutes } from '../features/photos/routes.js';
@@ -53,13 +54,20 @@ export function createApp(service, config) {
     if (service.ready) await service.ready();
     next();
   });
+  const readStaffNicknames = createStaffNicknameReader(service.adapter, config.staffSpreadsheetId);
   registerCatalogRoutes(app, {
     lendingLedger,
     catalogEditor: new CatalogEditor(lendingLedger, photos.store),
     maxUploadBytes,
+    readStaffNicknames,
   });
   registerMailRoutes(app, { lendingLedger });
-  registerLoansRoutes(app, { lendingLedger, loanRequests, confirmLoan: config.confirmLoan });
+  registerLoansRoutes(app, {
+    lendingLedger,
+    loanRequests,
+    confirmLoan: config.confirmLoan,
+    readStaffNicknames,
+  });
   registerReturnsRoutes(app, { returnRequests });
   registerDashboardRoutes(app, { dashboardEditor, service });
   registerPhotosRoutes(app, { photos, maxUploadBytes });

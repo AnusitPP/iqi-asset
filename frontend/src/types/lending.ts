@@ -16,6 +16,7 @@ export const catalogRecordSchema = z.object({
   due: z.string().optional(),
   status: z.string().optional(),
   borrower: z.string().optional(),
+  borrowerNickname: z.string().optional(),
   purpose: z.string().optional(),
   notes: z.string().optional(),
   adminComment: z.string().optional(),

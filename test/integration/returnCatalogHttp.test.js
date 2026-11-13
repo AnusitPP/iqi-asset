@@ -6,9 +6,18 @@ import { testSession } from '../helpers/session.js';
 
 test('return catalog requires Google session and lists only own approved loans without pending returns', async (t) => {
   const fixture = await testSession({ host: '127.0.0.1' });
+  fixture.config.staffSpreadsheetId = 'staff-fixture';
   const row = (id, status) => {
     const row = Array(19).fill('');
-    Object.assign(row, { 0: id, 1: id, 7: id, 8: 'SN1', 9: 'Mouse', 14: status });
+    Object.assign(row, {
+      0: id,
+      1: id,
+      3: 'Actual Borrower',
+      7: id,
+      8: 'SN1',
+      9: 'Mouse',
+      14: status,
+    });
     return row;
   };
   const grids = {
@@ -30,6 +39,16 @@ test('return catalog requires Google session and lists only own approved loans w
   );
   let reads = 0;
   const adapter = {
+    api: {
+      spreadsheets: {
+        get: async () => ({ data: { sheets: [{ properties: { title: 'Staff' } }] } }),
+        values: {
+          batchGet: async () => ({
+            data: { valueRanges: [{ values: [['Actual Borrower', '', 'Nick']] }] },
+          }),
+        },
+      },
+    },
     readLoanSheets: async () => {
       reads++;
       return structuredClone(grids);
@@ -55,7 +74,8 @@ test('return catalog requires Google session and lists only own approved loans w
         start: '',
         due: '',
         status: 'กำลังยืม',
-        borrower: '',
+        borrower: 'Actual Borrower',
+        borrowerNickname: 'Nick',
         purpose: '',
         notes: '',
         adminComment: '',

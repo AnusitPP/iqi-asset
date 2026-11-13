@@ -22,6 +22,7 @@ export function loadConfig(env = process.env) {
     publicOrigin,
     frontendOrigin,
     authSpreadsheetId: env.AUTH_SPREADSHEET_ID || '',
+    staffSpreadsheetId: env.STAFF_SPREADSHEET_ID ?? '1jWBs2YgmSBNd6_B5D-EG13Mka0Rmbvujb8uvK1KCZo8',
     bootstrapSuperAdminEmail: (env.BOOTSTRAP_SUPER_ADMIN_EMAIL || '').trim().toLowerCase(),
     appSecret: env.APP_SECRET,
     allowedHosts: [

@@ -94,6 +94,21 @@ async function setLoanDates() {
   }
 }
 describe('Google authenticated loan and return forms', () => {
+  it('shows the selected borrower nickname in the return details', async () => {
+    transport.mockImplementation(async () =>
+      Response.json({
+        records: catalog.records.map((record) => ({
+          ...record,
+          borrower: 'Actual Borrower',
+          borrowerNickname: 'Nick',
+        })),
+      }),
+    );
+    mount('return');
+    await selectAsset('return');
+    expect(screen.getByText('Actual Borrower (Nick)')).toBeTruthy();
+  });
+
   it('prefills the first loan with today and a return date seven days later', async () => {
     mount('loan');
     await selectAsset('loan');

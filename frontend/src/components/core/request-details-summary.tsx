@@ -18,6 +18,7 @@ export type RequestDetailRecord = {
   status: string;
   completed?: boolean;
   borrower?: string;
+  borrowerNickname?: string;
   team?: string;
   purpose?: string;
   notes?: string;
@@ -111,7 +112,10 @@ export function RequestDetailsSummary({
         </Group>
         <Box component="dl" className={styles.description}>
           <dt>ผู้ยืม:</dt>
-          <dd>{details.borrower || '—'}</dd>
+          <dd>
+            {details.borrower || '—'}
+            {details.borrowerNickname && ` (${details.borrowerNickname})`}
+          </dd>
           <dt>ทีม:</dt>
           <dd>{details.team || '—'}</dd>
           <dt>เหตุผล:</dt>

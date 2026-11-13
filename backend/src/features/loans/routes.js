@@ -1,6 +1,7 @@
 import { approvalStatuses } from '../../../../shared/features/lending/status.js';
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
+import { borrowerNickname } from './staff-nicknames.js';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 import { bangkokIsoDate, isIsoCalendarDate } from '../../../../shared/core/extensions/dates.js';
 import {
@@ -14,6 +15,7 @@ export function registerLoansRoutes(
     loanRequests,
     confirmLoan = sendLoanConfirmation,
     notifyStatus = sendLoanStatusNotification,
+    readStaffNicknames = async () => new Map(),
   },
 ) {
   app.get('/api/ready-to-borrow', async (req, res, next) => {
@@ -56,6 +58,8 @@ export function registerLoansRoutes(
     const returned = new Set(
       ledger.returns.filter((row) => row[14] === 'เสร็จสิ้น').map((row) => row[2]),
     );
+    const nicknames = await readStaffNicknames();
+    const nicknameFor = (name) => borrowerNickname(nicknames, name);
     res.json({
       records: [
         ...ledger.loans.map((row, index) => ({
@@ -76,6 +80,7 @@ export function registerLoansRoutes(
           pickupTime: row[21] || '',
           team: row[4] || '',
           borrower: row[3] || '',
+          borrowerNickname: nicknameFor(row[3]),
           photo: photo(row[7], row[8]),
           completed: returned.has(row[1]),
           statusLocked:
@@ -100,6 +105,7 @@ export function registerLoansRoutes(
           adminComment: row[19] || '',
           team: row[5] || '',
           borrower: row[4] || '',
+          borrowerNickname: nicknameFor(row[4]),
           photo: photo(row[8], row[9]),
           completed: true,
           statusLocked: ['เสร็จสิ้น', 'รับคืนแล้ว'].includes(row[14]),
