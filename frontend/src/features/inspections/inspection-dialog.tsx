@@ -67,17 +67,8 @@ export function ReviewInspectionDialog({
         <Stack>
           <Text>{target.asset}</Text>
           {current.isPending && <LoadingIndicator />}
-          <ErrorAlert error={current.error} />
+          <ErrorAlert error={current.error} onRefresh={() => current.refetch()} />
           <ErrorAlert error={saveReviewInspectionMutation.error} />
-          {current.error && (
-            <Button
-              onClick={() => {
-                void current.refetch();
-              }}
-            >
-              ลองอีกครั้ง
-            </Button>
-          )}
           <NativeSelect
             id="inspection-status"
             label="สถานะการตรวจสอบ"

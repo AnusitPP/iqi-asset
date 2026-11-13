@@ -61,15 +61,8 @@ export function AssetRecordDialog({
         />
       ) : (
         <>
-          <ErrorAlert error={record.error} />
+          <ErrorAlert error={record.error} onRefresh={() => record.refetch()} />
           <Button onClick={onClose}>ปิดรายละเอียด</Button>
-          <Button
-            onClick={() => {
-              void record.refetch();
-            }}
-          >
-            ลองอีกครั้ง
-          </Button>
         </>
       )}
     </Modal>

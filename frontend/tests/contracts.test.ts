@@ -41,7 +41,7 @@ describe('API boundary', () => {
     expect(headers.get('Content-Type')).toBe('application/octet-stream');
   });
   it.each([401, 403, 404, 409, 422, 429, 500])(
-    'surfaces HTTP %i and backend message',
+    'preserves status %i without displaying HTTP codes',
     async (status) => {
       const unauthorized = vi.fn(),
         api = new ApiClient(
@@ -57,7 +57,10 @@ describe('API boundary', () => {
         );
       await expect(api.request('/api/search', z.object({}))).rejects.toMatchObject({
         status,
-        message: `ข้อความจากเซิร์ฟเวอร์ (HTTP ${status})`,
+        message:
+          status === 429
+            ? 'ขณะนี้มีผู้ใช้งานจำนวนมาก กรุณารอสักครู่แล้วลองใหม่'
+            : 'ข้อความจากเซิร์ฟเวอร์',
         retryAfter: '60',
       });
       expect(unauthorized).toHaveBeenCalledTimes(status === 401 ? 1 : 0);

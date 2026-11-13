@@ -91,7 +91,7 @@ export function AssetsPage() {
           onChange={(e) => setPending(e.currentTarget.checked)}
         />
       </Paper>
-      <ErrorAlert error={results.error} />
+      <ErrorAlert error={results.error} onRefresh={() => results.refetch()} />
       {notice && <Text role="status">{notice}</Text>}
       <Box component="section" aria-live="polite" aria-busy={results.isFetching}>
         {!debounced && !pending ? (

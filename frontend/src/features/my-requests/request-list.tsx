@@ -25,6 +25,7 @@ export function RequestList({
   countdown,
   pickupLabel,
   onOpenDetails,
+  onRefresh,
 }: {
   approvals: boolean;
   view: string;
@@ -40,10 +41,11 @@ export function RequestList({
   countdown: (entry: RequestRecord) => Countdown;
   pickupLabel: (entry: RequestRecord) => string;
   onOpenDetails: (entry: RequestRecord) => void;
+  onRefresh: () => Promise<unknown>;
 }) {
   return (
     <>
-      <ErrorAlert error={error} />
+      <ErrorAlert error={error} onRefresh={onRefresh} />
       <ErrorAlert error={updateError} />
       {pending ? (
         <LoadingIndicator />

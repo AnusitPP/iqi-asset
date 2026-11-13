@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Box, SimpleGrid } from '@mantine/core';
+import { Box, SimpleGrid } from '@mantine/core';
 import { Package, CircleCheck, ClipboardClock, FileText } from 'lucide-react';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardService } from '@/services/dashboard.service';
@@ -79,19 +79,15 @@ export function HomeStatistics() {
           state={requestState}
         />
       </SimpleGrid>
-      <ErrorAlert error={dashboard.error || requests.error} />
-      {(dashboard.error || requests.error) && (
-        <Button
-          variant="subtle"
-          size="xs"
-          onClick={() => {
-            if (canDashboard) void dashboard.refetch();
-            if (canRequests) void requests.refetch();
-          }}
-        >
-          ลองโหลดข้อมูลสรุปอีกครั้ง
-        </Button>
-      )}
+      <ErrorAlert
+        error={dashboard.error || requests.error}
+        onRefresh={() =>
+          Promise.all([
+            ...(canDashboard ? [dashboard.refetch()] : []),
+            ...(canRequests ? [requests.refetch()] : []),
+          ])
+        }
+      />
     </Box>
   );
 }

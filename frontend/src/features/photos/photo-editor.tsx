@@ -243,16 +243,7 @@ export function AssetPhotoEditor({
           {uploadPhotosMutation.isPending && (
             <Progress value={progress} aria-label="ความคืบหน้าจำนวนรูปที่อัปโหลด" />
           )}
-          <ErrorAlert error={config.error} />
-          {config.error && (
-            <Button
-              onClick={() => {
-                void config.refetch();
-              }}
-            >
-              ลองอ่านขนาดอัปโหลดอีกครั้ง
-            </Button>
-          )}
+          <ErrorAlert error={config.error} onRefresh={() => config.refetch()} />
           <ErrorAlert
             error={uploadPhotosMutation.error ? new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่') : null}
           />

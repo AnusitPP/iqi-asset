@@ -140,8 +140,8 @@ export function LendingCatalogPicker({
                       {value || 'ทั้งหมด'} (
                       {value
                         ? records.filter(
-                          (record) => (record.category || catalogCategory(record.name)) === value,
-                        ).length
+                            (record) => (record.category || catalogCategory(record.name)) === value,
+                          ).length
                         : records.length}
                       )
                     </Button>
@@ -167,12 +167,7 @@ export function LendingCatalogPicker({
         <Text size="sm" role="status">
           {catalog.isPending ? 'กำลังโหลดอุปกรณ์…' : `รายการอุปกรณ์ (${visible.length} รายการ)`}
         </Text>
-        <ErrorAlert error={catalog.error} />
-        {catalog.error && (
-          <Button variant="default" onClick={() => void catalog.refetch()}>
-            ลองโหลดอุปกรณ์อีกครั้ง
-          </Button>
-        )}
+        <ErrorAlert error={catalog.error} onRefresh={() => catalog.refetch()} />
         {error && (
           <Text c="red" role="alert">
             {error}

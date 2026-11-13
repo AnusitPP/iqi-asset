@@ -345,7 +345,7 @@ describe('Google authenticated loan and return forms', () => {
     mount('return');
     const user = await selectAsset('return');
     await user.click(screen.getByRole('button', { name: 'ส่งคำขอคืน' }));
-    await screen.findByText(/HTTP 502/);
+    await screen.findByText('ยังยืนยันผลรายการไม่ได้ กรุณาตรวจสอบข้อมูลล่าสุดก่อนทำรายการซ้ำ');
     await user.click(screen.getByRole('button', { name: 'ส่งคำขอคืน' }));
     await waitFor(() => expect(submitted).toHaveLength(2));
     const schema = z.object({ requestId: z.string() });

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AppShell, Burger, Button, Container, Drawer, Group, Box, Anchor } from '@mantine/core';
+import { AppShell, Burger, Container, Drawer, Group, Box, Anchor } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -77,8 +77,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   if (auth.error)
     return (
       <Container component="main" size="sm" py="xl">
-        <ErrorAlert error={auth.error} />
-        <Button onClick={auth.retrySessionLookup}>ลองอีกครั้ง</Button>
+        <ErrorAlert error={auth.error} onRefresh={auth.retrySessionLookup} />
       </Container>
     );
   const sidebarProps = {
@@ -123,17 +122,10 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               />
             </Group>
             <ErrorAlert error={error} />
-            <ErrorAlert error={canReadStatus ? status.error : null} />
-            {canReadStatus && status.error && (
-              <Button
-                variant="light"
-                onClick={() => {
-                  void status.refetch();
-                }}
-              >
-                ลองเชื่อมต่ออีกครั้ง
-              </Button>
-            )}
+            <ErrorAlert
+              error={canReadStatus ? status.error : null}
+              onRefresh={() => status.refetch()}
+            />
             {allowed ? children : <LoadingIndicator />}
             <Box component="footer" className="portal-footer">
               <span>IQI · IT Service Portal</span>

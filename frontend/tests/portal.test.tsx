@@ -287,7 +287,8 @@ it('shows failed summary data as unavailable rather than a fake zero', async () 
   const card = within(screen.getByRole('article', { name: 'รายการครุภัณฑ์' }));
   expect(await card.findByText('ยังไม่สามารถอ่านข้อมูลได้')).toBeTruthy();
   expect(card.queryByText('0')).toBeNull();
-  expect(screen.getByRole('button', { name: 'ลองโหลดข้อมูลสรุปอีกครั้ง' })).toBeTruthy();
+  const popup = await screen.findByRole('dialog', { name: 'ทำรายการไม่สำเร็จ' });
+  expect(within(popup).getByRole('button', { name: 'รีเฟรช' })).toBeTruthy();
 });
 it('has unique configured destinations and resolves existing inspection routes', () => {
   expect(new Set(allPortalServices.map((service) => service.href)).size).toBe(

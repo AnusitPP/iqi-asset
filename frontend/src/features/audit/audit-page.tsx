@@ -80,7 +80,7 @@ export function AuditPage() {
           setPage(0);
         }}
       />
-      <ErrorAlert error={audit.error} />
+      <ErrorAlert error={audit.error} onRefresh={() => audit.refetch()} />
       {audit.isPending ? (
         <LoadingIndicator />
       ) : (

@@ -58,12 +58,7 @@ export function LoginPage() {
             เพื่อเริ่มใช้งาน IQI Asset Checker
           </p>
           <div className={styles.feedback}>
-            <ErrorAlert error={auth.error} />
-            {auth.error && (
-              <Button variant="default" onClick={auth.retrySessionLookup}>
-                ลองเชื่อมต่ออีกครั้ง
-              </Button>
-            )}
+            <ErrorAlert error={auth.error} onRefresh={auth.retrySessionLookup} />
           </div>
           <Button
             component="a"

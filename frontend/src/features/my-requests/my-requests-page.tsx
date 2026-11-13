@@ -259,7 +259,8 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         view={view}
         pending={requests.isPending}
         error={requests.error}
-        updateError={update.error}
+        onRefresh={() => requests.refetch()}
+        updateError={details ? null : update.error}
         records={visibleRequests}
         today={today}
         readKey={readKey}

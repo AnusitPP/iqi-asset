@@ -63,7 +63,7 @@ export function UsersPage() {
           setPage(0);
         }}
       />
-      <ErrorAlert error={users.error} />
+      <ErrorAlert error={users.error} onRefresh={() => users.refetch()} />
       {users.isPending ? (
         <LoadingIndicator />
       ) : !records.length ? (

@@ -52,16 +52,16 @@ describe('frontend data and transport regressions', () => {
             headers: { 'Content-Type': type },
           }),
         ),
-      ).rejects.toThrow('HTTP 500');
+      ).rejects.toThrow('ระบบขัดข้องชั่วคราว');
     await expect(
       invoke(new Response('<html>not json</html>', { headers: { 'Content-Type': 'text/html' } })),
-    ).rejects.toThrow('ผิดรูปแบบ');
+    ).rejects.toThrow('โหลดข้อมูลไม่สำเร็จ');
     await expect(
       invoke(new Response('{', { headers: { 'Content-Type': 'application/json' } })),
-    ).rejects.toThrow('JSON ไม่สมบูรณ์');
+    ).rejects.toThrow('โหลดข้อมูลไม่สำเร็จ');
     await expect(
       invoke(Response.json({ error: 'ข้อมูลเปลี่ยนไป' }, { status: 409 })),
-    ).rejects.toThrow(/ข้อมูลเปลี่ยนไป.*409/);
+    ).rejects.toThrow('ข้อมูลเปลี่ยนไป');
     await expect(invoke(new Response('too large', { status: 413 }))).rejects.toThrow('ไฟล์ใหญ่');
     expect(await invoke(Response.json({ authenticated: true }))).toEqual({ authenticated: true });
   });

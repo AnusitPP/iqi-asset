@@ -254,7 +254,7 @@ describe('migrated interactions', () => {
         .mockResolvedValue(Response.json({ authenticated: 'invalid', csrf: 123 })),
     );
     const { sessionSchema } = await import('../src/types/contracts');
-    await expect(api.request('/api/auth/session', sessionSchema)).rejects.toThrow('รูปแบบ');
+    await expect(api.request('/api/auth/session', sessionSchema)).rejects.toThrow('โหลดข้อมูลไม่สำเร็จ');
   });
 });
 

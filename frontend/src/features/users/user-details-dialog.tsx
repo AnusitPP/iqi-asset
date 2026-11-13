@@ -43,14 +43,7 @@ export function UserDetailsDialog({
         <UserAccessEditor key={id} user={detail.data.user} editing={editing} onClose={onClose} />
       ) : (
         <>
-          <ErrorAlert error={detail.error} />
-          <Button
-            onClick={() => {
-              void detail.refetch();
-            }}
-          >
-            ลองอีกครั้ง
-          </Button>
+          <ErrorAlert error={detail.error} onRefresh={() => detail.refetch()} />
         </>
       )}
       {!detail.data && (

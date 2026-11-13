@@ -186,14 +186,7 @@ export function DashboardPage() {
   if (!data.data)
     return (
       <>
-        <ErrorAlert error={data.error} />
-        <Button
-          onClick={() => {
-            void data.refetch();
-          }}
-        >
-          ลองโหลดอีกครั้ง
-        </Button>
+        <ErrorAlert error={data.error} onRefresh={() => data.refetch()} />
       </>
     );
   const dashboard = data.data;
@@ -274,7 +267,7 @@ export function DashboardPage() {
           บันทึกทั้งหมด ({drafts.current.size})
         </Button>
       </Box>
-      <ErrorAlert error={data.error} />
+      <ErrorAlert error={data.error} onRefresh={() => data.refetch()} />
       <ErrorAlert error={saveStatusDraftsMutation.error} />
       <ErrorAlert error={addFromIqiMutation.error} />
       <ErrorAlert error={findIqiMutation.error} />
