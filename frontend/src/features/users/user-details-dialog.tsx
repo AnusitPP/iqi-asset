@@ -3,7 +3,8 @@ import { useQuery, useIsMutating } from '@tanstack/react-query';
 import { Button, Group, Modal } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { usersService } from '@/services/users.service';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { UserAccessEditor } from './user-access-editor';
 
 export function UserDetailsDialog({
@@ -43,7 +44,7 @@ export function UserDetailsDialog({
         <UserAccessEditor key={id} user={detail.data.user} editing={editing} onClose={onClose} />
       ) : (
         <>
-          <ErrorAlert error={detail.error} onRefresh={() => detail.refetch()} />
+          <ErrorPopup error={detail.error} onRefresh={() => detail.refetch()} />
         </>
       )}
       {!detail.data && (

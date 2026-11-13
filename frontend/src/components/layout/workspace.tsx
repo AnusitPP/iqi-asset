@@ -8,7 +8,8 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import { systemService } from '@/services/system.service';
 import { useHasUnsavedChanges } from '@/hooks/use-unsaved';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { defaultWorkspacePath } from '@/types/account';
 import { findPortalService, findPortalModule, isServiceAllowed } from '@/config/navigation';
 import { AppSidebar } from '@/components/portal/app-sidebar';
@@ -77,7 +78,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   if (auth.error)
     return (
       <Container component="main" size="sm" py="xl">
-        <ErrorAlert error={auth.error} onRefresh={auth.retrySessionLookup} />
+        <ErrorPopup error={auth.error} onRefresh={auth.retrySessionLookup} />
       </Container>
     );
   const sidebarProps = {
@@ -121,8 +122,8 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
                 size="sm"
               />
             </Group>
-            <ErrorAlert error={error} />
-            <ErrorAlert
+            <ErrorPopup error={error} />
+            <ErrorPopup
               error={canReadStatus ? status.error : null}
               onRefresh={() => status.refetch()}
             />

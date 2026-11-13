@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Box, Button, NativeSelect, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { z } from 'zod';
 import { useAuthSession } from '@/features/auth/auth-provider';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { PageHeader } from '@/components/portal/page-header';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 
@@ -73,7 +73,7 @@ export function MailPage() {
                 { value: 'return', label: 'รายการคืน (รอรับคืน)' },
               ]}
             />
-            <ErrorAlert error={error} />
+            <ErrorPopup error={error} />
             <Text role="status" size="sm">
               {notice}
             </Text>

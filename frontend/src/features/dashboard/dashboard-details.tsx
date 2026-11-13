@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { type DashboardRecord } from '@/types/contracts';
 import { dashboardService } from '@/services/dashboard.service';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { AssetPhotoEditor } from '@/features/photos/photo-editor';
 import { editableDashboardHeaders } from '@shared/features/records/dashboardFields.js';
 import { photoHeaders } from '@/features/photos/photo-utils';
@@ -105,11 +105,11 @@ export function DashboardRecordDialog({
       />
       <form
         onSubmit={form.handleSubmit(async (values) => {
-          await saveTeamAndNotesMutation.mutateAsync(values).catch(() => { });
+          await saveTeamAndNotesMutation.mutateAsync(values).catch(() => {});
         })}
       >
         <Stack>
-          <ErrorAlert error={saveTeamAndNotesMutation.error} />
+          <ErrorPopup error={saveTeamAndNotesMutation.error} />
           <Text role="status">{notice}</Text>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" className="fields">
             {headers.map((header, i) =>
@@ -120,9 +120,7 @@ export function DashboardRecordDialog({
                       label="ทีม"
                       data={[
                         { value: '', label: 'ไม่ระบุทีม' },
-                        ...[record.team]
-                          .filter(Boolean)
-                          .map((value) => ({ value, label: value })),
+                        ...[record.team].filter(Boolean).map((value) => ({ value, label: value })),
                       ]}
                       {...form.register('fields.ทีม')}
                       disabled={busy}

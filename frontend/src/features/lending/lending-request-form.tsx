@@ -21,7 +21,7 @@ import { bangkokIsoDate } from '@shared/core/extensions/dates.js';
 import detailStyles from '@/components/core/request-details.module.css';
 import { useState, type ReactNode } from 'react';
 import { FORM_TEAMS } from '@shared/features/lending/formConstants.js';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { LendingCatalogPicker } from './catalog-picker';
 import { CatalogPhotoGallery } from '@/components/core/catalog-photo-gallery';
 import type { LendingRequestController } from './use-lending-request-form';
@@ -132,10 +132,10 @@ export function LendingRequestForm({
             classNames={
               mode === 'return'
                 ? {
-                  header: detailStyles.header,
-                  body: detailStyles.body,
-                  content: detailStyles.content,
-                }
+                    header: detailStyles.header,
+                    body: detailStyles.body,
+                    content: detailStyles.content,
+                  }
                 : undefined
             }
             closeOnClickOutside={!busy}
@@ -173,7 +173,7 @@ export function LendingRequestForm({
             รูปในโฟลเดอร์ของระบบที่ไม่มีการอ้างอิงในชีตอื่นจะถูกย้ายไปถังขยะ Drive
             โดยไม่ลบประวัติยืม–คืน
           </Text>
-          <ErrorAlert error={request.deleteError} />
+          <ErrorPopup error={request.deleteError} />
           <Group justify="flex-end">
             <Button
               type="button"
@@ -326,7 +326,7 @@ export function LendingRequestForm({
             error={form.formState.errors.notes?.message}
             disabled={busy}
           />
-          <ErrorAlert error={error} />
+          <ErrorPopup error={error} />
           <Text role="status">{notice}</Text>
           <Group>
             <Button type="submit" loading={busy}>

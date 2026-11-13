@@ -6,7 +6,8 @@ import { Button, Group, Text, Box, Title } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { auditService } from '@/services/audit.service';
 import type { AuditEntry } from '@/types/account';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { AuditFilters } from './audit-filters';
 import { AuditList } from './audit-list';
 import { AuditDetailsDialog } from './audit-details-dialog';
@@ -80,7 +81,7 @@ export function AuditPage() {
           setPage(0);
         }}
       />
-      <ErrorAlert error={audit.error} onRefresh={() => audit.refetch()} />
+      <ErrorPopup error={audit.error} onRefresh={() => audit.refetch()} />
       {audit.isPending ? (
         <LoadingIndicator />
       ) : (

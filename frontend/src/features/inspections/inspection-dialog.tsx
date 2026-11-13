@@ -7,7 +7,8 @@ import { z } from 'zod';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { inspectionFormSchema, reviewStatuses, type ReviewTarget } from '@/types/contracts';
 import { inspectionsService } from '@/services/inspections.service';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 export function ReviewInspectionDialog({
   target,
   onClose,
@@ -67,8 +68,8 @@ export function ReviewInspectionDialog({
         <Stack>
           <Text>{target.asset}</Text>
           {current.isPending && <LoadingIndicator />}
-          <ErrorAlert error={current.error} onRefresh={() => current.refetch()} />
-          <ErrorAlert error={saveReviewInspectionMutation.error} />
+          <ErrorPopup error={current.error} onRefresh={() => current.refetch()} />
+          <ErrorPopup error={saveReviewInspectionMutation.error} />
           <NativeSelect
             id="inspection-status"
             label="สถานะการตรวจสอบ"

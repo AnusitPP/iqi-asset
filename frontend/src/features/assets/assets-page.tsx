@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import type { SearchRecord, ReviewTarget } from '@/types/contracts';
 import { assetsService } from '@/services/assets.service';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { CopyableText } from '@/components/core/copyable-text';
 import { formatAssetFieldValue, calculateInspectionAgeInDays } from '@/lib/display';
 import { AssetRecordDialog } from './record-dialog';
@@ -91,7 +92,7 @@ export function AssetsPage() {
           onChange={(e) => setPending(e.currentTarget.checked)}
         />
       </Paper>
-      <ErrorAlert error={results.error} onRefresh={() => results.refetch()} />
+      <ErrorPopup error={results.error} onRefresh={() => results.refetch()} />
       {notice && <Text role="status">{notice}</Text>}
       <Box component="section" aria-live="polite" aria-busy={results.isFetching}>
         {!debounced && !pending ? (
@@ -278,7 +279,7 @@ function AssetSearchResultCard({
           {record.inspected && ` · บันทึกผลตรวจแล้ว: ${record.inspectionStatus}`}
         </Text>
       )}
-      <ErrorAlert error={reviewSelectionMutation.error} />
+      <ErrorPopup error={reviewSelectionMutation.error} />
       <Group mt="sm">
         <Button variant="light" onClick={onDetail}>
           ดูรายละเอียด

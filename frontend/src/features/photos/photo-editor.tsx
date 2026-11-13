@@ -18,7 +18,7 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import type { DashboardRecord } from '@/types/contracts';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
 import { photosService } from '@/services/photos.service';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { getErrorMessage } from '@/lib/api-client';
 import { PhotoDropzone } from './photo-dropzone';
 import {
@@ -49,6 +49,7 @@ export function AssetPhotoEditor({
   const [files, setFiles] = useState<File[]>([]),
     [previews, setPreviews] = useState<{ url: string; file: File }[]>([]),
     [notice, setNotice] = useState(''),
+    [readError, setReadError] = useState<unknown>(null),
     [progress, setProgress] = useState(0),
     [primaryFile, setPrimaryFile] = useState<File | null>(null);
   const photos = extractUniqueDrivePhotos(headers, record.values),
@@ -90,7 +91,7 @@ export function AssetPhotoEditor({
           showToast(`เพิ่มแล้ว ${completed}/${files.length} รูป`);
         }
       } catch (error) {
-        setNotice(`เพิ่มแล้ว ${completed}/${files.length} รูป · อัปโหลดไม่สำเร็จ กรุณาลองใหม่`);
+        setNotice(`เพิ่มแล้ว ${completed}/${files.length} รูป`);
         throw error;
       } finally {
         setFiles([]);
@@ -98,7 +99,7 @@ export function AssetPhotoEditor({
         try {
           if (isUploadCurrent()) await onRefresh();
         } catch (error) {
-          setNotice((v) => `${v} · โหลดข้อมูลล่าสุดไม่สำเร็จ: ${getErrorMessage(error)}`);
+          setReadError(error);
         }
         onBusy(false);
       }
@@ -115,7 +116,6 @@ export function AssetPhotoEditor({
         onBusy(false);
       }
     },
-    onError: () => setNotice('เปลี่ยนรูปแรกไม่สำเร็จ กรุณาลองใหม่'),
   });
   const locked = busy || uploadPhotosMutation.isPending || primaryMutation.isPending;
   function selectFiles(selected: File[]) {
@@ -131,6 +131,15 @@ export function AssetPhotoEditor({
   }
   return (
     <Box component="section" className="dash-photo-section">
+      <ErrorPopup
+        error={uploadPhotosMutation.error || primaryMutation.error || readError}
+        onRefresh={async () => {
+          await onRefresh();
+          uploadPhotosMutation.reset();
+          primaryMutation.reset();
+          setReadError(null);
+        }}
+      />
       <Title order={3}>รูปครุภัณฑ์ · {photos.length}/3</Title>
       <Box className="dash-photo-gallery">
         {photos.map((photo, index) => (
@@ -243,10 +252,7 @@ export function AssetPhotoEditor({
           {uploadPhotosMutation.isPending && (
             <Progress value={progress} aria-label="ความคืบหน้าจำนวนรูปที่อัปโหลด" />
           )}
-          <ErrorAlert error={config.error} onRefresh={() => config.refetch()} />
-          <ErrorAlert
-            error={uploadPhotosMutation.error ? new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่') : null}
-          />
+          <ErrorPopup error={config.error} onRefresh={() => config.refetch()} />
         </>
       ) : (
         <Text>ครบ 3 รูปแล้ว</Text>

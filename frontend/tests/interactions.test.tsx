@@ -98,6 +98,37 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('migrated interactions', () => {
+  it('uses the core popup for primary photo failures and refreshes without repeating the write', async () => {
+    mocks.request.mockImplementation(async (path: string) => {
+      if (path === '/api/upload-config') return { maxUploadBytes: 4 * 1024 * 1024 };
+      throw new Error('เปลี่ยนรูปแรกไม่สำเร็จ');
+    });
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    renderWithAppProviders(
+      <AssetPhotoEditor
+        record={dashboardRecordSchema.parse({
+          ...dashRecord,
+          values: [
+            'https://drive.google.com/file/d/one/view',
+            'https://drive.google.com/file/d/two/view',
+          ],
+        })}
+        headers={['รูป1', 'รูป2']}
+        busy={false}
+        onBusy={vi.fn()}
+        onRefresh={onRefresh}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'ตั้งรูปที่ 2 เป็นรูปแรก' }));
+    const popup = await screen.findByRole('dialog', { name: 'ทำรายการไม่สำเร็จ' });
+    expect(popup.textContent).toContain('เปลี่ยนรูปแรกไม่สำเร็จ');
+    await userEvent.click(screen.getByRole('button', { name: 'รีเฟรช' }));
+    await waitFor(() => expect(onRefresh).toHaveBeenCalledOnce());
+    expect(
+      mocks.request.mock.calls.filter(([path]) => String(path).endsWith('/photos/primary')),
+    ).toHaveLength(1);
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
   it('searches after typing and sends authoritative revision for review selection', async () => {
     mocks.request.mockImplementation(async (path: string) =>
       path.startsWith('/api/search')
@@ -254,7 +285,9 @@ describe('migrated interactions', () => {
         .mockResolvedValue(Response.json({ authenticated: 'invalid', csrf: 123 })),
     );
     const { sessionSchema } = await import('../src/types/contracts');
-    await expect(api.request('/api/auth/session', sessionSchema)).rejects.toThrow('โหลดข้อมูลไม่สำเร็จ');
+    await expect(api.request('/api/auth/session', sessionSchema)).rejects.toThrow(
+      'โหลดข้อมูลไม่สำเร็จ',
+    );
   });
 });
 

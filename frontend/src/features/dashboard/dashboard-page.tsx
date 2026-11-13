@@ -28,7 +28,7 @@ import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardStatuses, type DashboardRecord } from '@/types/contracts';
 import { dashboardService, type DashboardData } from '@/services/dashboard.service';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { formatDashboardStatusLabel, getStatusColorClass } from '@/lib/display';
 import { DashboardRecordDialog } from './dashboard-details';
 import { saveStatusDraftsSequentially, type StatusDraft } from './save-drafts';
@@ -50,6 +50,7 @@ export function DashboardPage() {
     [comparison, setComparison] = useWorkspaceState('dashboard-comparison', ''),
     [query, setQuery] = useWorkspaceState('dashboard-query', ''),
     [notice, setNotice] = useState(''),
+    [actionError, setActionError] = useState<unknown>(null),
     [selected, setSelected] = useState<number | null>(null),
     [addOpen, setAddOpen] = useState(false),
     [addAsset, setAddAsset] = useState(''),
@@ -73,6 +74,7 @@ export function DashboardPage() {
     );
   const saveStatusDraftsMutation = useMutation({
     mutationFn: async (row?: number) => {
+      setActionError(null);
       const targets =
         row === undefined
           ? drafts.current
@@ -88,9 +90,13 @@ export function DashboardPage() {
         drafts.current.delete(saved.row);
         updateCachedDashboardRecord(saved.result.record);
       }
-      setNotice(
-        `บันทึกสำเร็จ ${result.saved.length} รายการ${result.failed.length ? ` · ไม่สำเร็จ ${result.failed.length} รายการ (เก็บค่าที่เลือกไว้): ${result.failed.map((f) => `แถว ${f.row}: ${f.message}`).join(' · ')}` : ''}`,
-      );
+      setNotice(`บันทึกสำเร็จ ${result.saved.length} รายการ`);
+      if (result.failed.length)
+        setActionError(
+          new Error(
+            `บันทึกไม่สำเร็จ ${result.failed.length} รายการ (เก็บค่าที่เลือกไว้): ${result.failed.map((f) => `แถว ${f.row}: ${f.message}`).join(' · ')}`,
+          ),
+        );
       showToast(
         `บันทึกสำเร็จ ${result.saved.length} รายการ${result.failed.length ? ` · ไม่สำเร็จ ${result.failed.length} รายการ` : ''}`,
       );
@@ -98,10 +104,7 @@ export function DashboardPage() {
       try {
         await reloadDashboardData();
       } catch (error) {
-        setNotice(
-          (v) =>
-            `${v} · โหลดข้อมูลล่าสุดไม่สำเร็จ: ${error instanceof Error ? error.message : 'ลองใหม่'}`,
-        );
+        setActionError(error);
       }
     },
   });
@@ -186,7 +189,7 @@ export function DashboardPage() {
   if (!data.data)
     return (
       <>
-        <ErrorAlert error={data.error} onRefresh={() => data.refetch()} />
+        <ErrorPopup error={data.error} onRefresh={() => data.refetch()} />
       </>
     );
   const dashboard = data.data;
@@ -267,10 +270,22 @@ export function DashboardPage() {
           บันทึกทั้งหมด ({drafts.current.size})
         </Button>
       </Box>
-      <ErrorAlert error={data.error} onRefresh={() => data.refetch()} />
-      <ErrorAlert error={saveStatusDraftsMutation.error} />
-      <ErrorAlert error={addFromIqiMutation.error} />
-      <ErrorAlert error={findIqiMutation.error} />
+      <ErrorPopup
+        error={
+          data.error ||
+          actionError ||
+          saveStatusDraftsMutation.error ||
+          addFromIqiMutation.error ||
+          findIqiMutation.error
+        }
+        onRefresh={async () => {
+          await reloadDashboardData();
+          setActionError(null);
+          saveStatusDraftsMutation.reset();
+          addFromIqiMutation.reset();
+          findIqiMutation.reset();
+        }}
+      />
       {notice && (
         <Text className="dash-save-success" role="status">
           {notice}

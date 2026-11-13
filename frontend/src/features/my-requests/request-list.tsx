@@ -3,7 +3,8 @@ import { Box, Button, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/cor
 import { CatalogPhoto } from '@/components/core/catalog-photo';
 import { BorrowedEquipmentCard } from '@/components/core/borrowed-equipment-card';
 import { RequestStatusBadge } from '@/components/core/request-status-badge';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import type { myRequestsSchema } from '@/types/account';
 import type { z } from 'zod';
 
@@ -45,8 +46,8 @@ export function RequestList({
 }) {
   return (
     <>
-      <ErrorAlert error={error} onRefresh={onRefresh} />
-      <ErrorAlert error={updateError} />
+      <ErrorPopup error={error} onRefresh={onRefresh} />
+      <ErrorPopup error={updateError} />
       {pending ? (
         <LoadingIndicator />
       ) : (

@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Group, Text, Badge, Box, Title } from '@mantine/core';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { usersService } from '@/services/users.service';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { UsersFiltersForm, type UsersFilters } from './users-filters';
 import { UsersList, type UserSelection } from './users-list';
 import { UserDetailsDialog } from './user-details-dialog';
@@ -63,7 +64,7 @@ export function UsersPage() {
           setPage(0);
         }}
       />
-      <ErrorAlert error={users.error} onRefresh={() => users.refetch()} />
+      <ErrorPopup error={users.error} onRefresh={() => users.refetch()} />
       {users.isPending ? (
         <LoadingIndicator />
       ) : !records.length ? (

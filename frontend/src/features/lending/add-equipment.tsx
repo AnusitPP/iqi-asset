@@ -20,7 +20,7 @@ import { ImagePlus, Trash2, Check } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useAuthSession } from '@/features/auth/auth-provider';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { catalogSchema } from '@/types/lending';
 import { preparePhotoForUpload, validatePhotoUploadSelection } from '@/features/photos/photo-utils';
 import { photosService } from '@/services/photos.service';
@@ -41,6 +41,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
   const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
   const [preparing, setPreparing] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [previewError, setPreviewError] = useState<unknown>(null);
   const [saved, setSaved] = useState<z.infer<typeof catalogSchema>['records'][number] | null>(null);
   const mutation = useMutation({
     mutationFn: async () => {
@@ -75,12 +76,14 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
     setCategory('อื่นๆ');
     setPhotos([]);
     setPhotoError('');
+    setPreviewError(null);
     setSaved(null);
     mutation.reset();
   }
   async function selectPhotos(files: File[], replace?: number) {
     if (!files.length || preparing || mutation.isPending) return;
     setPhotoError('');
+    setPreviewError(null);
     try {
       validatePhotoUploadSelection(files, replace === undefined ? 3 - photos.length : 1);
     } catch (error) {
@@ -106,7 +109,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
           : current.map((entry, index) => (index === replace ? (selected[0] ?? entry) : entry)),
       );
     } catch {
-      setPhotoError('อัปโหลดไม่สำเร็จ กรุณาลองใหม่');
+      setPreviewError(new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่'));
     } finally {
       setPreparing(false);
     }
@@ -325,12 +328,18 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                 หรือปิดเพื่อใช้รูปที่บันทึกแล้ว
               </Text>
             )}
-            <ErrorAlert
+            <ErrorPopup
               error={
-                mutation.error && saved
+                previewError ||
+                (mutation.error && saved
                   ? new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่')
-                  : mutation.error
+                  : mutation.error)
               }
+              onRefresh={async () => {
+                await client.invalidateQueries({ queryKey: ['loan-catalog'] });
+                mutation.reset();
+                setPreviewError(null);
+              }}
             />
             <Group justify="flex-end">
               <Button type="button" variant="default" disabled={busy} onClick={close}>

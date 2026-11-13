@@ -29,7 +29,7 @@ import { catalogCategory, matchCatalog } from '@shared/features/catalog/search.j
 import { catalogService } from '@/services/catalog.service';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import type { CatalogRecord } from '@/types/lending';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 export function LendingCatalogPicker({
   onSelect,
   disabled,
@@ -167,7 +167,7 @@ export function LendingCatalogPicker({
         <Text size="sm" role="status">
           {catalog.isPending ? 'กำลังโหลดอุปกรณ์…' : `รายการอุปกรณ์ (${visible.length} รายการ)`}
         </Text>
-        <ErrorAlert error={catalog.error} onRefresh={() => catalog.refetch()} />
+        <ErrorPopup error={catalog.error} onRefresh={() => catalog.refetch()} />
         {error && (
           <Text c="red" role="alert">
             {error}

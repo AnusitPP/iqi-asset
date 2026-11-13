@@ -15,7 +15,8 @@ import {
   formatBangkokDateInBuddhistEra,
   updateInspectionDateInNote,
 } from '@/lib/display';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved';
 
 export function AssetRecordDialog({
@@ -61,7 +62,7 @@ export function AssetRecordDialog({
         />
       ) : (
         <>
-          <ErrorAlert error={record.error} onRefresh={() => record.refetch()} />
+          <ErrorPopup error={record.error} onRefresh={() => record.refetch()} />
           <Button onClick={onClose}>ปิดรายละเอียด</Button>
         </>
       )}
@@ -127,7 +128,7 @@ function AssetRecordEditor({
         <Text>
           {editable ? 'แก้ไขได้' : 'ดูอย่างเดียว'} · ข้อมูลครบ {record.headers.length} คอลัมน์
         </Text>
-        <ErrorAlert error={saveAssetRecordMutation.error} />
+        <ErrorPopup error={saveAssetRecordMutation.error} />
         {hint && <Text role="status">{hint}</Text>}
         {editing &&
           (record.dateIndex !== null ? (

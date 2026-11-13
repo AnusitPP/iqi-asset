@@ -2,7 +2,7 @@
 import { Box, Button, Group, Select, Stack, Text, Textarea } from '@mantine/core';
 import { ClipboardCheck, MessageSquare, Save } from 'lucide-react';
 import { requestStatusPresentation } from '@shared/features/lending/status.js';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import styles from '@/components/core/request-details.module.css';
 import type { myRequestsSchema } from '@/types/account';
 import type { z } from 'zod';
@@ -106,7 +106,7 @@ export function RequestApprovalControls({
         size="sm"
         disabled={saving || !canApprove}
       />
-      <ErrorAlert error={updateError} />
+      <ErrorPopup error={updateError} />
       <Group justify="flex-end" className={styles.footer}>
         <Button
           size="sm"

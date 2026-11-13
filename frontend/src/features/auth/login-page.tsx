@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthSession } from './auth-provider';
 import { defaultWorkspacePath } from '@/types/account';
-import { ErrorAlert, LoadingIndicator } from '@/components/ui/feedback';
+import { LoadingIndicator } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import styles from './login-page.module.css';
 export function LoginPage() {
   const auth = useAuthSession();
@@ -58,7 +59,7 @@ export function LoginPage() {
             เพื่อเริ่มใช้งาน IQI Asset Checker
           </p>
           <div className={styles.feedback}>
-            <ErrorAlert error={auth.error} onRefresh={auth.retrySessionLookup} />
+            <ErrorPopup error={auth.error} onRefresh={auth.retrySessionLookup} />
           </div>
           <Button
             component="a"

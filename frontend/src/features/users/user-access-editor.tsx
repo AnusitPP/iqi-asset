@@ -12,7 +12,7 @@ import {
   type AccountStatus,
 } from '@/types/account';
 import { formatAccountTimestamp } from '@/lib/account-display';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { useToast } from '@/providers/toast-provider';
 import { useSessionTaskGuard } from '@/hooks/use-session-task-guard';
@@ -137,7 +137,7 @@ export function UserAccessEditor({
           </form>
         </>
       )}
-      <ErrorAlert error={save.error} />
+      <ErrorPopup error={save.error} />
       <Group justify="center" gap="sm">
         {editable && (
           <Button

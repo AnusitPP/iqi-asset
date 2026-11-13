@@ -6,7 +6,7 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import { dashboardService } from '@/services/dashboard.service';
 import { myRequestsService } from '@/services/my-requests.service';
 import { StatCard } from '@/components/portal/stat-card';
-import { ErrorAlert } from '@/components/ui/feedback';
+import { ErrorPopup } from '@/components/core/error-popup';
 export function HomeStatistics() {
   const { api, can, authenticated } = useAuthSession();
   const canDashboard = authenticated && can('ADMIN_DASHBOARD_VIEW');
@@ -79,7 +79,7 @@ export function HomeStatistics() {
           state={requestState}
         />
       </SimpleGrid>
-      <ErrorAlert
+      <ErrorPopup
         error={dashboard.error || requests.error}
         onRefresh={() =>
           Promise.all([
