@@ -1,6 +1,7 @@
 import { LENDING_STATUS } from '../../../../shared/features/lending/status.js';
 import { loanColumnMapping } from '../../core/lending/schema.js';
 import { google } from 'googleapis';
+import { manageGoogleClient } from './request-manager.js';
 import { parseSheet, columnName } from '../../features/records/search.js';
 import { readDropdowns } from '../../features/records/dropdowns.js';
 import {
@@ -20,7 +21,7 @@ export class GoogleSheets {
         : { keyFile: config.keyFile }),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
-    this.api = google.sheets({ version: 'v4', auth });
+    this.api = manageGoogleClient(google.sheets({ version: 'v4', auth }));
     this.reviewQueue = new ReviewQueue(this);
     this.iqiItQueue = new ReviewQueue(this, IQI_IT_SHEET);
     this.reviewQueues = new ReviewQueues(this, [this.reviewQueue, this.iqiItQueue]);

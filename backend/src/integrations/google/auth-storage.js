@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { manageGoogleClient } from './request-manager.js';
 import { configurationError } from '../../core/config/credentials.js';
 const SCHEMA = {
   Users: [
@@ -45,7 +46,7 @@ export class AuthSheetStorage {
         : { keyFile: config.keyFile }),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
-    this.api = api || google.sheets({ version: 'v4', auth });
+    this.api = manageGoogleClient(api || google.sheets({ version: 'v4', auth }));
   }
   async read() {
     const { data } = await this.api.spreadsheets.values.batchGet({

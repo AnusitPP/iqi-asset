@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
+import { manageGoogleClient } from './request-manager.js';
 import { driveOAuth } from './driveAuth.js';
 import { throwHttpError as fail } from '../../core/errors/errors.js';
 export class PhotoStore {
@@ -20,7 +21,7 @@ export class PhotoStore {
           : { keyFile: config.keyFile }),
         scopes: ['https://www.googleapis.com/auth/drive'],
       });
-    this.drive = google.drive({ version: 'v3', auth, timeout: 20000 });
+    this.drive = manageGoogleClient(google.drive({ version: 'v3', auth, timeout: 20000 }));
     this.folderRequests = new Map();
   }
   async assetFolder(asset) {

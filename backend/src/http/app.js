@@ -10,9 +10,9 @@ import { registerDashboardRoutes } from '../features/dashboard/routes.js';
 import { registerPhotosRoutes } from '../features/photos/routes.js';
 import { registerRecordsRoutes } from '../features/records/routes.js';
 import { registerReviewRoutes } from '../features/review/routes.js';
-import { safeMessage, logError } from '../core/errors/errors.js';
+import { safeMessage, logError, applicationErrorCode, isRetryableError } from '../core/errors/errors.js';
 import express from 'express';
-import { randomBytes, createHmac } from 'node:crypto';
+import { randomBytes, randomUUID, createHmac } from 'node:crypto';
 import { createAuth } from '../features/auth/middleware.js';
 import { DashboardEditor } from '../features/dashboard/editor.js';
 import { LendingLedger } from '../core/lending/ledger.js';
@@ -25,6 +25,11 @@ import { registerMailCron } from '../features/mail/cron.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
+  app.use((req, res, next) => {
+    req.requestId = randomUUID();
+    res.set('X-Request-Id', req.requestId);
+    next();
+  });
   const lendingLedger = new LendingLedger(service.adapter, config);
   const loanRequests = new LoanRequestService(lendingLedger);
   const returnRequests = new ReturnRequestService(lendingLedger);
@@ -79,16 +84,21 @@ export function createApp(service, config) {
   );
   app.use((req, res) => res.status(404).type('text').send('ไม่พบหน้านี้'));
   app.use((error, req, res, next) => {
-    logError(error, `API ${req.method}`);
+    logError(error, `API ${req.method} requestId=${req.requestId}`);
     if (res.headersSent) return next(error);
     const status = Number(error.status || error.response?.status || 500);
-    res.status(status >= 400 && status <= 599 ? status : 500).json({
-      error:
+    const safeStatus = status >= 400 && status <= 599 ? status : 500;
+    const message =
         error.type === 'entity.too.large'
           ? `ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน ${maxUploadBytes / 1024 / 1024} MB`
           : error.type === 'entity.parse.failed'
             ? 'รูปแบบ JSON ไม่ถูกต้อง'
-            : safeMessage(error),
+            : safeMessage(error);
+    res.status(safeStatus).json({
+      error: message,
+      code: applicationErrorCode(error, safeStatus),
+      retryable: isRetryableError(error, safeStatus),
+      requestId: req.requestId,
     });
   });
   return app;
