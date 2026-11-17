@@ -204,7 +204,7 @@ try {
   const loan = await sendLoan();
   assert.equal(loan.status, 200);
   const loanResult = await loan.json();
-  assert.match(loanResult.id, /^L-/);
+  assert.match(loanResult.id, /^STeP-IQI-L\d{8}-\d{6}-[A-Z0-9]{5}$/);
   const repeatedLoan = await sendLoan();
   assert.equal(repeatedLoan.status, 200);
   assert.deepEqual(await repeatedLoan.json(), { id: loanResult.id, unchanged: true });
@@ -232,7 +232,7 @@ try {
     body: JSON.stringify({ ...selection, requestId: randomUUID(), date: today }),
   });
   assert.equal(returned.status, 200);
-  assert.match((await returned.json()).id, /^R-/);
+  assert.match((await returned.json()).id, /^STeP-IQI-R\d{8}-\d{6}-[A-Z0-9]{5}$/);
   assert.equal(ledger.returns.length, 2);
   const own = await fetch(base + '/api/my-requests', { headers: authenticated }).then((r) =>
     r.json(),
