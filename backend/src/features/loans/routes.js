@@ -5,10 +5,7 @@ import { sendRequestNotification } from '../notifications/google-chat.js';
 import { borrowerNickname } from './staff-nicknames.js';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 import { bangkokIsoDate, isIsoCalendarDate } from '../../../../shared/core/extensions/dates.js';
-import {
-  sendLoanConfirmation,
-  sendLoanStatusNotification,
-} from '../mail/loan-confirmation.js';
+import { sendLoanConfirmation, sendLoanStatusNotification } from '../mail/loan-confirmation.js';
 export function registerLoansRoutes(
   app,
   {
@@ -213,6 +210,50 @@ export function registerLoansRoutes(
   app.get('/api/loans', async (req, res, next) => {
     try {
       res.json(await lendingLedger.readOutstandingLoans());
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post('/api/my-requests/:id/cancel', async (req, res, next) => {
+    try {
+      await lendingLedger.withWriteLock(async () => {
+        const state = await lendingLedger.readLedger();
+        const matches = state.loans.filter((row) => row[0] === req.params.id);
+        if (matches.length !== 1)
+          throw Object.assign(new Error('ไม่พบคำขอยืมหรือรหัสซ้ำ'), { status: 409 });
+        const row = matches[0];
+        const tables = await req.authStorage.read();
+        const email = String(req.user.email || '')
+          .trim()
+          .toLowerCase();
+        const owns =
+          tables.AuditLogs.some(
+            (entry) =>
+              entry.actor_user_id === req.user.id &&
+              entry.action === 'LOAN_CREATED' &&
+              entry.entity_id === row[0],
+          ) ||
+          (email && state.loanEmails?.get(row[1]) === email);
+        if (!owns)
+          throw Object.assign(new Error('ยกเลิกได้เฉพาะคำขอยืมของคุณเอง'), { status: 403 });
+        if (row[14] !== 'รอดำเนินการ' || state.returns.some((entry) => entry[2] === row[1]))
+          throw Object.assign(
+            new Error('ยกเลิกได้เฉพาะคำขอยืมที่ยังรอดำเนินการ กรุณาโหลดรายการใหม่'),
+            { status: 409 },
+          );
+        await lendingLedger.adapter.updateLoanStatus(row[0], 'ยกเลิก', req.user.name);
+        await req.authStorage.write([
+          auditEntry(
+            req.user,
+            'LOAN_CANCELLED',
+            'Loan',
+            row[0],
+            { status: row[14] },
+            { status: 'ยกเลิก' },
+          ),
+        ]);
+      });
+      res.json({ id: req.params.id });
     } catch (error) {
       next(error);
     }

@@ -2,7 +2,11 @@ import { registerUserRoutes } from '../features/users/routes.js';
 import { protectApi } from '../features/auth/middleware/protect-api.js';
 import { registerAuditRoutes } from '../features/audit/routes.js';
 import { configureRequestSecurity } from '../core/http/security.js';
-import { registerCatalogRoutes } from '../features/catalog/routes.js';
+import {
+  registerCatalogRoutes,
+  registerPublicCatalogPhotoRoute,
+} from '../features/catalog/routes.js';
+import { sendRequestNotification } from '../features/notifications/google-chat.js';
 import { CatalogEditor } from '../features/catalog/service.js';
 import { registerLoansRoutes } from '../features/loans/routes.js';
 import { createStaffNicknameReader } from '../features/loans/staff-nicknames.js';
@@ -11,7 +15,12 @@ import { registerDashboardRoutes } from '../features/dashboard/routes.js';
 import { registerPhotosRoutes } from '../features/photos/routes.js';
 import { registerRecordsRoutes } from '../features/records/routes.js';
 import { registerReviewRoutes } from '../features/review/routes.js';
-import { safeMessage, logError, applicationErrorCode, isRetryableError } from '../core/errors/errors.js';
+import {
+  safeMessage,
+  logError,
+  applicationErrorCode,
+  isRetryableError,
+} from '../core/errors/errors.js';
 import express from 'express';
 import { randomBytes, randomUUID, createHmac } from 'node:crypto';
 import { createAuth } from '../features/auth/middleware.js';
@@ -41,7 +50,14 @@ export function createApp(service, config) {
   if (config.hosted) app.set('trust proxy', 1);
   const dashboardEditor = new DashboardEditor(service.adapter);
   const photos = new DashboardPhotos(service.adapter, new PhotoStore(config), dashboardEditor);
+  const catalogEditor = new CatalogEditor(lendingLedger, photos.store);
+  const notifyRequest =
+    config.notifyRequest ??
+    ((ledger, kind, result) =>
+      sendRequestNotification(ledger, kind, result, { photoStore: photos.store }));
   configureRequestSecurity(app, config, csrf);
+  // Only catalog images already shared publicly in Drive can be fetched by Chat.
+  registerPublicCatalogPhotoRoute(app, { catalogEditor });
   registerMailCron(app, { adapter: service.adapter });
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
@@ -57,7 +73,7 @@ export function createApp(service, config) {
   const readStaffNicknames = createStaffNicknameReader(service.adapter, config.staffSpreadsheetId);
   registerCatalogRoutes(app, {
     lendingLedger,
-    catalogEditor: new CatalogEditor(lendingLedger, photos.store),
+    catalogEditor,
     maxUploadBytes,
     readStaffNicknames,
   });
@@ -66,13 +82,13 @@ export function createApp(service, config) {
     lendingLedger,
     loanRequests,
     confirmLoan: config.confirmLoan,
-    notifyRequest: config.notifyRequest,
+    notifyRequest,
     readStaffNicknames,
   });
   registerReturnsRoutes(app, {
     returnRequests,
     lendingLedger,
-    notifyRequest: config.notifyRequest,
+    notifyRequest,
   });
   registerDashboardRoutes(app, { dashboardEditor, service });
   registerPhotosRoutes(app, { photos, maxUploadBytes });
@@ -102,11 +118,11 @@ export function createApp(service, config) {
     const status = Number(error.status || error.response?.status || 500);
     const safeStatus = status >= 400 && status <= 599 ? status : 500;
     const message =
-        error.type === 'entity.too.large'
-          ? `ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน ${maxUploadBytes / 1024 / 1024} MB`
-          : error.type === 'entity.parse.failed'
-            ? 'รูปแบบ JSON ไม่ถูกต้อง'
-            : safeMessage(error);
+      error.type === 'entity.too.large'
+        ? `ไฟล์ใหญ่เกินกำหนด กรุณาเลือกภาพไม่เกิน ${maxUploadBytes / 1024 / 1024} MB`
+        : error.type === 'entity.parse.failed'
+          ? 'รูปแบบ JSON ไม่ถูกต้อง'
+          : safeMessage(error);
     res.status(safeStatus).json({
       error: message,
       code: applicationErrorCode(error, safeStatus),

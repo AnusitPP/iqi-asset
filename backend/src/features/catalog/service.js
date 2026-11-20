@@ -37,6 +37,16 @@ export class CatalogEditor {
     };
     record.category = validateRequiredText(body?.category ?? catalogCategory(record.name), 200);
     if (!LOAN_TYPES.includes(record.category)) fail(400, 'กรุณาเลือกหมวดหมู่จากรายการ');
+    const photos = body?.photos === undefined ? [] : body.photos;
+    if (!Array.isArray(photos) || photos.length > 3) fail(400, 'เลือกได้สูงสุด 3 รูป');
+    for (const photo of photos) {
+      if (
+        typeof photo !== 'string' ||
+        photo.length > 1400000 ||
+        !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(photo)
+      )
+        fail(400, 'ข้อมูลรูปไม่ถูกต้อง กรุณาเลือกรูปใหม่');
+    }
     return this.ledger.withWriteLock(() =>
       writeLocked(this.adapter, async () => {
         const grid = await this.adapter.readReadyToBorrow();
@@ -47,24 +57,80 @@ export class CatalogEditor {
           )
         )
           fail(409, 'มีเลขครุภัณฑ์และ S/N นี้ในชีตพร้อมยืมแล้ว');
+        const buffers = [];
+        for (const photo of photos)
+          buffers.push(
+            await preparePhoto(Buffer.from(photo.slice(photo.indexOf(',') + 1), 'base64')),
+          );
         if (!headers.includes('หมวดหมู่')) {
           await this.adapter.addReadyToBorrowCategory(headers.length);
           headers.push('หมวดหมู่');
         }
-        const values = {
-          เลขครุภัณฑ์: record.asset,
-          'S/N': record.serial,
-          ชื่ออุปกรณ์: record.name,
-          หมวดหมู่: record.category,
-          วันที่อัปเดตล่าสุด: formatBangkokTimestamp(),
-          'รูป (ลิงก์)': '',
-        };
-        await this.adapter.appendReadyToBorrow(headers.map((header) => values[header] ?? ''));
-        const saved = readyToBorrowData(await this.adapter.readReadyToBorrow()).records.filter(
-          (entry) => assetIdentityKey(entry) === assetIdentityKey(record),
-        );
-        if (saved.length !== 1) fail(409, 'บันทึกแล้วแต่ยืนยันรายการไม่ได้ กรุณาโหลดข้อมูลล่าสุด');
-        return saved[0];
+        const uploaded = [];
+        let appendStarted = false;
+        let links = '';
+        try {
+          for (const buffer of buffers) {
+            uploaded.push(
+              await this.store.upload(buffer, `catalog_${Date.now()}.jpg`, record.asset),
+            );
+          }
+          links = uploaded.map((photo) => photo.url).join('\n');
+          const values = {
+            เลขครุภัณฑ์: record.asset,
+            'S/N': record.serial,
+            ชื่ออุปกรณ์: record.name,
+            หมวดหมู่: record.category,
+            วันที่อัปเดตล่าสุด: formatBangkokTimestamp(),
+            'รูป (ลิงก์)': links,
+          };
+          appendStarted = true;
+          await this.adapter.appendReadyToBorrow(headers.map((header) => values[header] ?? ''));
+          const saved = readyToBorrowData(await this.adapter.readReadyToBorrow()).records.filter(
+            (entry) => assetIdentityKey(entry) === assetIdentityKey(record),
+          );
+          if (saved.length !== 1 || (saved[0].photo || '') !== links)
+            fail(409, 'บันทึกแล้วแต่ยืนยันรายการไม่ได้ กรุณาโหลดข้อมูลล่าสุด');
+          return saved[0];
+        } catch (error) {
+          if (appendStarted) {
+            let current;
+            try {
+              current = readyToBorrowData(await this.adapter.readReadyToBorrow()).records;
+            } catch {
+              // A lost Sheets response may hide a committed row. Preserve its photos.
+              fail(409, 'ยังยืนยันการบันทึกไม่ได้ กรุณาโหลดรายการล่าสุดก่อนลองใหม่');
+            }
+            const saved = current.filter(
+              (entry) => assetIdentityKey(entry) === assetIdentityKey(record),
+            );
+            if (saved.length === 1 && (saved[0].photo || '') === links) return saved[0];
+            if (
+              current.some((entry) =>
+                uploaded.some((photo) => (entry.photo || '').split('\n').includes(photo.url)),
+              )
+            )
+              throw error;
+          }
+          let cleanupPending = 0;
+          for (const photo of uploaded) {
+            try {
+              if (!(await this.store.trash(photo.id))) cleanupPending++;
+            } catch {
+              cleanupPending++;
+            }
+          }
+          if (cleanupPending) {
+            process.stderr.write(
+              `Catalog upload cleanup pending: ${uploaded.map((photo) => photo.id).join(',')}\n`,
+            );
+            fail(
+              422,
+              `ไม่ได้สร้างรายการ แต่ล้างรูปใน Drive ไม่สำเร็จ ${cleanupPending} รูป กรุณาติดต่อผู้ดูแลระบบ`,
+            );
+          }
+          throw error;
+        }
       }),
     );
   }
@@ -196,6 +262,10 @@ export class CatalogEditor {
         return { url: photo.url };
       }),
     );
+  }
+  async readPublicPhoto(id) {
+    if (!/^[\w-]+$/.test(id) || !(await this.store.isPublic(id))) fail(404, 'ไม่พบรูปสาธารณะ');
+    return preparePhoto(Buffer.from(await this.readPhoto(id)));
   }
   async readPhoto(id) {
     if (!/^[\w-]+$/.test(id)) fail(404, 'ไม่พบรูป');

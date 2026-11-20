@@ -51,19 +51,41 @@ test('loan and return status changes never send Chat notifications', async () =>
     readLedger: async () => ({ loans: [savedLoan], returns: [savedReturn] }),
     adapter: { updateLoanStatus: async () => {}, updateReturnStatus: async () => {} },
   };
-  registerLoansRoutes({ get() {}, post() {}, patch(_path, fn) { handler = fn; } }, {
-    lendingLedger: statusLedger,
-    notifyStatus: async () => 'sent',
-    notifyRequest: () => assert.fail('Status changes must not notify Chat'),
-  });
-  for (const [kind, id] of [['ยืม', 'L-1'], ['คืน', 'R-1']]) {
+  registerLoansRoutes(
+    {
+      get() {},
+      post() {},
+      patch(_path, fn) {
+        handler = fn;
+      },
+    },
+    {
+      lendingLedger: statusLedger,
+      notifyStatus: async () => 'sent',
+      notifyRequest: () => assert.fail('Status changes must not notify Chat'),
+    },
+  );
+  for (const [kind, id] of [
+    ['ยืม', 'L-1'],
+    ['คืน', 'R-1'],
+  ]) {
     let response;
-    await handler({
-      user: { role: 'ADMIN', name: 'Admin' },
-      params: { id },
-      body: { kind, status: kind === 'คืน' ? 'เสร็จสิ้น' : 'ยกเลิก', condition: 'ดี' },
-      authStorage: { write: async () => {} },
-    }, { json(value) { response = value; } }, (error) => { throw error; });
+    await handler(
+      {
+        user: { role: 'ADMIN', name: 'Admin' },
+        params: { id },
+        body: { kind, status: kind === 'คืน' ? 'เสร็จสิ้น' : 'ยกเลิก', condition: 'ดี' },
+        authStorage: { write: async () => {} },
+      },
+      {
+        json(value) {
+          response = value;
+        },
+      },
+      (error) => {
+        throw error;
+      },
+    );
     assert.equal(response.id, id);
   }
 });
@@ -84,14 +106,17 @@ test('Chat sends saved loan and return details with a bounded request', async ()
     assert.equal(request.method, 'POST');
     assert.equal(request.redirect, 'error');
     assert.ok(request.signal instanceof AbortSignal);
-    const { text } = JSON.parse(request.body);
-    for (const field of ['Alice', 'IQI', 'Laptop', 'A1', 'S1']) assert.ok(text.includes(field));
-    assert.ok(!text.includes('test-token'));
+    const message = JSON.parse(request.body);
+    assert.deepEqual(Object.keys(message), ['cardsV2']);
+    assert.equal(message.cardsV2.length, 1);
+    for (const field of ['Alice', 'IQI', 'Laptop', 'A1', 'S1'])
+      assert.ok(request.body.includes(field));
+    assert.ok(!request.body.includes('test-token'));
   }
-  assert.match(JSON.parse(sent[0].body).text, /มีคำขอยืมใหม่/);
-  assert.match(JSON.parse(sent[0].body).text, /กำหนดคืน: 2026-11-21/);
-  assert.match(JSON.parse(sent[1].body).text, /มีคำขอคืนใหม่/);
-  assert.match(JSON.parse(sent[1].body).text, /วันที่คืน: 2026-11-21/);
+  assert.match(sent[0].body, /มีคำขอยืมใหม่/);
+  assert.match(sent[0].body, /กำหนดคืน:<\/b> 2026-11-21/);
+  assert.match(sent[1].body, /มีคำขอคืนใหม่/);
+  assert.match(sent[1].body, /วันที่คืน:<\/b> 2026-11-21/);
 });
 
 test('disabled and duplicate notifications do no IO; invalid URLs and delivery errors fail safely', async () => {
@@ -153,6 +178,134 @@ test('disabled and duplicate notifications do no IO; invalid URLs and delivery e
     'failed',
   );
   assert.equal(reports, 5);
+});
+
+test('cards group saved details, escape HTML, and link to approval requests', async () => {
+  const savedLoan = [...loan];
+  savedLoan[1] = 'item-1';
+  savedLoan[3] = 'Alice <b>Admin</b>';
+  savedLoan[10] = 'Meeting & training\nProject <test>';
+  savedLoan[13] = 'Bring charger';
+  const savedReturn = [...returning];
+  savedReturn[2] = 'item-1';
+  savedReturn[12] = 'Returned with charger';
+  const saved = { readLedger: async () => ({ loans: [savedLoan], returns: [savedReturn] }) };
+  for (const [kind, id] of [
+    ['ยืม', 'L-1'],
+    ['คืน', 'R-1'],
+  ]) {
+    let message;
+    assert.equal(
+      await sendRequestNotification(
+        saved,
+        kind,
+        { id },
+        {
+          env: { ...env, FRONTEND_URL: 'https://assets.example.com' },
+          fetcher: async (_url, request) => {
+            message = JSON.parse(request.body);
+            return { ok: true };
+          },
+        },
+      ),
+      'sent',
+    );
+    const card = message.cardsV2[0].card;
+    assert.equal(card.header.title, `🔔 มีคำขอ${kind}ใหม่`);
+    assert.equal(card.sections.length, 3);
+    const details = card.sections[1].widgets[0].textParagraph.text;
+    assert.ok(
+      details.includes(
+        '• <b>เหตุผล / วัตถุประสงค์:</b> Meeting &amp; training<br>Project &lt;test&gt;',
+      ),
+    );
+    assert.ok(
+      details.includes(
+        `• <b>หมายเหตุ:</b> ${kind === 'คืน' ? 'Returned with charger' : 'Bring charger'}`,
+      ),
+    );
+    assert.equal(card.sectionDividerStyle, 'SOLID_DIVIDER');
+    assert.equal(card.sections[2].widgets[0].buttonList.buttons[0].type, 'OUTLINED');
+    assert.equal(
+      card.sections[2].widgets[0].buttonList.buttons[0].onClick.openLink.url,
+      'https://assets.example.com/approval-requests',
+    );
+    assert.ok(!JSON.stringify(card).includes('<b>Admin</b>'));
+  }
+});
+
+test('optional catalog photo respects public preview setting and lookup failure', async () => {
+  let message;
+  let reads = 0;
+  const saved = {
+    ...ledger,
+    adapter: {
+      readReadyToBorrow: async () => {
+        reads++;
+        return [
+          ['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์', 'รูป (ลิงก์)'],
+          [
+            'A1',
+            'S1',
+            'Laptop',
+            'https://drive.google.com/file/d/public-photo/view\nhttps://drive.google.com/file/d/second-photo/view',
+          ],
+        ];
+      },
+    },
+  };
+  const options = {
+    env,
+    fetcher: async (_url, request) => {
+      message = JSON.parse(request.body);
+      return { ok: true };
+    },
+  };
+  await sendRequestNotification(saved, 'ยืม', { id: 'L-1' }, options);
+  assert.equal(reads, 0);
+  assert.equal(message.cardsV2[0].card.sections[0].widgets[0].columns, undefined);
+  options.env = { ...env, PUBLIC_PHOTO_PREVIEW: 'true' };
+  await sendRequestNotification(saved, 'ยืม', { id: 'L-1' }, options);
+  const columns = message.cardsV2[0].card.sections[0].widgets[0].columns;
+  assert.equal(message.cardsV2[0].card.header.imageType, 'CIRCLE');
+  assert.equal(
+    columns.columnItems[1].widgets[0].image.imageUrl,
+    'http://localhost:3000/api/chat-photos/public-photo',
+  );
+  saved.adapter.readReadyToBorrow = async () => {
+    throw new Error('Catalog unavailable');
+  };
+  assert.equal(await sendRequestNotification(saved, 'ยืม', { id: 'L-1' }, options), 'sent');
+  assert.equal(message.cardsV2[0].card.sections[0].widgets[0].columns, undefined);
+});
+
+test('Chat uses the configured website and supplied laptop icon without exposing private images', async () => {
+  let message;
+  const adapter = {
+    readReadyToBorrow: async () => [
+      ['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์', 'รูป (ลิงก์)'],
+      ['A1', 'S1', 'Laptop', 'https://drive.google.com/file/d/private-photo/view'],
+    ],
+  };
+  const options = {
+    env: { ...env, GOOGLE_CHAT_APP_URL: 'https://iqi-asset.vercel.app/' },
+    photoStore: { isPublic: async () => false },
+    fetcher: async (_url, request) => {
+      message = JSON.parse(request.body);
+      return { ok: true };
+    },
+  };
+  await sendRequestNotification({ ...ledger, adapter }, 'ยืม', { id: 'L-1' }, options);
+  const card = message.cardsV2[0].card;
+  assert.equal(
+    card.header.imageUrl,
+    'https://iqi-asset.vercel.app/assets/images/laptop-webhook-icon.png',
+  );
+  assert.equal(
+    card.sections[2].widgets[0].buttonList.buttons[0].onClick.openLink.url,
+    'https://iqi-asset.vercel.app/approval-requests',
+  );
+  assert.equal(card.sections[0].widgets[0].columns, undefined);
 });
 
 for (const [kind, register, service] of [

@@ -2,6 +2,16 @@ import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js
 import express from 'express';
 import { preparePhoto } from '../photos/prepareUpload.js';
 import { borrowerNickname } from '../loans/staff-nicknames.js';
+export function registerPublicCatalogPhotoRoute(app, { catalogEditor }) {
+  app.get('/api/chat-photos/:id', async (req, res, next) => {
+    try {
+      const bytes = await catalogEditor.readPublicPhoto(req.params.id);
+      res.set('Cache-Control', 'public, max-age=300').type('image/jpeg').send(bytes);
+    } catch (error) {
+      next(error);
+    }
+  });
+}
 export function registerCatalogRoutes(
   app,
   { lendingLedger, catalogEditor, maxUploadBytes, readStaffNicknames = async () => new Map() },

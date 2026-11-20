@@ -16,7 +16,7 @@ import {
   Badge,
   Progress,
 } from '@mantine/core';
-import { ImagePlus, Trash2, Check } from 'lucide-react';
+import { ImagePlus, Trash2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -28,7 +28,7 @@ import { PhotoDropzone } from '@/features/photos/photo-dropzone';
 import { getErrorMessage } from '@/lib/api-client';
 import { LOAN_TYPES } from '@shared/features/lending/formConstants.js';
 
-type SelectedPhoto = { file: File; binary: Blob; preview: string; uploaded: boolean };
+type SelectedPhoto = { file: File; preview: string };
 
 export function AddEquipment({ disabled }: { disabled: boolean }) {
   const { api, user } = useAuthSession();
@@ -42,28 +42,21 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
   const [preparing, setPreparing] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [previewError, setPreviewError] = useState<unknown>(null);
-  const [saved, setSaved] = useState<z.infer<typeof catalogSchema>['records'][number] | null>(null);
   const mutation = useMutation({
     mutationFn: async () => {
-      const record =
-        saved ??
-        (await api.request('/api/loan-catalog', catalogSchema.shape.records.element, {
-          method: 'POST',
-          body: { asset: asset.trim(), serial: serial.trim(), name: name.trim(), category },
-        }));
-      setSaved(record);
-      await client.invalidateQueries({ queryKey: ['loan-catalog'] });
-      for (const photo of photos.filter((entry) => !entry.uploaded)) {
-        await api.request(`/api/loan-catalog/${record.row}/photos`, z.object({ url: z.string() }), {
-          method: 'POST',
-          binary: photo.binary,
-          revision: encodeURIComponent(JSON.stringify([record.asset, record.serial])),
-        });
-        setPhotos((current) =>
-          current.map((entry) => (entry === photo ? { ...entry, uploaded: true } : entry)),
-        );
-        await client.invalidateQueries({ queryKey: ['loan-catalog'] });
-      }
+      const body = {
+        asset: asset.trim(),
+        serial: serial.trim(),
+        name: name.trim(),
+        category,
+        ...(photos.length ? { photos: photos.map((photo) => photo.preview) } : {}),
+      };
+      if (new Blob([JSON.stringify(body)]).size > 4 * 1024 * 1024)
+        throw new Error('รูปทั้งหมดมีขนาดใหญ่เกินไป กรุณาเลือกรูปที่เล็กลง');
+      await api.request('/api/loan-catalog', catalogSchema.shape.records.element, {
+        method: 'POST',
+        body,
+      });
       await client.invalidateQueries({ queryKey: ['loan-catalog'] });
     },
     onSuccess: close,
@@ -77,7 +70,6 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
     setPhotos([]);
     setPhotoError('');
     setPreviewError(null);
-    setSaved(null);
     mutation.reset();
   }
   async function selectPhotos(files: File[], replace?: number) {
@@ -95,13 +87,13 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
       const { maxUploadBytes } = await photosService.fetchUploadLimits(api);
       const selected: SelectedPhoto[] = [];
       for (const file of files) {
-        const binary = await preparePhotoForUpload(file, maxUploadBytes);
+        const binary = await preparePhotoForUpload(file, Math.min(maxUploadBytes, 900 * 1024));
         const { preview } = await api.request(
           '/api/loan-catalog/preview',
           z.object({ preview: z.string().startsWith('data:image/jpeg;base64,') }),
           { method: 'POST', binary },
         );
-        selected.push({ file, binary, preview, uploaded: false });
+        selected.push({ file, preview });
       }
       setPhotos((current) =>
         replace === undefined
@@ -139,21 +131,21 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
         >
           <Stack>
             <Text size="sm" c="dimmed">
-              บันทึกลงชีตพร้อมยืม และเปิดให้เลือกยืมทันที วันที่อัปเดตบันทึกอัตโนมัติ
+              บันทึกรายการพร้อมรูปที่เลือกทั้งหมดเมื่ออัปโหลดสำเร็จครบ หากรูปไม่ครบจะไม่เพิ่มรายการ
             </Text>
             <TextInput
               label="เลขครุภัณฑ์"
               required
               maxLength={200}
               value={asset}
-              disabled={mutation.isPending || !!saved}
+              disabled={busy}
               onChange={(event) => setAsset(event.currentTarget.value)}
             />
             <TextInput
               label="S/N"
               maxLength={200}
               value={serial}
-              disabled={mutation.isPending || !!saved}
+              disabled={busy}
               onChange={(event) => setSerial(event.currentTarget.value)}
             />
             <TextInput
@@ -161,7 +153,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
               required
               maxLength={200}
               value={name}
-              disabled={mutation.isPending || !!saved}
+              disabled={busy}
               onChange={(event) => setName(event.currentTarget.value)}
             />
             <Select
@@ -171,7 +163,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
               onChange={(value) => setCategory(value || 'อื่นๆ')}
               allowDeselect={false}
               required
-              disabled={busy || !!saved}
+              disabled={busy}
             />
             <Paper withBorder radius="md" p="md">
               <Stack gap="sm">
@@ -227,7 +219,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                               variant={index === 0 ? 'filled' : 'light'}
                               aria-label={`ตั้งรูปที่ ${index + 1} เป็นรูปแรก`}
                               aria-pressed={index === 0}
-                              disabled={busy || !!saved || index === 0}
+                              disabled={busy || index === 0}
                               onClick={() =>
                                 setPhotos((current) => [
                                   photo,
@@ -241,55 +233,47 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                           <Text size="xs" c="dimmed" truncate title={photo?.file.name}>
                             {photo?.file.name || `รูปที่ ${index + 1}`}
                           </Text>
-                          {photo?.uploaded ? (
-                            <Badge color="green" leftSection={<Check size={12} />}>
-                              บันทึกแล้ว
-                            </Badge>
-                          ) : (
-                            <>
-                              <FileButton
-                                accept={accept}
-                                inputProps={{
-                                  onClick: (event) => {
-                                    event.currentTarget.value = '';
-                                  },
-                                }}
-                                onChange={(file) =>
-                                  file && void selectPhotos([file], photo ? index : undefined)
-                                }
+                          <FileButton
+                            accept={accept}
+                            inputProps={{
+                              onClick: (event) => {
+                                event.currentTarget.value = '';
+                              },
+                            }}
+                            onChange={(file) =>
+                              file && void selectPhotos([file], photo ? index : undefined)
+                            }
+                          >
+                            {(props) => (
+                              <Button
+                                {...props}
+                                type="button"
+                                size="xs"
+                                variant="default"
+                                disabled={busy || (!photo && index !== photos.length)}
+                                aria-label={`${photo ? 'เปลี่ยน' : 'เลือก'}รูปที่ ${index + 1}`}
                               >
-                                {(props) => (
-                                  <Button
-                                    {...props}
-                                    type="button"
-                                    size="xs"
-                                    variant="default"
-                                    disabled={busy || (!photo && index !== photos.length)}
-                                    aria-label={`${photo ? 'เปลี่ยน' : 'เลือก'}รูปที่ ${index + 1}`}
-                                  >
-                                    {photo ? 'เปลี่ยนรูป' : 'เลือกรูป'}
-                                  </Button>
-                                )}
-                              </FileButton>
-                              {photo && (
-                                <Button
-                                  type="button"
-                                  size="xs"
-                                  color="red"
-                                  variant="subtle"
-                                  leftSection={<Trash2 size={13} />}
-                                  disabled={busy}
-                                  aria-label={`ลบรูปที่ ${index + 1}`}
-                                  onClick={() =>
-                                    setPhotos((current) =>
-                                      current.filter((_, position) => position !== index),
-                                    )
-                                  }
-                                >
-                                  ลบรูป
-                                </Button>
-                              )}
-                            </>
+                                {photo ? 'เปลี่ยนรูป' : 'เลือกรูป'}
+                              </Button>
+                            )}
+                          </FileButton>
+                          {photo && (
+                            <Button
+                              type="button"
+                              size="xs"
+                              color="red"
+                              variant="subtle"
+                              leftSection={<Trash2 size={13} />}
+                              disabled={busy}
+                              aria-label={`ลบรูปที่ ${index + 1}`}
+                              onClick={() =>
+                                setPhotos((current) =>
+                                  current.filter((_, position) => position !== index),
+                                )
+                              }
+                            >
+                              ลบรูป
+                            </Button>
                           )}
                         </Stack>
                       </Paper>
@@ -303,15 +287,9 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                 )}
                 {mutation.isPending && photos.length > 0 && (
                   <>
-                    <Progress
-                      value={
-                        (photos.filter((photo) => photo.uploaded).length / photos.length) * 100
-                      }
-                      aria-label="ความคืบหน้าการอัปโหลดรูป"
-                    />
+                    <Progress value={100} animated aria-label="ความคืบหน้าการอัปโหลดรูป" />
                     <Text size="xs" role="status">
-                      บันทึกรูปแล้ว {photos.filter((photo) => photo.uploaded).length}/
-                      {photos.length} รูป
+                      กำลังบันทึกรายการพร้อมรูปทั้งหมด {photos.length} รูป…
                     </Text>
                   </>
                 )}
@@ -322,19 +300,8 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                 )}
               </Stack>
             </Paper>
-            {saved && mutation.isError && (
-              <Text role="status" size="sm">
-                เพิ่มครุภัณฑ์แล้ว แต่ยังเพิ่มรูปไม่สำเร็จครบ กดบันทึกเพื่อลองต่อเฉพาะรูปที่เหลือ
-                หรือปิดเพื่อใช้รูปที่บันทึกแล้ว
-              </Text>
-            )}
             <ErrorPopup
-              error={
-                previewError ||
-                (mutation.error && saved
-                  ? new Error('อัปโหลดไม่สำเร็จ กรุณาลองใหม่')
-                  : mutation.error)
-              }
+              error={previewError || mutation.error}
               onRefresh={async () => {
                 await client.invalidateQueries({ queryKey: ['loan-catalog'] });
                 mutation.reset();
@@ -350,7 +317,7 @@ export function AddEquipment({ disabled }: { disabled: boolean }) {
                 loading={mutation.isPending}
                 disabled={preparing || !asset.trim() || !name.trim()}
               >
-                บันทึก{saved ? 'รูป' : 'ครุภัณฑ์'}
+                บันทึกครุภัณฑ์
               </Button>
             </Group>
           </Stack>

@@ -46,5 +46,7 @@ export function configureRequestSecurity(app, config, csrf) {
     }
     next();
   });
+  // Three compressed JPEGs plus base64 overhead stay below Vercel's body limit.
+  app.use('/api/loan-catalog', express.json({ limit: '4mb' }));
   app.use(express.json({ limit: '2mb' }));
 }

@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthSession } from './auth-provider';
 import { defaultWorkspacePath } from '@/types/account';
-import { LoadingIndicator } from '@/components/ui/feedback';
+import { InitialLoadingScreen } from '@/components/ui/feedback';
 import { ErrorPopup } from '@/components/core/error-popup';
 import styles from './login-page.module.css';
 export function LoginPage() {
@@ -14,7 +14,7 @@ export function LoginPage() {
   useEffect(() => {
     if (auth.authenticated) router.replace(defaultWorkspacePath(auth.user));
   }, [auth.authenticated, auth.user, router]);
-  if (auth.loading) return <LoadingIndicator />;
+  if (auth.loading || auth.authenticated) return <InitialLoadingScreen />;
   return (
     <main className={styles.page}>
       <section className={styles.story} aria-label="IQI Asset Checker">

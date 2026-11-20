@@ -102,6 +102,12 @@ export class PhotoStore {
             fields: 'id',
           });
         } catch {
+          try {
+            if (!(await this.trash(file.id)))
+              process.stderr.write('Photo permission cleanup pending\n');
+          } catch {
+            process.stderr.write('Photo permission cleanup pending\n');
+          }
           fail(
             422,
             `อัปโหลดรูปแล้ว แต่เปิดสิทธิ์ดูภาพสำหรับ Google Sheets ไม่สำเร็จ (อาจถูกนโยบายองค์กรจำกัด): ${file.id}`,
@@ -131,6 +137,21 @@ export class PhotoStore {
         { responseType: 'arraybuffer' },
       )
     ).data;
+  }
+  async isPublic(id) {
+    if (!/^[\w-]+$/.test(id)) return false;
+    const { data } = await this.drive.files.get({
+      fileId: id,
+      supportsAllDrives: true,
+      fields: 'trashed,mimeType,permissions(type,role)',
+    });
+    return (
+      !data.trashed &&
+      data.mimeType?.startsWith('image/') &&
+      data.permissions?.some(
+        (permission) => permission.type === 'anyone' && permission.role === 'reader',
+      ) === true
+    );
   }
   async trash(id) {
     if (!/^[\w-]+$/.test(id) || id === this.folder) return false;

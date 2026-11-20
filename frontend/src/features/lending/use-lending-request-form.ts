@@ -57,7 +57,6 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
   const [selected, setSelected] = useState<CatalogRecord | null>(initial?.selected ?? null),
     [selectionError, setSelectionError] = useState(''),
     [error, setError] = useState<unknown>(null),
-    [notice, setNotice] = useState(''),
     [pickerVersion, setPickerVersion] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<unknown>(null);
@@ -115,7 +114,6 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     setSelectionError('');
     setError(null);
     setDeleteError(null);
-    setNotice('');
     requestId.current = crypto.randomUUID();
     if (!keepSelection) setPickerVersion((value) => value + 1);
     client.removeQueries({ queryKey: ['workspace-state', `${mode}-form`], exact: true });
@@ -139,7 +137,6 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
       const message = result.photosPending
         ? `ลบรายการจาก Sheet แล้ว แต่ยังย้ายรูป ${result.photosPending} รูปไปถังขยะ Drive ไม่สำเร็จ กรุณาตรวจสอบใน Drive`
         : 'ลบรายการเรียบร้อยแล้ว';
-      setNotice(message);
       showToast(message);
       await client.invalidateQueries({ queryKey: ['loan-catalog'] });
       await client.invalidateQueries({ queryKey: ['return-catalog'] });
@@ -167,7 +164,6 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     };
     submitting.current = true;
     setError(null);
-    setNotice('');
     try {
       const result = await submitRequest(api, values, selection);
       if (!isSubmitCurrent()) return;
@@ -179,11 +175,11 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
             ? ' · บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ ไม่ต้องส่งคำขอซ้ำ'
             : '';
       const message = `ส่ง${requestName}สำเร็จ · ${result.id} · รอเจ้าหน้าที่ดำเนินการ${mailNotice}`;
-      setNotice(message);
       showToast(message);
       await client.invalidateQueries({ queryKey: ['loan-catalog'] });
       await client.invalidateQueries({ queryKey: ['return-catalog'] });
       await client.invalidateQueries({ queryKey: ['my-requests'] });
+      await client.invalidateQueries({ queryKey: ['approval-requests'] });
     } catch (caught) {
       setError(caught);
       if (caught instanceof ApiError && caught.status === 409) {
@@ -194,7 +190,6 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     }
   };
   const selectLendingAsset = (record: CatalogRecord | null) => {
-    setNotice('');
     setError(null);
     setDeleteError(null);
     if (record && mode === 'return') {
@@ -226,7 +221,6 @@ export function useLendingRequestForm({ mode, requestName, submitRequest }: Lend
     selected,
     selectionError,
     error,
-    notice,
     pickerVersion,
     selectLendingAsset,
     resetLendingRequestForm,

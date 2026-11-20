@@ -79,8 +79,8 @@ export function RequestFilters({
             mb="md"
           >
             <Tabs.List>
-              <Tabs.Tab value="ยืม">ยืม ({loanCount})</Tabs.Tab>
-              <Tabs.Tab value="คืน">คืน ({returnCount})</Tabs.Tab>
+              <Tabs.Tab value="ยืม">ยืม{loanCount > 0 ? ` (${loanCount})` : ''}</Tabs.Tab>
+              <Tabs.Tab value="คืน">คืน{returnCount > 0 ? ` (${returnCount})` : ''}</Tabs.Tab>
             </Tabs.List>
           </Tabs>
           <SimpleGrid cols={{ base: 2, sm: 3, xl: 6 }} spacing="sm" mb="lg">

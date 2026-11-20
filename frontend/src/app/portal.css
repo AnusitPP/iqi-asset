@@ -74,19 +74,8 @@ body {
   flex: 1;
 }
 .portal-brand-mark {
-  display: grid;
-  place-items: center;
   flex-shrink: 0;
-  width: 34px;
-  height: 36px;
-  border-radius: var(--mantine-radius-md);
-  background: var(--portal-primary);
-  color: white;
-  font-size: 26px;
-  font-weight: 750;
-  line-height: 1;
-  letter-spacing: -2px;
-  padding-right: 2px;
+  display: block;
 }
 .portal-brand-copy {
   display: grid;
@@ -130,6 +119,7 @@ body {
   scrollbar-color: #dde5e0 transparent;
 }
 .portal-nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -164,6 +154,15 @@ body {
 .portal-nav-label {
   flex: 1;
   min-width: 0;
+}
+.portal-nav-count {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.portal-sidebar-inner.is-collapsed .portal-nav-count {
+  position: absolute;
+  top: 1px;
+  right: 1px;
 }
 .portal-nav-planned {
   width: 5px;
@@ -941,8 +940,4 @@ body {
 }
 .portal-sidebar-bottom {
   border-top-color: #ecece7;
-}
-.portal-brand-mark {
-  background: linear-gradient(100deg, #f7a009, #f2cf00);
-  color: #302600;
 }

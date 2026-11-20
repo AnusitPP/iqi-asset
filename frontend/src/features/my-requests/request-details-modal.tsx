@@ -6,6 +6,8 @@ import { RequestDetailsSummary } from '@/components/core/request-details-summary
 import styles from '@/components/core/request-details.module.css';
 import { RequestPickupFields } from './request-pickup-fields';
 import { RequestApprovalControls } from './request-approval-controls';
+import { CancelLoanRequest } from './cancel-loan-request';
+import { useAuthSession } from '@/features/auth/auth-provider';
 import type { myRequestsSchema } from '@/types/account';
 import type { z } from 'zod';
 
@@ -62,6 +64,7 @@ export function RequestDetailsModal({
   pickupLabel: (entry: RequestRecord) => string;
   onSave: (id: string, status: string) => void;
 }) {
+  const { can } = useAuthSession();
   return (
     <Modal
       opened={details !== null}
@@ -134,6 +137,14 @@ export function RequestDetailsModal({
               คอมเมนต์จากแอดมิน: {details.adminComment || '—'}
             </Text>
           )}
+          {!approvals &&
+            details.kind === 'ยืม' &&
+            details.status === 'รอดำเนินการ' &&
+            !details.statusLocked &&
+            !details.completed &&
+            can('LOAN_CREATE') && (
+              <CancelLoanRequest key={details.id} id={details.id} onCancelled={onClose} />
+            )}
           {conditionError === details.id && (
             <Text id="return-condition-error" role="alert" size="xs" c="red" mt={-8}>
               กรุณาระบุสภาพหลังคืน

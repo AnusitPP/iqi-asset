@@ -18,7 +18,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {toast && (
         <Affix position={{ bottom: 20, right: 20 }} zIndex={1000}>
-          <Notification role="status" onClose={() => setToast(null)}>
+          <Notification
+            role="status"
+            w="min(420px, calc(100vw - 40px))"
+            styles={{ description: { overflowWrap: 'anywhere' } }}
+            closeButtonProps={{ 'aria-label': 'ปิดการแจ้งเตือน' }}
+            onClose={() => setToast(null)}
+          >
             {toast.message}
           </Notification>
         </Affix>

@@ -13,6 +13,7 @@ const navigation = vi.hoisted(() => ({
   replace: vi.fn(),
   logout: vi.fn().mockResolvedValue(undefined),
 }));
+const sessionState = vi.hoisted(() => ({ loading: false }));
 const api = new ApiClient(undefined, async (path) => {
   if (path === '/api/status')
     return Response.json({
@@ -71,7 +72,7 @@ vi.mock('../src/features/auth/auth-provider', () => ({
     api,
     authenticated: true,
     can: () => true,
-    loading: false,
+    loading: sessionState.loading,
     error: null,
     logoutCurrentSession: navigation.logout,
   }),
@@ -94,7 +95,10 @@ vi.mock('next/link', () => ({
     </a>
   ),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  sessionState.loading = false;
+});
 function renderWorkspace(children: ReactNode, client: QueryClient) {
   return render(
     <MantineProvider env="test">
@@ -106,6 +110,23 @@ function renderWorkspace(children: ReactNode, client: QueryClient) {
     </MantineProvider>,
   );
 }
+it('shows only the GIF and loading message before the session is ready', () => {
+  sessionState.loading = true;
+  const client = new QueryClient();
+  const view = renderWorkspace(
+    <AuthenticatedWorkspace>
+      <p>content</p>
+    </AuthenticatedWorkspace>,
+    client,
+  );
+  expect(screen.getByRole('status').textContent).toBe('กำลังโหลดข้อมูล');
+  expect(view.container.querySelector('img')?.getAttribute('src')).toBe(
+    '/assets/images/delivery-worker.gif',
+  );
+  expect(screen.queryByText('content')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'เปิดเมนู' })).toBeNull();
+  expect(view.container.querySelector('footer')).toBeNull();
+});
 it('opens the grouped mobile menu and closes it after navigation', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   renderWorkspace(

@@ -49,7 +49,6 @@ export function LendingRequestForm({
     selected,
     selectionError,
     error,
-    notice,
     pickerVersion,
     selectLendingAsset,
     resetLendingRequestForm,
@@ -145,11 +144,6 @@ export function LendingRequestForm({
             {renderForm()}
           </Modal>
         }
-        {notice && (
-          <Text role="status" c="portalGreen.7" mt="md">
-            {notice}
-          </Text>
-        )}
       </Paper>
       <Modal
         opened={deleteOpened && detailsStep && selected !== null && request.canDeleteCatalogItem}
@@ -327,7 +321,6 @@ export function LendingRequestForm({
             disabled={busy}
           />
           <ErrorPopup error={error} />
-          <Text role="status">{notice}</Text>
           <Group>
             <Button type="submit" loading={busy}>
               {mode === 'loan' ? 'ส่งคำขอยืม' : 'ส่งคำขอคืน'}

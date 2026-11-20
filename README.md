@@ -142,6 +142,8 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 
 Google Chat: ตั้ง `GOOGLE_CHAT_WEBHOOK_URL` ใน `.env` ฝั่งเซิร์ฟเวอร์ และใน Vercel Environment Variables ก่อน deploy เพื่อแจ้งเฉพาะคำขอยืมใหม่และคำขอคืนใหม่ ไม่ส่งเมื่อเปลี่ยนสถานะหรือส่งคำขอเดิมซ้ำ ถ้าไม่ตั้งค่าจะไม่ส่ง Chat; การส่งล้มเหลวไม่ยกเลิกคำขอ (รอไม่เกิน 5 วินาทีต่อครั้ง และไม่ส่งซ้ำอัตโนมัติ) ห้ามใส่ URL ใน frontend หรือ commit ลง Git
 
+ข้อความ Chat ส่งเฉพาะการ์ด พร้อมข้อมูลผู้ขอ อุปกรณ์ เหตุผล/วัตถุประสงค์ และหมายเหตุ ใช้ไอคอนโน้ตบุ๊กที่มุมซ้ายบน ปุ่มเปิด `/approval-requests` บนเว็บตาม `GOOGLE_CHAT_APP_URL` (ถ้าไม่ตั้งใช้ `FRONTEND_URL` หรือ `APP_URL`) คำขอคืนใช้วัตถุประสงค์จากรายการยืมเดิม แสดงเฉพาะรูปแรกจากชีตพร้อมยืมผ่าน `/api/chat-photos/:id` โดยตรวจว่าไฟล์นั้นแชร์สาธารณะอยู่แล้วและอยู่ใน catalog ตัวแจ้งเตือนไม่เปลี่ยนสิทธิ์ไฟล์ รูปส่วนตัวจะไม่แสดง ต้อง deploy endpoint และไฟล์ไอคอนก่อนทดสอบรูปใน Chat จริง
+
 เพิ่ม SMTP และคอลัมน์ `email` ข้างชื่อในชีตยืม ตาม [คู่มือส่งเมลรายวัน](docs/daily-mail.md)
 ใช้ `npm run mail:preview` ดูเมลเตือนโดยไม่ส่ง, `npm run mail:verify` ตรวจ SMTP,
 `npm run mail:send` ส่งหนึ่งรอบ
@@ -150,6 +152,10 @@ Vercel Cron เรียก `/api/cron/due-reminders` ทุกวันช่�
 ตั้ง SMTP และ CRON_SECRET ใน Vercel Production Environment Variables ก่อน deploy
 
 ## Vercel deployment
+
+การเพิ่มครุภัณฑ์พร้อมรูปส่งข้อมูลและรูปที่เลือกทั้งหมดในคำขอเดียว (สูงสุด 3 รูป) เซิร์ฟเวอร์ตรวจและอัปโหลดรูปครบก่อนบันทึกแถวพร้อมลิงก์รูป ถ้าอัปโหลดล้มเหลวจะไม่สร้างรายการ และจะพยายามย้ายรูปที่อัปโหลดในครั้งนั้นไปถังขยะ หากผลตอบกลับจาก Sheets ขาดหาย ระบบจะตรวจรายการก่อนล้างรูปเพื่อไม่ลบรูปของรายการที่บันทึกสำเร็จแล้ว กรณียืนยันผลไม่ได้ให้โหลดรายการล่าสุดก่อนลองใหม่
+
+Production ที่ใช้ My Drive ต้องตั้ง `GOOGLE_DRIVE_OAUTH_JSON` (ข้อมูลบัญชีเจ้าของ Drive รวม refresh token) และ `GOOGLE_PHOTO_FOLDER_ID` แล้ว deploy ใหม่; service account อย่างเดียวไม่สามารถอัปโหลดเข้า My Drive ได้
 
 See [deployment instructions](docs/vercel-deployment.md) for environment variables, private JSON credentials, Google Login, Sheet-backed sessions, sheet preparation, verification and platform limits. Do not upload `.env` or `credentials/`.
 

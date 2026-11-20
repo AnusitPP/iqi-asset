@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { ApiClient, ApiError } from '../src/lib/api-client';
 import { LoansPage } from '../src/features/loans/loans-page';
 import { ReturnsPage } from '../src/features/returns/returns-page';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
+import { ToastProvider } from '../src/providers/toast-provider';
 import { loanFormSchema, returnFormSchema } from '../src/types/lending';
 import {
   saveStatusDraftsSequentially,
@@ -57,7 +58,7 @@ function mount(mode: 'loan' | 'return', client = createClient()) {
     <MantineProvider env="test">
       <QueryClientProvider client={client}>
         <UnsavedChangesProvider>
-          {mode === 'loan' ? <LoansPage /> : <ReturnsPage />}
+          <ToastProvider>{mode === 'loan' ? <LoansPage /> : <ReturnsPage />}</ToastProvider>
         </UnsavedChangesProvider>
       </QueryClientProvider>
     </MantineProvider>,
@@ -94,6 +95,26 @@ async function setLoanDates() {
   }
 }
 describe('Google authenticated loan and return forms', () => {
+  it.each(['loan', 'return'] as const)(
+    'shows %s success once in the dismissible toast, outside the page content',
+    async (mode) => {
+      const view = mount(mode);
+      const user = await selectAsset(mode);
+      if (mode === 'loan') await user.type(screen.getByLabelText(/^เหตุผล/), 'Meeting');
+      await user.click(
+        screen.getByRole('button', { name: mode === 'loan' ? 'ส่งคำขอยืม' : 'ส่งคำขอคืน' }),
+      );
+      const message = mode === 'loan' ? /ส่งคำร้องยืมสำเร็จ/ : /ส่งคำร้องคืนสำเร็จ/;
+      await waitFor(() => expect(screen.getAllByText(message)).toHaveLength(1));
+      expect(view.container.querySelector('section')?.textContent).not.toMatch(message);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      const toast = screen.getByText(message).closest('[role="status"]')!;
+      await user.click(
+        within(toast as HTMLElement).getByRole('button', { name: 'ปิดการแจ้งเตือน' }),
+      );
+      expect(screen.queryByText(message)).toBeNull();
+    },
+  );
   it('shows the selected borrower nickname in the return details', async () => {
     transport.mockImplementation(async () =>
       Response.json({
@@ -256,9 +277,9 @@ describe('Google authenticated loan and return forms', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(transport.mock.calls.filter(([path]) => path === '/api/loans')).toHaveLength(1);
     await user.click(await screen.findByRole('button', { name: 'ยืม Next Monitor NEXT-002 SN2' }));
-    await screen.findByRole('dialog');
-    expect(screen.queryByText(/บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ/)).toBeNull();
-    expect(screen.queryByText(/L-test/)).toBeNull();
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.queryByText(/บันทึกคำขอแล้ว แต่ส่งอีเมลไม่สำเร็จ/)).toBeNull();
+    expect(dialog.queryByText(/L-test/)).toBeNull();
   });
   it('keeps Google identity read-only when clearing and reopening a return', async () => {
     authState.user.name = 'Google Profile User';

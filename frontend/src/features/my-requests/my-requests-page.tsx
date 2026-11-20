@@ -19,6 +19,7 @@ import {
   isReturnPending,
 } from '@shared/features/lending/status.js';
 import { myRequestsService } from '@/services/my-requests.service';
+import { pendingRequestCounts } from './pending-counts';
 export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const client = useQueryClient();
   const [search, setSearch] = useState('');
@@ -221,6 +222,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
             : b.order - a.order,
     );
   const summaryStatuses = approvalStatuses(requestKind);
+  const pendingCounts = pendingRequestCounts(requests.data?.records);
   return (
     <Box component="section">
       <Group justify="space-between" align="center" className="dash-heading">
@@ -236,8 +238,8 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         approvals={approvals}
         requestKind={requestKind}
         setRequestKind={setRequestKind}
-        loanCount={requests.data?.records.filter((entry) => entry.kind === 'ยืม').length ?? 0}
-        returnCount={requests.data?.records.filter((entry) => entry.kind === 'คืน').length ?? 0}
+        loanCount={pendingCounts.loan}
+        returnCount={pendingCounts.returning}
         summaryStatuses={summaryStatuses}
         records={kindRequests}
         requestsPending={requests.isPending}

@@ -8,7 +8,7 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import { systemService } from '@/services/system.service';
 import { useHasUnsavedChanges } from '@/hooks/use-unsaved';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
-import { LoadingIndicator } from '@/components/ui/feedback';
+import { InitialLoadingScreen } from '@/components/ui/feedback';
 import { ErrorPopup } from '@/components/core/error-popup';
 import { defaultWorkspacePath } from '@/types/account';
 import { findPortalService, findPortalModule, isServiceAllowed } from '@/config/navigation';
@@ -74,7 +74,8 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
       setLeaving(false);
     }
   };
-  if (auth.loading || (!auth.authenticated && !auth.error)) return <LoadingIndicator />;
+  if (auth.loading || (!auth.authenticated && !auth.error) || (auth.authenticated && !allowed))
+    return <InitialLoadingScreen />;
   if (auth.error)
     return (
       <Container component="main" size="sm" py="xl">
@@ -127,7 +128,7 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               error={canReadStatus ? status.error : null}
               onRefresh={() => status.refetch()}
             />
-            {allowed ? children : <LoadingIndicator />}
+            {children}
             <Box component="footer" className="portal-footer">
               <span>IQI · IT Service Portal</span>
               <span>Asset Checker · ข้อมูลจาก Google Sheets</span>

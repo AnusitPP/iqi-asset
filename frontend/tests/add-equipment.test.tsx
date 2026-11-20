@@ -34,8 +34,9 @@ function mount() {
 }
 it('drops multiple photos, adds another selection, and uploads the chosen first photo first', async () => {
   state.role = 'ADMIN';
-  state.request.mockImplementation(async (path) => {
-    if (path.endsWith('/preview')) return { preview: 'data:image/jpeg;base64,cGhvdG8=' };
+  state.request.mockImplementation(async (path, _schema, options) => {
+    if (path.endsWith('/preview'))
+      return { preview: `data:image/jpeg;base64,${btoa(options.binary.name)}` };
     if (path === '/api/loan-catalog') return { row: 19, asset: 'A', serial: '', name: 'Mouse' };
     return { url: 'https://drive.google.com/file/d/photo/view' };
   });
@@ -58,10 +59,9 @@ it('drops multiple photos, adds another selection, and uploads the chosen first 
   await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(
-    state.request.mock.calls
-      .filter(([path]) => path.endsWith('/photos'))
-      .map(([, , options]) => options.binary.name),
-  ).toEqual(['2.jpg', '1.jpg', '3.jpg']);
+    state.request.mock.calls.find(([path]) => path === '/api/loan-catalog')?.[2].body.photos,
+  ).toEqual(['2.jpg', '1.jpg', '3.jpg'].map((name) => `data:image/jpeg;base64,${btoa(name)}`));
+  expect(state.request.mock.calls.some(([path]) => path.endsWith('/photos'))).toBe(false);
 });
 it('hides add equipment from staff', () => {
   state.role = 'STAFF';
@@ -91,13 +91,12 @@ it.each(['ADMIN', 'SUPER_ADMIN'])(
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   },
 );
-it('retries only the photo after equipment was saved', async () => {
+it('retains the complete draft after failed save and retries equipment with all photos', async () => {
   state.role = 'ADMIN';
   state.request
     .mockResolvedValueOnce({ preview: 'data:image/jpeg;base64,cGhvdG8=' })
-    .mockResolvedValueOnce({ row: 19, asset: 'A', serial: '', name: 'Mouse' })
-    .mockRejectedValueOnce(new Error('Drive offline'))
-    .mockResolvedValueOnce({ url: 'https://drive.google.com/file/d/photo/view' });
+    .mockRejectedValueOnce(new Error('อัปโหลดเข้า Drive ไม่สำเร็จ'))
+    .mockResolvedValueOnce({ row: 19, asset: 'A', serial: '', name: 'Mouse' });
   mount();
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'เพิ่มครุภัณฑ์' }));
@@ -106,12 +105,16 @@ it('retries only the photo after equipment was saved', async () => {
   const input = document.querySelector('input[type=file]') as HTMLInputElement;
   await user.upload(input, new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }));
   await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
-  await screen.findByText(/เพิ่มครุภัณฑ์แล้ว แต่ยังเพิ่มรูปไม่สำเร็จ/);
-  expect(screen.getByRole('alert').textContent).toContain('อัปโหลดไม่สำเร็จ กรุณาลองใหม่');
-  expect(screen.queryByText('Drive offline')).toBeNull();
-  await user.click(screen.getByRole('button', { name: 'บันทึกรูป' }));
+  await screen.findByText('อัปโหลดเข้า Drive ไม่สำเร็จ');
+  expect(screen.getByLabelText(/เลขครุภัณฑ์/)).toHaveProperty('value', 'A');
+  expect(screen.getByLabelText(/เลขครุภัณฑ์/)).toHaveProperty('disabled', false);
+  expect(screen.queryByText(/เพิ่มครุภัณฑ์แล้ว/)).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'รีเฟรช' }));
+  await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(state.request.mock.calls.filter(([path]) => path === '/api/loan-catalog')).toHaveLength(1);
+  const saves = state.request.mock.calls.filter(([path]) => path === '/api/loan-catalog');
+  expect(saves).toHaveLength(2);
+  expect(saves[0]![2].body).toEqual(saves[1]![2].body);
 });
 
 it('previews three photos before saving, supports replacement/removal and rejects a fourth', async () => {
@@ -145,15 +148,14 @@ it('previews three photos before saving, supports replacement/removal and reject
   expect(screen.getAllByRole('img', { name: /ภาพตัวอย่างรูปที่/ })).toHaveLength(2);
 });
 
-it('uploads three photos and retries the remaining photos without repeating successful ones', async () => {
+it('submits all three prepared photos in one save without publishing a partial record', async () => {
   state.role = 'ADMIN';
   let uploads = 0;
   state.request.mockImplementation(async (path) => {
     if (path.endsWith('/preview')) return { preview: 'data:image/jpeg;base64,cGhvdG8=' };
-    if (path === '/api/loan-catalog') return { row: 19, asset: 'A', serial: '', name: 'Mouse' };
     uploads++;
-    if (uploads === 2) throw new Error('offline');
-    return { url: 'https://drive.google.com/file/d/photo/view' };
+    if (uploads === 1) throw new Error('อัปโหลดรูปไม่สำเร็จ');
+    return { row: 19, asset: 'A', serial: '', name: 'Mouse' };
   });
   mount();
   const user = userEvent.setup();
@@ -168,17 +170,15 @@ it('uploads three photos and retries the remaining photos without repeating succ
     expect(screen.getAllByRole('img', { name: /ภาพตัวอย่างรูปที่/ })).toHaveLength(3),
   );
   await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
-  await screen.findByText(/เพิ่มครุภัณฑ์แล้ว แต่ยังเพิ่มรูปไม่สำเร็จ/);
-  await user.click(screen.getByRole('button', { name: 'บันทึกรูป' }));
+  await screen.findByText('อัปโหลดรูปไม่สำเร็จ');
+  await user.click(screen.getByRole('button', { name: 'รีเฟรช' }));
+  await user.click(screen.getByRole('button', { name: 'บันทึกครุภัณฑ์' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(uploads).toBe(4);
-  const uploadedNames = state.request.mock.calls
-    .filter(([path]) => path.endsWith('/photos'))
-    .map(([, , options]) => options.binary.name);
-  expect(uploadedNames).toEqual(['1.jpg', '2.jpg', '2.jpg', '3.jpg']);
-  const previews = state.request.mock.calls.filter(([path]) => path.endsWith('/preview'));
-  const uploadsSent = state.request.mock.calls.filter(([path]) => path.endsWith('/photos'));
+  expect(uploads).toBe(2);
+  const saves = state.request.mock.calls.filter(([path]) => path === '/api/loan-catalog');
+  expect(saves[0]![2].body.photos).toHaveLength(3);
+  expect(saves[0]![2].body).toEqual(saves[1]![2].body);
+  expect(state.request.mock.calls.some(([path]) => path.endsWith('/photos'))).toBe(false);
   expect(state.prepare).toHaveBeenCalledTimes(3);
-  expect(uploadsSent[0]![2].binary).toBe(previews[0]![2].binary);
-  expect(uploadsSent[0]![2].binary.size).toBe('compressed'.length);
+  expect(state.prepare).toHaveBeenCalledWith(expect.any(File), 900 * 1024);
 });

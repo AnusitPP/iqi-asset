@@ -1,6 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { Tooltip, Anchor, Box, UnstyledButton } from '@mantine/core';
+import { Tooltip, Anchor, Box, UnstyledButton, Badge, Image } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
+import { myRequestsSchema } from '@/types/account';
+import { pendingRequestCounts } from '@/features/my-requests/pending-counts';
 import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   homeService,
@@ -27,10 +30,12 @@ function SidebarItem({
   service,
   path,
   collapsed,
+  pendingCount = 0,
 }: {
   service: PortalService;
   path: string;
   collapsed: boolean;
+  pendingCount?: number;
 }) {
   const navigate = usePortalLinkHandler();
   const Icon = service.icon;
@@ -40,17 +45,29 @@ function SidebarItem({
     <>
       <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
       <span className="portal-nav-label">{service.label}</span>
+      {pendingCount > 0 && (
+        <Badge
+          color="red"
+          variant="filled"
+          size="sm"
+          radius="xl"
+          className="portal-nav-count"
+          aria-hidden="true"
+        >
+          {pendingCount}
+        </Badge>
+      )}
       {service.planned && <span className="portal-nav-planned" aria-label="อยู่ระหว่างพัฒนา" />}
     </>
   );
   const props = {
     className: `portal-nav-item${active ? ' is-active' : ''}`,
-    'aria-label': service.label,
+    'aria-label': `${service.label}${pendingCount > 0 ? ` · รอดำเนินการ ${pendingCount} รายการ` : ''}`,
     'aria-current': active ? ('page' as const) : undefined,
   };
   return (
     <Tooltip
-      label={`${service.label}${service.planned ? ' · อยู่ระหว่างพัฒนา' : ''}`}
+      label={`${props['aria-label']}${service.planned ? ' · อยู่ระหว่างพัฒนา' : ''}`}
       position="right"
       disabled={!collapsed}
     >
@@ -76,7 +93,18 @@ export function AppSidebar({
   onLogout,
   leaving,
 }: SidebarProps) {
-  const { can, user } = useAuthSession();
+  const { api, can, user } = useAuthSession();
+  const canViewApprovals =
+    !!user && ['ADMIN', 'SUPER_ADMIN'].includes(user.role) && can('LOAN_VIEW_ALL');
+  const approvals = useQuery({
+    queryKey: ['approval-requests', user?.id],
+    queryFn: ({ signal }) => api.request('/api/approval-requests', myRequestsSchema, { signal }),
+    enabled: canViewApprovals,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const pendingCount = canViewApprovals ? pendingRequestCounts(approvals.data?.records).total : 0;
   const navigate = usePortalLinkHandler();
   return (
     <Box className={`portal-sidebar-inner${collapsed ? ' is-collapsed' : ''}`}>
@@ -88,7 +116,15 @@ export function AppSidebar({
           onClick={navigate}
           aria-label="Asset Checker หน้าหลัก"
         >
-          <span className="portal-brand-mark">i.</span>
+          <Image
+            src="/icon.png"
+            alt=""
+            aria-hidden="true"
+            className="portal-brand-mark"
+            w={40}
+            h={40}
+            fit="contain"
+          />
           <span className="portal-brand-copy">
             <strong>Asset Checker</strong>
             <small>IT SERVICE PORTAL</small>
@@ -149,6 +185,7 @@ export function AppSidebar({
                     service={service}
                     path={path}
                     collapsed={collapsed}
+                    pendingCount={service.id === 'approval-requests' ? pendingCount : 0}
                   />
                 ))}
               </Box>

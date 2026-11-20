@@ -12,6 +12,8 @@ export function protectApi(req, res, next) {
   else if (path.startsWith('/api/approval-requests'))
     permission = req.method === 'GET' ? 'LOAN_VIEW_ALL' : 'LOAN_APPROVE';
   else if (path === '/api/audit') permission = 'AUDIT_VIEW';
+  else if (req.method === 'POST' && /^\/api\/my-requests\/[^/]+\/cancel$/.test(path))
+    permission = 'LOAN_CREATE';
   else if (req.method === 'GET') {
     if (path === '/api/my-requests') permission = 'LOAN_VIEW_OWN';
     else if (path === '/api/loan-catalog' || path === '/api/ready-to-borrow')

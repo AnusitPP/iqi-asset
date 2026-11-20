@@ -45,6 +45,135 @@ test('catalog creation maps reordered sheet headers, preserves literal input and
   });
 });
 
+test('catalog creation saves all photo links with the row only after every upload succeeds', async () => {
+  const { editor, grid, store } = fixture();
+  const image = await sharp({ create: { width: 4, height: 4, channels: 3, background: 'red' } })
+    .jpeg()
+    .toBuffer();
+  const photo = `data:image/jpeg;base64,${image.toString('base64')}`;
+  let uploads = 0;
+  store.upload = async () => {
+    assert.equal(grid.length, 1, 'No catalog entry may appear before all uploads succeed');
+    const id = `photo-${++uploads}`;
+    return { id, url: `https://drive.google.com/file/d/${id}/view` };
+  };
+  const saved = await editor.create({
+    asset: 'ATOMIC',
+    name: 'Laptop',
+    photos: [photo, photo, photo],
+  });
+  assert.equal(uploads, 3);
+  assert.equal(saved.photo.split('\n').length, 3);
+  assert.equal(grid[1][4], saved.photo);
+});
+
+test('failed photo upload leaves no row and cleans earlier uploaded photos', async () => {
+  const { editor, grid, store } = fixture();
+  const image = await sharp({ create: { width: 4, height: 4, channels: 3, background: 'red' } })
+    .jpeg()
+    .toBuffer();
+  const photo = `data:image/jpeg;base64,${image.toString('base64')}`;
+  let uploads = 0;
+  const trashed = [];
+  store.upload = async () => {
+    if (++uploads === 2) throw new Error('Drive offline');
+    return { id: 'photo-1', url: 'https://drive.google.com/file/d/photo-1/view' };
+  };
+  store.trash = async (id) => {
+    trashed.push(id);
+    return true;
+  };
+  await assert.rejects(
+    editor.create({ asset: 'ATOMIC', name: 'Laptop', photos: [photo, photo] }),
+    /Drive offline/,
+  );
+  assert.equal(grid.length, 1);
+  assert.deepEqual(trashed, ['photo-1']);
+});
+
+test('failed Sheets save cleans photos, while a lost successful response preserves a complete entry', async () => {
+  const { editor, grid, store } = fixture();
+  const image = await sharp({ create: { width: 4, height: 4, channels: 3, background: 'red' } })
+    .jpeg()
+    .toBuffer();
+  const photo = `data:image/jpeg;base64,${image.toString('base64')}`;
+  const trashed = [];
+  store.upload = async () => ({
+    id: 'new-photo',
+    url: 'https://drive.google.com/file/d/new-photo/view',
+  });
+  store.trash = async (id) => {
+    trashed.push(id);
+    return true;
+  };
+  editor.adapter.appendReadyToBorrow = async () => {
+    throw new Error('Sheets offline');
+  };
+  await assert.rejects(
+    editor.create({ asset: 'ATOMIC', name: 'Laptop', photos: [photo] }),
+    /Sheets offline/,
+  );
+  assert.equal(grid.length, 1);
+  assert.deepEqual(trashed, ['new-photo']);
+  trashed.length = 0;
+  editor.adapter.appendReadyToBorrow = async (row) => {
+    grid.push(row);
+    throw new Error('Response lost');
+  };
+  const saved = await editor.create({ asset: 'ATOMIC', name: 'Laptop', photos: [photo] });
+  assert.equal(saved.photo, 'https://drive.google.com/file/d/new-photo/view');
+  assert.equal(grid.length, 2);
+  assert.deepEqual(trashed, []);
+});
+
+test('failed cleanup is reported and uncertain Sheets writes never delete possibly referenced photos', async () => {
+  const { editor, grid, store } = fixture();
+  const image = await sharp({ create: { width: 4, height: 4, channels: 3, background: 'red' } })
+    .jpeg()
+    .toBuffer();
+  const photo = `data:image/jpeg;base64,${image.toString('base64')}`;
+  store.upload = async () => ({
+    id: 'new-photo',
+    url: 'https://drive.google.com/file/d/new-photo/view',
+  });
+  const append = editor.adapter.appendReadyToBorrow;
+  editor.adapter.appendReadyToBorrow = async () => {
+    throw new Error('Sheets offline');
+  };
+  store.trash = async () => false;
+  await assert.rejects(
+    editor.create({ asset: 'A', name: 'Laptop', photos: [photo] }),
+    /ล้างรูปใน Drive ไม่สำเร็จ/,
+  );
+  assert.equal(grid.length, 1);
+  editor.adapter.appendReadyToBorrow = append;
+  const read = editor.adapter.readReadyToBorrow;
+  let reads = 0;
+  editor.adapter.readReadyToBorrow = async () => {
+    if (++reads > 1) throw new Error('Read unavailable');
+    return read();
+  };
+  store.trash = () => assert.fail('Must preserve photos for an uncertain committed row');
+  await assert.rejects(
+    editor.create({ asset: 'A', name: 'Laptop', photos: [photo] }),
+    /ยังยืนยันการบันทึกไม่ได้/,
+  );
+  assert.equal(grid.length, 2);
+  assert.equal(grid[1][4], 'https://drive.google.com/file/d/new-photo/view');
+});
+
+test('creation validates every selected photo before uploading or appending', async () => {
+  const { editor, grid, store } = fixture();
+  store.upload = () => assert.fail('Must not upload invalid photos');
+  for (const photos of [null, {}, ['bad'], Array(4).fill('bad')])
+    assert.throws(() => editor.create({ asset: 'A', name: 'Laptop', photos }), { status: 400 });
+  await assert.rejects(
+    editor.create({ asset: 'A', name: 'Laptop', photos: ['data:image/jpeg;base64,YmFk'] }),
+    { status: 400 },
+  );
+  assert.equal(grid.length, 1);
+});
+
 test('catalog deletion clears only the selected item, preserves shared photos and loan history', async () => {
   const { editor, grid, ledger, store } = fixture();
   const record = await editor.create({ asset: 'DELETE', serial: 'SN', name: 'Mouse' });
