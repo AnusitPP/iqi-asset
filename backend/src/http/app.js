@@ -66,9 +66,14 @@ export function createApp(service, config) {
     lendingLedger,
     loanRequests,
     confirmLoan: config.confirmLoan,
+    notifyRequest: config.notifyRequest,
     readStaffNicknames,
   });
-  registerReturnsRoutes(app, { returnRequests });
+  registerReturnsRoutes(app, {
+    returnRequests,
+    lendingLedger,
+    notifyRequest: config.notifyRequest,
+  });
   registerDashboardRoutes(app, { dashboardEditor, service });
   registerPhotosRoutes(app, { photos, maxUploadBytes });
   app.get('/api/status', async (req, res, next) => {

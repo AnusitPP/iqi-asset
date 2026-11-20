@@ -8,6 +8,11 @@ test('Google authenticated forms save borrower identity and allow returns only a
   // Keep fixture dates valid without depending on the day the suite is run.
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-05T01:00:00Z') });
   const fixture = await testSession({ host: '127.0.0.1' });
+  const notifications = [];
+  fixture.config.notifyRequest = async (_ledger, kind, result) => {
+    notifications.push([kind, result.id]);
+    return 'failed';
+  };
   const grids = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
   const adapter = {
     readLoanSheets: async () => structuredClone(grids),
@@ -50,4 +55,5 @@ test('Google authenticated forms save borrower identity and allow returns only a
   assert.equal(grids.returns[1][1], grids.loans[1][0]);
   assert.equal(grids.returns[1][4], 'Fixture Owner');
   assert.equal(grids.returns[1][14], 'รอดำเนินการ');
+  assert.deepEqual(notifications, [['ยืม', grids.loans[1][0]], ['คืน', grids.returns[1][0]]]);
 });

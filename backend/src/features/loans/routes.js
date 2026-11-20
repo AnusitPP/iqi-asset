@@ -1,6 +1,7 @@
 import { approvalStatuses } from '../../../../shared/features/lending/status.js';
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
+import { sendRequestNotification } from '../notifications/google-chat.js';
 import { borrowerNickname } from './staff-nicknames.js';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
 import { bangkokIsoDate, isIsoCalendarDate } from '../../../../shared/core/extensions/dates.js';
@@ -15,6 +16,7 @@ export function registerLoansRoutes(
     loanRequests,
     confirmLoan = sendLoanConfirmation,
     notifyStatus = sendLoanStatusNotification,
+    notifyRequest = sendRequestNotification,
     readStaffNicknames = async () => new Map(),
   },
 ) {
@@ -248,6 +250,7 @@ export function registerLoansRoutes(
         ]);
       if (req.user && !result.unchanged)
         result.mailNotification = await confirmLoan(lendingLedger, result, request.email.trim());
+      if (!result.unchanged) await notifyRequest(lendingLedger, 'ยืม', result);
       res.json(result);
     } catch (error) {
       next(error);

@@ -140,6 +140,8 @@ UI ใช้ light design language จาก [Figma Dashboard ของ Dwinawan
 
 ## อีเมลสรุปและ cron รายวัน
 
+Google Chat: ตั้ง `GOOGLE_CHAT_WEBHOOK_URL` ใน `.env` ฝั่งเซิร์ฟเวอร์ และใน Vercel Environment Variables ก่อน deploy เพื่อแจ้งเฉพาะคำขอยืมใหม่และคำขอคืนใหม่ ไม่ส่งเมื่อเปลี่ยนสถานะหรือส่งคำขอเดิมซ้ำ ถ้าไม่ตั้งค่าจะไม่ส่ง Chat; การส่งล้มเหลวไม่ยกเลิกคำขอ (รอไม่เกิน 5 วินาทีต่อครั้ง และไม่ส่งซ้ำอัตโนมัติ) ห้ามใส่ URL ใน frontend หรือ commit ลง Git
+
 เพิ่ม SMTP และคอลัมน์ `email` ข้างชื่อในชีตยืม ตาม [คู่มือส่งเมลรายวัน](docs/daily-mail.md)
 ใช้ `npm run mail:preview` ดูเมลเตือนโดยไม่ส่ง, `npm run mail:verify` ตรวจ SMTP,
 `npm run mail:send` ส่งหนึ่งรอบ

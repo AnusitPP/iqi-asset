@@ -9,6 +9,7 @@ export async function testSession(config = {}) {
     authStorage,
     bootstrapSuperAdminEmail: identity.email,
     confirmLoan: async () => 'sent',
+    notifyRequest: async () => 'skipped',
   };
   const sessions = new SheetSessionService(authStorage, authConfig);
   const token = await sessions.login(identity);

@@ -1,6 +1,10 @@
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
-export function registerReturnsRoutes(app, { returnRequests }) {
+import { sendRequestNotification } from '../notifications/google-chat.js';
+export function registerReturnsRoutes(
+  app,
+  { returnRequests, lendingLedger, notifyRequest = sendRequestNotification },
+) {
   app.post('/api/returns', async (req, res, next) => {
     try {
       const body = req.body || {};
@@ -25,6 +29,7 @@ export function registerReturnsRoutes(app, { returnRequests }) {
       const result = await returnRequests.submit(request);
       if (req.authStorage)
         await req.authStorage.write([auditEntry(req.user, 'RETURN_CREATED', 'Return', result.id)]);
+      if (!result.unchanged) await notifyRequest(lendingLedger, 'คืน', result);
       res.json(result);
     } catch (error) {
       next(error);
