@@ -1,4 +1,5 @@
 import { registerUserRoutes } from '../features/users/routes.js';
+import { registerPordDatabaseRoutes } from '../features/porddatabase/routes.js';
 import { protectApi } from '../features/auth/middleware/protect-api.js';
 import { registerAuditRoutes } from '../features/audit/routes.js';
 import { configureRequestSecurity } from '../core/http/security.js';
@@ -97,6 +98,10 @@ export function createApp(service, config) {
     notifyRequest,
   });
   registerDashboardRoutes(app, { dashboardEditor, service });
+  registerPordDatabaseRoutes(app, {
+    adapter: service.adapter,
+    photoStore: config.photoFolderId ? photos.store : undefined,
+  });
   registerPhotosRoutes(app, { photos, maxUploadBytes });
   app.get('/api/status', async (req, res, next) => {
     try {

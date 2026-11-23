@@ -47,6 +47,13 @@ export const portalModules: readonly PortalModule[] = [
     tone: 'green',
     services: [
       {
+        id: 'porddatabase',
+        label: 'PORDDATABASE',
+        href: '/porddatabase',
+        icon: ListChecks,
+        permission: 'ADMIN_DASHBOARD_VIEW',
+      },
+      {
         id: 'dashboard',
         label: 'Dashboard',
         href: '/dashboard',

@@ -1,4 +1,5 @@
 import { LENDING_STATUS } from '../../../../shared/features/lending/status.js';
+import { PORD_SHEET } from '../../features/porddatabase/service.js';
 import { loanColumnMapping } from '../../core/lending/schema.js';
 import { google } from 'googleapis';
 import { manageGoogleClient } from './request-manager.js';
@@ -191,6 +192,63 @@ export class GoogleSheets {
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return data.values || [];
+  }
+  async readPordDatabase() {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+    if (!data.sheets.some((s) => s.properties.title === PORD_SHEET)) return [];
+    const response = await this.api.spreadsheets.values.get({
+      spreadsheetId: this.config.spreadsheetId,
+      range: `${quote(PORD_SHEET)}!A:I`,
+      valueRenderOption: 'FORMATTED_VALUE',
+    });
+    return response.data.values || [];
+  }
+  async appendPordDatabase(rows, headers) {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+    if (!data.sheets.some((s) => s.properties.title === PORD_SHEET)) {
+      try {
+        await this.api.spreadsheets.batchUpdate({
+          spreadsheetId: this.config.spreadsheetId,
+          requestBody: { requests: [{ addSheet: { properties: { title: PORD_SHEET } } }] },
+        });
+      } catch (error) {
+        const fresh = await this.api.spreadsheets.get({
+          spreadsheetId: this.config.spreadsheetId,
+          fields: 'sheets.properties.title',
+        });
+        if (!fresh.data.sheets.some((s) => s.properties.title === PORD_SHEET)) throw error;
+      }
+    }
+    const current = await this.readPordDatabase();
+    const legacy =
+      current.length &&
+      headers.length === 9 &&
+      JSON.stringify(current[0]) === JSON.stringify(headers.slice(0, 8));
+    if (current.length && !legacy && JSON.stringify(current[0]) !== JSON.stringify(headers))
+      throw Object.assign(new Error('หัวคอลัมน์ชีตPORDDATABASEไม่ตรง'), { status: 422 });
+    if (legacy) {
+      await this.api.spreadsheets.values.update({
+        spreadsheetId: this.config.spreadsheetId,
+        range: `${quote(PORD_SHEET)}!I1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[headers[8]]] },
+      });
+    }
+    const values = [...(current.length ? [] : [headers]), ...rows];
+    const firstRow = current.length + 1;
+    // Pin column A: values.append can infer a different table when cells are sparse.
+    await this.api.spreadsheets.values.update({
+      spreadsheetId: this.config.spreadsheetId,
+      range: `${quote(PORD_SHEET)}!A${firstRow}:I${firstRow + values.length - 1}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
+    });
   }
   async appendReadyToBorrow(row) {
     await this.api.spreadsheets.values.append({
