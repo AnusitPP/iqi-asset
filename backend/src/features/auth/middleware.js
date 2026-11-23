@@ -2,10 +2,16 @@ import express from 'express';
 import { createSheetAuth } from './sheet.middleware.js';
 import { createAuthRoutes } from './auth.routes.js';
 import { configurationError } from '../../core/config/credentials.js';
+import { resetSessionController } from './controllers/session.controller.js';
 
 export function createAuth(config, csrf) {
-  if (config.authSpreadsheetId || config.authStorage) return createSheetAuth(config, csrf);
   const router = express.Router();
+  router.get('/auth/recovery', (_req, res) => res.json({ csrf }));
+  if (config.authSpreadsheetId || config.authStorage) {
+    router.use(createSheetAuth(config, csrf));
+    return router;
+  }
+  router.post('/auth/reset', resetSessionController(config));
   const missingConfiguration = () => {
     throw configurationError('กรุณาตั้งค่า AUTH_SPREADSHEET_ID สำหรับ Google Login');
   };

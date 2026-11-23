@@ -1,19 +1,33 @@
 'use client';
 import { Button } from '@mantine/core';
 import { ArrowRight, Box, ClipboardCheck, ShieldCheck } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthSession } from './auth-provider';
 import { defaultWorkspacePath } from '@/types/account';
 import { InitialLoadingScreen } from '@/components/ui/feedback';
 import { ErrorPopup } from '@/components/core/error-popup';
+import { ErrorRecoveryScreen } from './error-recovery-screen';
 import styles from './login-page.module.css';
 export function LoginPage() {
   const auth = useAuthSession();
   const router = useRouter();
+  const [loginError, setLoginError] = useState('');
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('login_error');
+    if (code === 'OAUTH_COOKIE_MISSING' || code === 'OAUTH_NONCE_MISSING')
+      setLoginError(
+        'ไม่พบข้อมูลยืนยันการเข้าสู่ระบบ กรุณาเปิดเว็บไซต์นี้ใน Chrome หรือ Safari โดยตรง อนุญาตคุกกี้ แล้วกดเข้าสู่ระบบใหม่',
+      );
+    if (code === 'OAUTH_STATE_MISMATCH')
+      setLoginError(
+        'การเข้าสู่ระบบรอบนี้ใช้ต่อไม่ได้ กรุณาปิดแท็บล็อกอินอื่น แล้วกดเข้าสู่ระบบใหม่จากหน้านี้',
+      );
+  }, []);
   useEffect(() => {
     if (auth.authenticated) router.replace(defaultWorkspacePath(auth.user));
   }, [auth.authenticated, auth.user, router]);
+  if (loginError) return <ErrorRecoveryScreen message={loginError} />;
   if (auth.loading || auth.authenticated) return <InitialLoadingScreen />;
   return (
     <main className={styles.page}>

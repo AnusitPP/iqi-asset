@@ -1,9 +1,10 @@
 import { sessionCookieOptions } from '../../../core/config/session.config.js';
 import { loadGoogleAuthConfig } from '../../../core/config/google-auth.config.js';
 import { completeGoogleLogin } from '../services/google-callback.service.js';
+import { logError } from '../../../core/errors/errors.js';
 
 export function googleCallbackController(config, startSession, failedLogin) {
-  return async (req, res, next) => {
+  return async (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.set('Referrer-Policy', 'no-referrer');
     const cookies = req.get('cookie') || '';
@@ -30,14 +31,20 @@ export function googleCallbackController(config, startSession, failedLogin) {
       await startSession(req, res, identity);
       res.redirect(303, config.frontendOrigin ? `${config.frontendOrigin}/` : '/');
     } catch (error) {
+      const retryable = [
+        'OAUTH_COOKIE_MISSING',
+        'OAUTH_STATE_MISMATCH',
+        'OAUTH_NONCE_MISSING',
+      ].includes(error.code);
       if (failedLogin) {
         try {
-          await failedLogin();
+          await failedLogin(retryable ? error.code : undefined);
         } catch {
           /* Storage failures must never authenticate. */
         }
       }
-      next(error);
+      logError(error, 'Google Login');
+      return res.redirect(303, `${config.frontendOrigin || ''}/error`);
     }
   };
 }

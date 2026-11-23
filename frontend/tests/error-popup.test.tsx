@@ -36,7 +36,7 @@ it('returns to an unsaved form without reloading or submitting, and reopens for 
   await act(async () => {
     await vi.advanceTimersByTimeAsync(5000);
   });
-  expect(screen.getByText('มีข้อมูลที่ยังไม่ได้บันทึก กรุณากดรีเฟรชเมื่อพร้อม')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'กลับหน้าแรก' })).toBeTruthy();
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'รีเฟรช' }));
     await vi.advanceTimersByTimeAsync(300);
@@ -55,10 +55,10 @@ it('returns to an unsaved form without reloading or submitting, and reopens for 
     await vi.advanceTimersByTimeAsync(300);
   });
   expect(screen.getByRole('dialog')).toBeTruthy();
-  expect(screen.getByText('กำลังรีเฟรชใน 5 วินาที')).toBeTruthy();
+  expect(screen.queryByText(/กำลังรีเฟรชใน/)).toBeNull();
 });
 
-it('counts down and refreshes once after five seconds', async () => {
+it('does not automatically refresh or reset the session', async () => {
   vi.useFakeTimers();
   const refresh = vi.fn().mockResolvedValue(undefined);
   render(
@@ -66,20 +66,20 @@ it('counts down and refreshes once after five seconds', async () => {
       <ErrorPopup error={new Error('โหลดไม่ได้')} onRefresh={refresh} />
     </MantineProvider>,
   );
-  expect(screen.getByText('กำลังรีเฟรชใน 5 วินาที')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'กลับหน้าแรก' })).toBeTruthy();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(4000);
   });
-  expect(screen.getByText('กำลังรีเฟรชใน 1 วินาที')).toBeTruthy();
+  expect(screen.queryByText(/กำลังรีเฟรชใน/)).toBeNull();
   expect(refresh).not.toHaveBeenCalled();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1000);
   });
-  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(refresh).not.toHaveBeenCalled();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(10000);
   });
-  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(refresh).not.toHaveBeenCalled();
 });
 
 it('cancels automatic refresh after a manual refresh or unmount', async () => {
@@ -120,9 +120,7 @@ it('keeps the popup open on Escape and outside clicks and refreshes without subm
   );
   const dialog = await screen.findByRole('dialog', { name: 'ทำรายการไม่สำเร็จ' });
   expect(within(dialog).queryByText('กรุณารอสักครู่')).toBeNull();
-  expect(dialog.querySelector('img')?.getAttribute('src')).toBe(
-    '/assets/images/delivery-worker.gif',
-  );
+  expect(dialog.querySelector('img')?.getAttribute('src')).toBe('/assets/images/error-state.png');
   expect(within(dialog).getByText(error.message)).toBeTruthy();
   await userEvent.keyboard('{Escape}');
   const overlay = document.querySelector('.mantine-Modal-overlay');

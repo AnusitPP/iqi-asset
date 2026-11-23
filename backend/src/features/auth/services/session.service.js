@@ -147,7 +147,9 @@ export class SheetSessionService {
     operations.push(auditEntry(active.user, 'LOGOUT', 'Session', active.session.id));
     await this.storage.write(operations);
   }
-  async failedLogin() {
-    await this.storage.write([auditEntry(null, 'LOGIN_FAILED', 'Authentication')]);
+  async failedLogin(reason) {
+    await this.storage.write([
+      auditEntry(null, 'LOGIN_FAILED', 'Authentication', '', null, reason ? { reason } : null),
+    ]);
   }
 }

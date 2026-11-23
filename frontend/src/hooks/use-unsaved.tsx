@@ -1,5 +1,10 @@
 'use client';
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+let sessionResetNavigation = false;
+export function allowSessionResetNavigation() {
+  // A successful reset deliberately discards drafts; a full page load resets this flag.
+  sessionResetNavigation = true;
+}
 const UnsavedContext = createContext({
   dirty: false,
   setSourceHasUnsavedChanges: (_id: symbol, _dirty: boolean): void => {
@@ -37,7 +42,7 @@ export function useUnsavedChangesGuard(dirty: boolean) {
   useEffect(() => {
     if (!dirty) return;
     const preventUnloadWithUnsavedChanges = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
+      if (!sessionResetNavigation) event.preventDefault();
     };
     window.addEventListener('beforeunload', preventUnloadWithUnsavedChanges);
     return () => window.removeEventListener('beforeunload', preventUnloadWithUnsavedChanges);

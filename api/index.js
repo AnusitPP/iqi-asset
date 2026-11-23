@@ -1,8 +1,10 @@
 import express from 'express';
 import { logError, safeMessage } from '../backend/src/core/errors/errors.js';
+import { redirectBrowserErrors } from '../backend/src/core/http/browser-errors.js';
 
 const app = express();
 app.disable('x-powered-by');
+app.use(redirectBrowserErrors());
 app.use(async (req, res, next) => {
   let runtime;
   try {

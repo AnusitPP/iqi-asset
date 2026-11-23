@@ -9,9 +9,17 @@ export async function completeGoogleLogin(
   client = createGoogleOAuthClient(config),
 ) {
   if (!matchesOAuthValue(state, expectedState))
-    throwHttpError(400, 'Google Login หมดอายุหรือ state ไม่ถูกต้อง กรุณาเริ่มใหม่');
+    throw Object.assign(new Error('Google Login หมดอายุหรือ state ไม่ถูกต้อง กรุณาเริ่มใหม่'), {
+      status: 400,
+      code: expectedState ? 'OAUTH_STATE_MISMATCH' : 'OAUTH_COOKIE_MISSING',
+    });
   if (error) throwHttpError(400, 'การเข้าสู่ระบบ Google ถูกยกเลิก กรุณาเริ่มใหม่');
-  if (typeof code !== 'string' || !code || code.length > 4096 || !matchesOAuthValue(nonce, nonce))
+  if (!matchesOAuthValue(nonce, nonce))
+    throw Object.assign(new Error('ข้อมูล Google Login ไม่ครบ กรุณาเริ่มใหม่'), {
+      status: 400,
+      code: 'OAUTH_NONCE_MISSING',
+    });
+  if (typeof code !== 'string' || !code || code.length > 4096)
     throwHttpError(400, 'ข้อมูล Google Login ไม่ครบ กรุณาเริ่มใหม่');
   let identity;
   try {

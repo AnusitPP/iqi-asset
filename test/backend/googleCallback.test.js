@@ -97,13 +97,24 @@ test('Google token verification errors are sanitized', async () => {
 test('callback clears temporary cookies on failure and never creates a session', async () => {
   const cleared = [];
   let failure,
+    redirect,
+    reason,
     started = false;
-  await googleCallbackController({ googleAuth: config }, async () => {
-    started = true;
-  })(
+  await googleCallbackController(
+    { googleAuth: config },
+    async () => {
+      started = true;
+    },
+    async (value) => {
+      reason = value;
+    },
+  )(
     { query: {}, get: () => '', secure: false },
     {
       set() {},
+      redirect(status, location) {
+        redirect = { status, location };
+      },
       clearCookie(name) {
         cleared.push(name);
       },
@@ -112,9 +123,29 @@ test('callback clears temporary cookies on failure and never creates a session',
       failure = e;
     },
   );
-  assert.equal(failure.status, 400);
+  assert.equal(failure, undefined);
+  assert.deepEqual(redirect, { status: 303, location: '/error' });
+  assert.equal(reason, 'OAUTH_COOKIE_MISSING');
   assert.equal(started, false);
   assert.deepEqual(cleared, ['google_oauth_state', 'google_oauth_nonce']);
+});
+
+test('OAuth failures distinguish missing cookies from mismatched state without exchanging codes', async () => {
+  const fake = {
+    getToken: () => {
+      throw new Error('must not exchange');
+    },
+  };
+  for (const [values, code] of [
+    [{ expectedState: undefined }, 'OAUTH_COOKIE_MISSING'],
+    [{ state: createOAuthState() }, 'OAUTH_STATE_MISMATCH'],
+    [{ nonce: undefined }, 'OAUTH_NONCE_MISSING'],
+  ]) {
+    await assert.rejects(
+      completeGoogleLogin(config, { ...request, ...values }, fake),
+      (error) => error.status === 400 && error.code === code,
+    );
+  }
 });
 test('callback URI is environment-specific and ignores untrusted request hosts', () => {
   const env = {

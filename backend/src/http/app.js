@@ -2,6 +2,7 @@ import { registerUserRoutes } from '../features/users/routes.js';
 import { protectApi } from '../features/auth/middleware/protect-api.js';
 import { registerAuditRoutes } from '../features/audit/routes.js';
 import { configureRequestSecurity } from '../core/http/security.js';
+import { redirectBrowserErrors } from '../core/http/browser-errors.js';
 import {
   registerCatalogRoutes,
   registerPublicCatalogPhotoRoute,
@@ -36,6 +37,7 @@ import { registerMailCron } from '../features/mail/cron.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
 export function createApp(service, config) {
   const app = express();
+  app.use(redirectBrowserErrors(config.frontendOrigin));
   app.use((req, res, next) => {
     req.requestId = randomUUID();
     res.set('X-Request-Id', req.requestId);

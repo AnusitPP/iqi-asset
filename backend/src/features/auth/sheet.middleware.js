@@ -2,7 +2,11 @@ import express from 'express';
 import { createAuthRoutes } from './auth.routes.js';
 import { AuthSheetStorage } from '../../integrations/google/auth-storage.js';
 import { SheetSessionService } from './services/session.service.js';
-import { createSessionController, readSessionCookie } from './controllers/session.controller.js';
+import {
+  createSessionController,
+  readSessionCookie,
+  resetSessionController,
+} from './controllers/session.controller.js';
 export function createSheetAuth(config, csrf) {
   const router = express.Router();
   const storage = config.authStorage || new AuthSheetStorage(config);
@@ -10,11 +14,12 @@ export function createSheetAuth(config, csrf) {
   const controller = createSessionController(sessions, config, csrf);
   router.use(
     '/auth',
-    createAuthRoutes(config, controller.login, () => sessions.failedLogin()),
+    createAuthRoutes(config, controller.login, (reason) => sessions.failedLogin(reason)),
   );
   router.get('/auth/session', controller.current);
   router.get('/auth/me', controller.current);
   router.post('/auth/logout', controller.logout);
+  router.post('/auth/reset', resetSessionController(config, sessions));
   router.post('/auth/login', (req, res) =>
     res.status(410).json({ error: 'กรุณาเข้าสู่ระบบด้วย Google' }),
   );
