@@ -202,6 +202,22 @@ describe('migrated interactions', () => {
     );
     expect(await screen.findByText('บันทึกสำเร็จ 1 รายการ')).toBeTruthy();
   });
+  it.each(['OAUTH_COOKIE_MISSING', 'OAUTH_STATE_MISMATCH', 'OAUTH_NONCE_MISSING'])(
+    'offers a fresh login after %s without exposing callback parameters',
+    (code) => {
+      mocks.authenticated = false;
+      const previous = window.location.href;
+      window.history.replaceState(null, '', `/login?login_error=${code}`);
+      try {
+        renderWithAppProviders(<LoginPage />);
+        expect(screen.getByRole('alert').textContent).toContain('เข้าสู่ระบบใหม่');
+        expect(screen.getByRole('button', { name: 'กลับหน้าแรก' })).toBeTruthy();
+      } finally {
+        mocks.authenticated = true;
+        window.history.replaceState(null, '', previous);
+      }
+    },
+  );
   it('starts Google login through the backend OAuth endpoint', () => {
     mocks.authenticated = false;
     try {
