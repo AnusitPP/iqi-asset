@@ -20,11 +20,12 @@ import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   replace: vi.fn(),
+  authenticated: true,
 }));
 vi.mock('../src/features/auth/auth-provider', () => ({
   useAuthSession: () => ({
     api: { request: mocks.request },
-    authenticated: true,
+    authenticated: mocks.authenticated,
     can: () => true,
     loading: false,
     error: null,
@@ -202,11 +203,16 @@ describe('migrated interactions', () => {
     expect(await screen.findByText('บันทึกสำเร็จ 1 รายการ')).toBeTruthy();
   });
   it('starts Google login through the backend OAuth endpoint', () => {
-    renderWithAppProviders(<LoginPage />);
-    expect(screen.getByRole('link', { name: 'เข้าสู่ระบบด้วย Google' }).getAttribute('href')).toBe(
-      '/api/auth/google',
-    );
-    expect(screen.queryByLabelText('รหัสผ่าน')).toBeNull();
+    mocks.authenticated = false;
+    try {
+      renderWithAppProviders(<LoginPage />);
+      expect(
+        screen.getByRole('link', { name: 'เข้าสู่ระบบด้วย Google' }).getAttribute('href'),
+      ).toBe('/api/auth/google');
+      expect(screen.queryByLabelText('รหัสผ่าน')).toBeNull();
+    } finally {
+      mocks.authenticated = true;
+    }
   });
   it('reuses fresh dashboard data on remount and reloads on request or stale remount', async () => {
     mocks.request.mockResolvedValue(dashboard);

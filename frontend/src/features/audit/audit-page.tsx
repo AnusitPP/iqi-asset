@@ -1,4 +1,5 @@
 'use client';
+import { EmptyState } from '@/components/ui/feedback';
 import { RefreshButton } from '@/components/core/action-buttons';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -90,11 +91,11 @@ export function AuditPage() {
             แสดง {matches.length} จาก {records.length} รายการล่าสุด
           </Text>
           {!matches.length ? (
-            <Text>
+            <EmptyState>
               {records.length
                 ? 'ไม่พบรายการที่ตรงกับตัวกรอง ลองเปลี่ยนคำค้นหาหรือล้างตัวกรอง'
                 : 'ยังไม่มีประวัติการใช้งาน'}
-            </Text>
+            </EmptyState>
           ) : (
             <>
               <AuditList

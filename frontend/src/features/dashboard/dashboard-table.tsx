@@ -1,6 +1,7 @@
 'use client';
 import { memo, type ReactNode } from 'react';
-import { Box, Button, Table, Text } from '@mantine/core';
+import { EmptyState } from '@/components/ui/feedback';
+import { Box, Button, Table } from '@mantine/core';
 import { CopyableText } from '@/components/core/copyable-text';
 import { getStatusColorClass } from '@/lib/display';
 import type { DashboardRecord } from '@/types/contracts';
@@ -27,9 +28,7 @@ export const DashboardTable = memo(function DashboardTable({
   return (
     <Table.ScrollContainer minWidth={850} className="dash-list">
       {!records.length ? (
-        <Text component="p" className="portal-paragraph dash-empty">
-          ไม่พบรายการตามตัวกรองที่เลือก
-        </Text>
+        <EmptyState>ไม่พบรายการตามตัวกรองที่เลือก</EmptyState>
       ) : (
         <Table
           className="dash-table"

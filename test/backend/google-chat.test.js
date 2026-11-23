@@ -212,6 +212,12 @@ test('cards group saved details, escape HTML, and link to approval requests', as
     );
     const card = message.cardsV2[0].card;
     assert.equal(card.header.title, `🔔 มีคำขอ${kind}ใหม่`);
+    assert.equal(
+      card.header.subtitle,
+      kind === 'คืน'
+        ? 'ส่วนที่ 5 : คืนครุภัณฑ์คอมพิวเตอร์ หรือคืนวัสดุด้านเทคโนโลยีสารสนเทศ'
+        : 'ส่วนที่ 1 : ยืมครุภัณฑ์คอมพิวเตอร์ หรือยืมวัสดุด้านเทคโนโลยีสารสนเทศ',
+    );
     assert.equal(card.sections.length, 3);
     const details = card.sections[1].widgets[0].textParagraph.text;
     assert.ok(
@@ -267,7 +273,7 @@ test('optional catalog photo respects public preview setting and lookup failure'
   options.env = { ...env, PUBLIC_PHOTO_PREVIEW: 'true' };
   await sendRequestNotification(saved, 'ยืม', { id: 'L-1' }, options);
   const columns = message.cardsV2[0].card.sections[0].widgets[0].columns;
-  assert.equal(message.cardsV2[0].card.header.imageType, 'CIRCLE');
+  assert.equal(message.cardsV2[0].card.header.imageType, 'SQUARE');
   assert.equal(
     columns.columnItems[1].widgets[0].image.imageUrl,
     'http://localhost:3000/api/chat-photos/public-photo',

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AppShell, Burger, Container, Drawer, Group, Box, Anchor } from '@mantine/core';
+import { AppShell, Burger, Container, Drawer, Group, Anchor } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
@@ -129,10 +129,6 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               onRefresh={() => status.refetch()}
             />
             {children}
-            <Box component="footer" className="portal-footer">
-              <span>IQI · IT Service Portal</span>
-              <span>Asset Checker · ข้อมูลจาก Google Sheets</span>
-            </Box>
           </Container>
         </AppShell.Main>
         <Drawer

@@ -1,6 +1,7 @@
 import { escapeMailHtml } from '../mail/templates.js';
 import { applicationOrigin } from '../../core/config/app-url.js';
 import { readyToBorrowData } from '../../../../shared/features/catalog/parser.js';
+import { LENDING_REQUEST_TYPE } from '../../../../shared/features/lending/status.js';
 
 function requestCard(kind, row, purpose, href, photo) {
   const returning = kind === 'คืน';
@@ -18,9 +19,9 @@ function requestCard(kind, row, purpose, href, photo) {
     card: {
       header: {
         title: `🔔 มีคำขอ${kind}ใหม่`,
-        subtitle: 'หมวดหมู่: สินทรัพย์ / ระบบ IQI Asset',
+        subtitle: returning ? LENDING_REQUEST_TYPE.RETURN : LENDING_REQUEST_TYPE.LOAN,
         imageUrl: new URL('/assets/images/laptop-webhook-icon.png', href).href,
-        imageType: 'CIRCLE',
+        imageType: 'SQUARE',
         imageAltText: 'ไอคอนโน้ตบุ๊กแจ้งเตือน',
       },
       sectionDividerStyle: 'SOLID_DIVIDER',

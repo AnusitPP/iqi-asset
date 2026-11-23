@@ -19,6 +19,7 @@ export function loadConfig(env = process.env) {
     throw configurationError('APP_SECRET ต้องยาวอย่างน้อย 32 ตัวอักษร');
   const config = {
     hosted,
+    devChatWebhookUrl: hosted ? '' : env.GOOGLE_CHAT_DEV_WEBHOOK_URL || '',
     publicOrigin,
     frontendOrigin,
     authSpreadsheetId: env.AUTH_SPREADSHEET_ID || '',

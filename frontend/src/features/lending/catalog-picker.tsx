@@ -1,5 +1,7 @@
 'use client';
 import { SearchInput } from '@/components/core/search-input';
+import { EmptyState } from '@/components/ui/feedback';
+import { ListPagination } from '@/components/core/list-pagination';
 import { AddEquipment } from './add-equipment';
 import {
   Badge,
@@ -54,6 +56,8 @@ export function LendingCatalogPicker({
   const [query, setQuery] = useWorkspaceState(`${mode}-catalog-query`, '');
   const [category, setCategory] = useState('');
   const [view, setView] = useState('grid');
+  const [pagination, setPagination] = useState({ filter: '', page: 1 });
+  const filterKey = JSON.stringify([mode, query, category]);
   const catalog = useQuery({
     queryKey: [mode === 'loan' ? 'loan-catalog' : 'return-catalog', user?.id],
     // Let remounts reuse the in-flight read instead of aborting and restarting it.
@@ -75,25 +79,14 @@ export function LendingCatalogPicker({
         !category ||
         (record.category || catalogCategory(record.name)) === category,
     );
+    const totalPages = Math.max(1, Math.ceil(visible.length / 12));
+    const page = Math.min(pagination.filter === filterKey ? pagination.page : 1, totalPages);
+    const pageRecords = visible.slice((page - 1) * 12, page * 12);
     return (
       <Stack>
         {heading && (
           <Group align="center" gap="md">
             <Title order={1}>{heading}</Title>
-            {mode === 'loan' && (
-              <Group gap={6} wrap="nowrap">
-                <Box
-                  w={6}
-                  h={6}
-                  bg="portalGreen.6"
-                  aria-hidden="true"
-                  style={{ borderRadius: '50%', flexShrink: 0 }}
-                />
-                <Text size="xs" c="portalGreen.6">
-                  เฉพาะพร้อมยืม
-                </Text>
-              </Group>
-            )}
           </Group>
         )}
 
@@ -174,11 +167,11 @@ export function LendingCatalogPicker({
           </Text>
         )}
         {!catalog.isPending && !catalog.error && !visible.length && (
-          <Text c="dimmed">
+          <EmptyState>
             {mode === 'return' && !records.length
               ? 'คุณไม่มีครุภัณฑ์ที่สามารถส่งคำขอคืนได้'
               : 'ไม่พบอุปกรณ์ที่ตรงกับคำค้น'}
-          </Text>
+          </EmptyState>
         )}
         {view === 'list' ? (
           <Table.ScrollContainer minWidth={760}>
@@ -203,7 +196,7 @@ export function LendingCatalogPicker({
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {visible.map((record) => {
+                {pageRecords.map((record) => {
                   return (
                     <Table.Tr
                       key={record.row}
@@ -301,7 +294,7 @@ export function LendingCatalogPicker({
             cols={view === 'grid' ? { base: 1, xs: 2, sm: 3, lg: 4, xl: 6 } : 1}
             spacing="sm"
           >
-            {visible.map((record) =>
+            {pageRecords.map((record) =>
               mode === 'return' ? (
                 <BorrowedEquipmentCard
                   key={record.row}
@@ -391,6 +384,12 @@ export function LendingCatalogPicker({
             )}
           </SimpleGrid>
         )}
+        <ListPagination
+          page={page}
+          totalPages={totalPages}
+          disabled={disabled}
+          onChange={(nextPage) => setPagination({ filter: filterKey, page: nextPage })}
+        />
       </Stack>
     );
   }

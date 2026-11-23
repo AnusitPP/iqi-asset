@@ -151,8 +151,13 @@ it('shows current service destinations and summary values from existing APIs', a
 it('shows STAFF only borrowing, returning and own requests and blocks Home', async () => {
   auth.role = 'STAFF';
   auth.permissions = permissionsForRole(auth.role);
-  render(portal(<PortalHomePage />, createClient()));
+  const client = createClient();
+  const view = render(portal(<PortalHomePage />, client));
   await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
+  expect(screen.getByRole('status').textContent).toBe('กำลังโหลดข้อมูล');
+  expect(transport).not.toHaveBeenCalled();
+  navigation.path = '/loans';
+  view.rerender(portal(<p>Loan content</p>, client));
   const nav = within(screen.getByRole('navigation', { name: 'หน้าข้อมูล' }));
   expect(nav.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
     '/loans',

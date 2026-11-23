@@ -95,6 +95,35 @@ async function setLoanDates() {
   }
 }
 describe('Google authenticated loan and return forms', () => {
+  it.each(['loan', 'return'] as const)('paginates %s equipment in groups of 12', async (mode) => {
+    transport.mockResolvedValue(
+      Response.json({
+        records: Array.from({ length: 13 }, (_, i) => ({
+          row: i + 2,
+          asset: `ASSET-${i + 1}`,
+          serial: `SN-${i + 1}`,
+          name: `Device ${i + 1}`,
+        })),
+      }),
+    );
+    mount(mode);
+    const user = userEvent.setup();
+    await screen.findByText('Device 1');
+    expect(screen.getByText('Device 12')).toBeTruthy();
+    expect(screen.queryByText('Device 13')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    expect(screen.getByText('Device 13')).toBeTruthy();
+    expect(screen.queryByText('Device 1')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'ก่อนหน้า' }));
+    expect(screen.getByText('Device 1')).toBeTruthy();
+    if (mode === 'loan') {
+      await user.click(screen.getByRole('button', { name: 'ถัดไป' }));
+      await user.type(screen.getByRole('textbox', { name: 'ค้นหาอุปกรณ์' }), 'Device 1');
+      expect(screen.getByText('Device 1')).toBeTruthy();
+      expect(screen.getByText('Device 13')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'ถัดไป' })).toBeNull();
+    }
+  });
   it.each(['loan', 'return'] as const)(
     'shows %s success once in the dismissible toast, outside the page content',
     async (mode) => {

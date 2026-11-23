@@ -1,4 +1,5 @@
 'use client';
+import { EmptyState } from '@/components/ui/feedback';
 import { Button, Checkbox, Group, TextInput, Text, Box, Title, Paper, Stack } from '@mantine/core';
 import { Heart, Search, Check } from 'lucide-react';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
@@ -179,11 +180,11 @@ export function AssetsPage() {
                   ))}
               </Stack>
               {!total && (
-                <Text component="p" className="portal-paragraph">
+                <EmptyState>
                   {pending
                     ? 'ไม่พบรายการรอค้นหาที่ตรงกับตัวกรอง'
                     : 'ไม่พบเลขนี้ในทั้ง 3 Sheet ลองตรวจสอบตัวเลขและเครื่องหมายขีดอีกครั้ง'}
-                </Text>
+                </EmptyState>
               )}
             </>
           )

@@ -41,6 +41,11 @@ export function isReturnPending({ status = '', kind, completed = false }) {
     ? ['รอดำเนินการ', 'รอรับคืน'].includes(status)
     : kind === 'ยืม' && !completed && status === 'รอดำเนินการคืน';
 }
+export function isRequestClosed(record) {
+  return ['เสร็จสิ้น', 'รับคืนแล้ว', 'คืนแล้ว', 'ยกเลิก', 'ไม่อนุมัติ'].includes(
+    requestStatusValue(record),
+  );
+}
 export function requestStatusPresentation(status) {
   return Object.hasOwn(REQUEST_STATUS_PRESENTATION, status)
     ? REQUEST_STATUS_PRESENTATION[status]

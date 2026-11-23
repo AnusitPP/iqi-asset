@@ -5,7 +5,7 @@ import { CatalogPhoto } from './catalog-photo';
 import { RequestStatusBadge } from './request-status-badge';
 import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/dates.js';
 import styles from './request-details.module.css';
-import { isReturnPending } from '@shared/features/lending/status.js';
+import { isReturnPending, isRequestClosed } from '@shared/features/lending/status.js';
 
 export type RequestDetailRecord = {
   name: string;
@@ -43,7 +43,7 @@ export function RequestDetailsSummary({
       : value || '—';
   const days =
     details.kind === 'ยืม' &&
-    !details.completed &&
+    !isRequestClosed(details) &&
     !isReturnPending(details) &&
     isIsoCalendarDate(details.due)
       ? calendarDaysBetween(today, details.due)

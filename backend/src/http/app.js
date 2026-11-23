@@ -7,6 +7,7 @@ import {
   registerPublicCatalogPhotoRoute,
 } from '../features/catalog/routes.js';
 import { sendRequestNotification } from '../features/notifications/google-chat.js';
+import { devActivityEnabled, registerDevActivity } from '../features/notifications/dev-activity.js';
 import { CatalogEditor } from '../features/catalog/service.js';
 import { registerLoansRoutes } from '../features/loans/routes.js';
 import { createStaffNicknameReader } from '../features/loans/staff-nicknames.js';
@@ -54,7 +55,9 @@ export function createApp(service, config) {
   const notifyRequest =
     config.notifyRequest ??
     ((ledger, kind, result) =>
-      sendRequestNotification(ledger, kind, result, { photoStore: photos.store }));
+      devActivityEnabled(config)
+        ? Promise.resolve('skipped')
+        : sendRequestNotification(ledger, kind, result, { photoStore: photos.store }));
   configureRequestSecurity(app, config, csrf);
   // Only catalog images already shared publicly in Drive can be fetched by Chat.
   registerPublicCatalogPhotoRoute(app, { catalogEditor });
@@ -62,6 +65,7 @@ export function createApp(service, config) {
   app.get('/api/upload-config', (req, res) => res.json({ maxUploadBytes }));
   app.use('/api', createAuth(config, csrf));
   app.use('/api', protectApi);
+  registerDevActivity(app, config);
   if (config.authSpreadsheetId || config.authStorage) {
     registerAuditRoutes(app);
     registerUserRoutes(app, config);

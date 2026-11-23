@@ -17,6 +17,7 @@ import {
   requestStatusValue,
   requestStatusPresentation,
   isReturnPending,
+  isRequestClosed,
 } from '@shared/features/lending/status.js';
 import { myRequestsService } from '@/services/my-requests.service';
 import { pendingRequestCounts } from './pending-counts';
@@ -59,7 +60,8 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
   const countdown = (entry: z.infer<typeof myRequestsSchema>['records'][number]) => {
     if (!approvals && isReturnPending(entry)) return { text: 'รอดำเนินการ', color: 'blue' };
     if (approvals && entry.status !== 'กำลังยืม') return null;
-    if (entry.kind !== 'ยืม' || entry.completed || !isIsoCalendarDate(entry.due)) return null;
+    if (entry.kind !== 'ยืม' || isRequestClosed(entry) || !isIsoCalendarDate(entry.due))
+      return null;
     const days = calendarDaysBetween(today, entry.due);
     return {
       text:
@@ -174,12 +176,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
       ? Date.parse(entry.due)
       : Infinity;
   const visibleRequests = kindRequests
-    .filter(
-      (entry) =>
-        approvals ||
-        showCompleted ||
-        !['เสร็จสิ้น', 'รับคืนแล้ว', 'คืนแล้ว'].includes(displayStatus(entry)),
-    )
+    .filter((entry) => approvals || showCompleted || !isRequestClosed(entry))
     .filter(
       (entry) =>
         approvals ||
@@ -257,6 +254,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
         setShowCompleted={setShowCompleted}
       />
       <RequestList
+        key={JSON.stringify([user?.id, approvals, search, currentLoansOnly, showCompleted, sort])}
         approvals={approvals}
         view={view}
         pending={requests.isPending}

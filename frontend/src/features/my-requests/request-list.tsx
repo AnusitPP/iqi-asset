@@ -3,10 +3,12 @@ import { Box, Button, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/cor
 import { CatalogPhoto } from '@/components/core/catalog-photo';
 import { BorrowedEquipmentCard } from '@/components/core/borrowed-equipment-card';
 import { RequestStatusBadge } from '@/components/core/request-status-badge';
-import { LoadingIndicator } from '@/components/ui/feedback';
+import { EmptyState, LoadingIndicator } from '@/components/ui/feedback';
 import { ErrorPopup } from '@/components/core/error-popup';
 import type { myRequestsSchema } from '@/types/account';
 import type { z } from 'zod';
+import { useState } from 'react';
+import { ListPagination } from '@/components/core/list-pagination';
 
 type RequestRecord = z.infer<typeof myRequestsSchema>['records'][number];
 type Countdown = { text: string; color: string } | null;
@@ -44,6 +46,10 @@ export function RequestList({
   onOpenDetails: (entry: RequestRecord) => void;
   onRefresh: () => Promise<unknown>;
 }) {
+  const [requestedPage, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(records.length / 12));
+  const page = Math.min(requestedPage, totalPages);
+  const pageRecords = approvals ? records : records.slice((page - 1) * 12, page * 12);
   return (
     <>
       <ErrorPopup error={error} onRefresh={onRefresh} />
@@ -52,18 +58,18 @@ export function RequestList({
         <LoadingIndicator />
       ) : (
         <Stack>
-          <Text role="status">
-            {records.length
-              ? `พบ ${records.length} รายการ`
-              : approvals
-                ? 'ยังไม่มีรายการของคุณ'
-                : 'ไม่พบรายการที่ตรงกับตัวกรอง'}
-          </Text>
+          {records.length ? (
+            <Text role="status">พบ {records.length} รายการ</Text>
+          ) : !error ? (
+            <EmptyState>
+              {approvals ? 'ยังไม่มีรายการของคุณ' : 'ไม่พบรายการที่ตรงกับตัวกรอง'}
+            </EmptyState>
+          ) : null}
           <SimpleGrid
             cols={approvals || view === 'list' ? 1 : { base: 1, xs: 2, sm: 3, lg: 4, xl: 6 }}
             spacing="sm"
           >
-            {records.map((entry) => {
+            {pageRecords.map((entry) => {
               const unread =
                 readStateKey === readKey && !readIds.includes(`${entry.kind}:${entry.id}`);
               if (!approvals && view === 'grid')
@@ -204,6 +210,7 @@ export function RequestList({
               );
             })}
           </SimpleGrid>
+          {!approvals && <ListPagination page={page} totalPages={totalPages} onChange={setPage} />}
         </Stack>
       )}
     </>

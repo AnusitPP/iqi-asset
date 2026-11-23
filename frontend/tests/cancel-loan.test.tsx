@@ -67,6 +67,10 @@ it('requires confirmation and refreshes the request after cancellation', async (
 });
 it.each(['กำลังยืม', 'ยกเลิก', 'ไม่อนุมัติ'])('hides cancellation for %s loans', async (status) => {
   mount(status);
+  if (status !== 'กำลังยืม') {
+    await screen.findByText('ไม่พบรายการที่ตรงกับตัวกรอง');
+    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'แสดงรายการที่เสร็จสิ้น' }));
+  }
   await userEvent.setup().click(await screen.findByRole('button', { name: 'ดูรายละเอียด' }));
   expect(screen.queryByRole('button', { name: 'ยกเลิกคำขอยืม' })).toBeNull();
 });

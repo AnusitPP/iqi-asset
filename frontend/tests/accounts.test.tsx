@@ -270,7 +270,7 @@ it('hides administrative menus for STAFF and redirects a forbidden direct route'
   expect(screen.queryByRole('link', { name: 'ผู้ใช้งาน' })).toBeNull();
   expect(screen.queryByRole('link', { name: 'Audit Log' })).toBeNull();
   expect(screen.queryByRole('link', { name: 'Dashboard' })).toBeNull();
-  expect(screen.getByRole('link', { name: 'รายการของฉัน' })).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toBe('กำลังโหลดข้อมูล');
 });
 it('filters users and edits role/status through their existing PATCH endpoints', async () => {
   mount(<UsersPage />);
@@ -419,9 +419,43 @@ it('loads own requests with the current API contract', async () => {
   expect(screen.queryByText('Mouse')).toBeNull();
   expect(screen.getByText('ไม่พบรายการที่ตรงกับตัวกรอง')).toBeTruthy();
 });
+it('paginates own requests after filtering and resets the page for a new search', async () => {
+  currentUser = makeUser('staff');
+  transport.mockResolvedValue(
+    Response.json({
+      records: Array.from({ length: 13 }, (_, i) => ({
+        id: `L-${i}`,
+        kind: 'ยืม',
+        name: `Device ${i + 1}`,
+        status: 'กำลังยืม',
+        order: 13 - i,
+      })),
+    }),
+  );
+  mount(<MyRequestsPage />);
+  const user = userEvent.setup();
+  await screen.findByText('Device 1');
+  expect(screen.getAllByRole('button', { name: 'ดูรายละเอียด' })).toHaveLength(12);
+  expect(screen.queryByText('Device 13')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'ถัดไป' }));
+  expect(screen.getByText('Device 13')).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: 'ดูรายละเอียด' })).toHaveLength(1);
+  await user.type(screen.getByLabelText('ค้นหารายการของฉัน'), 'Device 1');
+  expect(screen.getByText('Device 1')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'ถัดไป' })).toBeNull();
+});
 it('shows pending requests by default, optionally shows completed requests, hides duplicate returns, and shows blue return-pending text', async () => {
   currentUser = makeUser('staff');
   const records = [
+    ...['ยกเลิก', 'ไม่อนุมัติ'].map((status) => ({
+      id: status,
+      kind: 'ยืม',
+      name: status + ' Monitor',
+      status,
+      date: '2020-01-01',
+      due: '2020-01-02',
+      completed: false,
+    })),
     { id: 'L-pending', kind: 'ยืม', name: 'Pending Monitor', asset: 'A1', status: 'รอดำเนินการ' },
     {
       id: 'L-waiting',
@@ -458,6 +492,8 @@ it('shows pending requests by default, optionally shows completed requests, hide
   await screen.findByText('Waiting Monitor');
   expect(screen.getByText('Pending Monitor')).toBeTruthy();
   expect(screen.queryByText('Completed Monitor')).toBeNull();
+  expect(screen.queryByText('ยกเลิก Monitor')).toBeNull();
+  expect(screen.queryByText('ไม่อนุมัติ Monitor')).toBeNull();
   expect(screen.queryByText('Duplicate Return')).toBeNull();
   const card = within(
     screen.getByText('Waiting Monitor').closest('.mantine-Paper-root') as HTMLElement,
@@ -471,6 +507,15 @@ it('shows pending requests by default, optionally shows completed requests, hide
   ).toBe(true);
   await user.click(screen.getByRole('checkbox', { name: 'แสดงรายการที่เสร็จสิ้น' }));
   expect(screen.getByText('Completed Monitor')).toBeTruthy();
+  for (const status of ['ยกเลิก', 'ไม่อนุมัติ']) {
+    const closedCard = within(
+      screen.getByText(status + ' Monitor').closest('.mantine-Paper-root') as HTMLElement,
+    );
+    expect(closedCard.queryByText(/เกินกำหนด/)).toBeNull();
+    await user.click(closedCard.getByRole('button', { name: 'ดูรายละเอียด' }));
+    expect(within(screen.getByRole('dialog')).queryByText(/เกินกำหนด/)).toBeNull();
+    await user.keyboard('{Escape}');
+  }
   await user.click(screen.getByRole('checkbox', { name: 'แสดงรายการที่เสร็จสิ้น' }));
   expect(screen.queryByText('Completed Monitor')).toBeNull();
   expect(screen.getByText('Pending Monitor')).toBeTruthy();

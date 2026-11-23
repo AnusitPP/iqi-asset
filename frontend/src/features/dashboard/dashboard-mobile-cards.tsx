@@ -1,5 +1,6 @@
 'use client';
 import { memo } from 'react';
+import { EmptyState } from '@/components/ui/feedback';
 import { Badge, Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { CopyableText } from '@/components/core/copyable-text';
 import { getStatusColorClass } from '@/lib/display';
@@ -35,9 +36,7 @@ export const DashboardMobileCards = memo(function DashboardMobileCards({
   if (!records.length)
     return (
       <Paper withBorder p="lg" radius={14}>
-        <Text size="sm" c="dimmed" ta="center">
-          ไม่พบรายการตามตัวกรองที่เลือก
-        </Text>
+        <EmptyState>ไม่พบรายการตามตัวกรองที่เลือก</EmptyState>
       </Paper>
     );
   return (

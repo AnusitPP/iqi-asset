@@ -717,18 +717,6 @@ body {
 .portal-sheet-links summary {
   cursor: pointer;
 }
-.portal-shell .portal-footer {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-width: none;
-  margin: 30px 0 0;
-  padding: 18px 0;
-  border-top: 1px solid var(--portal-border);
-  color: #9ca89f;
-  font-size: 9px;
-}
 .portal-drawer-body {
   padding: 0 !important;
   display: flex;

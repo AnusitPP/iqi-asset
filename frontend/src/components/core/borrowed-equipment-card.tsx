@@ -1,6 +1,6 @@
 'use client';
 import { Box, Text } from '@mantine/core';
-import { isReturnPending } from '@shared/features/lending/status.js';
+import { isReturnPending, isRequestClosed } from '@shared/features/lending/status.js';
 import type { ReactNode } from 'react';
 import { catalogCategory } from '@shared/features/catalog/search.js';
 import { calendarDaysBetween, isIsoCalendarDate } from '@shared/core/extensions/dates.js';
@@ -30,7 +30,10 @@ export function BorrowedEquipmentCard({
 }) {
   const returnPending = isReturnPending(record);
   const days =
-    record.kind === 'ยืม' && !record.completed && !returnPending && isIsoCalendarDate(record.due)
+    record.kind === 'ยืม' &&
+    !isRequestClosed(record) &&
+    !returnPending &&
+    isIsoCalendarDate(record.due)
       ? calendarDaysBetween(today, record.due)
       : null;
   const timeLabel =

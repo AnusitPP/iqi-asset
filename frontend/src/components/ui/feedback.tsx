@@ -1,5 +1,25 @@
 'use client';
 import { Loader, Group, Stack, Image, Text } from '@mantine/core';
+import type { ReactNode } from 'react';
+
+export function EmptyState({ children }: { children: ReactNode }) {
+  return (
+    <Stack align="center" justify="center" gap="md" py="xl" role="status">
+      <Image
+        src="/assets/images/empty-state.png"
+        alt=""
+        aria-hidden="true"
+        w={180}
+        maw="100%"
+        h={180}
+        fit="contain"
+      />
+      <Text size="sm" c="dimmed" ta="center">
+        {children}
+      </Text>
+    </Stack>
+  );
+}
 
 export function InitialLoadingScreen() {
   return (

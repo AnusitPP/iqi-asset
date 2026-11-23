@@ -322,23 +322,11 @@ export function LendingRequestForm({
           />
           <ErrorPopup error={error} />
           <Group>
-            <Button type="submit" loading={busy}>
-              {mode === 'loan' ? 'ส่งคำขอยืม' : 'ส่งคำขอคืน'}
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              disabled={busy}
-              onClick={() => resetLendingRequestForm(mode === 'loan')}
-            >
-              ล้างแบบฟอร์ม
-            </Button>
             {request.canDeleteCatalogItem && selected && (
               <Button
                 type="button"
                 color="red"
                 variant="light"
-                ml="auto"
                 disabled={busy}
                 leftSection={<Trash2 size={16} aria-hidden="true" />}
                 onClick={() => setDeleteOpened(true)}
@@ -346,6 +334,19 @@ export function LendingRequestForm({
                 ลบรายการ
               </Button>
             )}
+            <Group ml="auto">
+              <Button
+                type="button"
+                variant="default"
+                disabled={busy}
+                onClick={() => resetLendingRequestForm(mode === 'loan')}
+              >
+                ล้างแบบฟอร์ม
+              </Button>
+              <Button type="submit" loading={busy}>
+                {mode === 'loan' ? 'ส่งคำขอยืม' : 'ส่งคำขอคืน'}
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </form>
