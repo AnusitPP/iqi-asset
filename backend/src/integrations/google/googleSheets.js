@@ -25,6 +25,20 @@ export class GoogleSheets {
     if (missing.length)
       throw Object.assign(new Error(`ไม่พบ Sheet: ${missing.join(', ')}`), { status: 422 });
   }
+  async readAssetReportExport() {
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId: this.config.spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+    if (!data.sheets.some((sheet) => sheet.properties.title === 'รายงานครุภัณฑ์ ปี 70'))
+      throw Object.assign(new Error('ไม่พบชีต รายงานครุภัณฑ์ ปี 70'), { status: 404 });
+    const response = await this.api.spreadsheets.values.get({
+      spreadsheetId: this.config.spreadsheetId,
+      range: "'รายงานครุภัณฑ์ ปี 70'",
+      valueRenderOption: 'FORMATTED_VALUE',
+    });
+    return response.data.values || [];
+  }
   async readReadyToBorrow() {
     const { data } = await this.api.spreadsheets.values.get({
       spreadsheetId: this.config.spreadsheetId,

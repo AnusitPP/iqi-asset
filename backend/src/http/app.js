@@ -1,3 +1,4 @@
+import { registerSheetsRoutes } from '../features/sheets/routes.js';
 import { registerUserRoutes } from '../features/users/routes.js';
 import { protectApi } from '../features/auth/middleware/protect-api.js';
 import { registerAuditRoutes } from '../features/audit/routes.js';
@@ -77,6 +78,7 @@ export function createApp(service, config) {
     readStaffNicknames,
   });
   registerMailRoutes(app, { lendingLedger });
+  registerSheetsRoutes(app, { adapter: service.adapter });
   registerLoansRoutes(app, {
     lendingLedger,
     loanRequests,

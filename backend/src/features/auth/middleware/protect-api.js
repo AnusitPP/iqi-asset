@@ -6,6 +6,7 @@ export function protectApi(req, res, next) {
   if ((path === '/api/loan-catalog' && req.method !== 'GET') || /^\/api\/loan-catalog\//.test(path))
     permission = 'ASSET_EDIT';
   else if (path.startsWith('/api/catalog-photos/')) permission = 'LOAN_CREATE';
+  else if (path.startsWith('/api/sheets/')) permission = 'ADMIN_DASHBOARD_VIEW';
   else if (path === '/api/mail/send') permission = 'ADMIN_DASHBOARD_VIEW';
   else if (/^\/api\/admin\/users(?:\/|$)/.test(path))
     permission = req.method === 'GET' ? 'USER_VIEW' : 'USER_MANAGE';

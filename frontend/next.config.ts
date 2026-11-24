@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/*': ['../backend/src/**/*', '../shared/**/*'],
   },
-  serverExternalPackages: ['express', 'googleapis', 'sharp', 'heic-convert'],
+  serverExternalPackages: ['express', 'googleapis', 'sharp', 'heic-convert', 'exceljs'],
   distDir: process.env.IQI_PROXY_TEST === '1' ? '.next/proxy-verification' : '.next',
   experimental: { proxyClientMaxBodySize: '26mb', agentUpgrade: 'security' },
   async headers() {
