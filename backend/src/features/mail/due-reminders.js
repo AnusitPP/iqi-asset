@@ -83,8 +83,8 @@ export function buildDueReminders({ active }, emails, now = new Date(), env = pr
           {
             title: 'รายการที่ใกล้ครบกำหนด',
             items: rows.map(({ row, date }) => {
-              const item = loanMailItem(row);
-              item.badge = `กำหนดคืน ${date}`;
+              const item = loanMailItem(row, { now });
+              item.badge = `${row[14]} · กำหนดคืน ${date}`;
               return item;
             }),
           },

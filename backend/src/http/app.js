@@ -77,7 +77,7 @@ export function createApp(service, config) {
     maxUploadBytes,
     readStaffNicknames,
   });
-  registerMailRoutes(app, { lendingLedger });
+  registerMailRoutes(app, { lendingLedger, readStaffNicknames });
   registerSheetsRoutes(app, { adapter: service.adapter });
   registerLoansRoutes(app, {
     lendingLedger,

@@ -1,9 +1,10 @@
 import { inspectionAge, todayBangkok } from '../../../../shared/core/extensions/dates.js';
+import { borrowerNickname } from '../loans/staff-nicknames.js';
 import { LENDING_STATUS } from '../../../../shared/features/lending/status.js';
-import { renderMailTemplate, loanMailItem } from './templates.js';
+import { renderMailTemplate, loanMailItem, mailDate } from './templates.js';
 
 export function buildDailySummary(
-  { loans, returns, active },
+  { loans, returns, active, nicknames = new Map() },
   now = new Date(),
   type = 'summary',
   env = process.env,
@@ -25,13 +26,34 @@ export function buildDailySummary(
     html: renderMailTemplate({
       title,
       label: 'รายงานจากระบบ',
+      reportDate: new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(now),
       intro: `ข้อมูล ณ วันที่ ${date} ตามเวลา Asia/Bangkok`,
+      summary: [
+        { title: 'รออนุมัติ', count: type !== 'return' ? pending.length : 0, tone: 'warning' },
+        { title: 'รอรับคืน', count: type !== 'loan' ? awaitingReturn.length : 0, tone: 'success' },
+        { title: 'ยืมเกินกำหนด', count: type !== 'return' ? overdue.length : 0, tone: 'danger' },
+      ],
       sections: [
         ...(type !== 'return'
           ? [
               {
+                title: `รายการยืมเกินกำหนด · ${overdue.length} รายการ`,
+                tone: 'danger',
+                items: overdue.map((row) =>
+                  loanMailItem(row, { now, nickname: borrowerNickname(nicknames, row[3]) }),
+                ),
+              },
+              {
                 title: `คำขอยืมรอดำเนินการ · ${pending.length} รายการ`,
-                items: pending.map(loanMailItem),
+                tone: 'warning',
+                items: pending.map((row) =>
+                  loanMailItem(row, { now, nickname: borrowerNickname(nicknames, row[3]) }),
+                ),
               },
             ]
           : []),
@@ -39,25 +61,34 @@ export function buildDailySummary(
           ? [
               {
                 title: `รายการรอรับคืน · ${awaitingReturn.length} รายการ`,
-                items: awaitingReturn.map((row) => ({
-                  title: row[10] || row[8],
-                  badge: row[14],
-                  fields: [
-                    ['เลขคำขอคืน', row[0]],
-                    ['ผู้คืน', row[4]],
-                    ['เลขครุภัณฑ์', row[8]],
-                    ['S/N', row[9]],
-                    ['วันที่ส่งคืน', row[11]],
-                  ],
-                })),
-              },
-            ]
-          : []),
-        ...(type !== 'return'
-          ? [
-              {
-                title: `รายการยืมเกินกำหนด · ${overdue.length} รายการ`,
-                items: overdue.map(loanMailItem),
+                tone: 'success',
+                items: awaitingReturn.map((row) => {
+                  const original = loans.find((entry) => entry[0] === row[1]);
+                  const item = original
+                    ? loanMailItem(original, {
+                        now,
+                        nickname: borrowerNickname(nicknames, original[3]),
+                      })
+                    : {
+                        fields: [
+                          ['ทีม', row[5]],
+                          ['เลขครุภัณฑ์', row[8]],
+                          ['Serial Number', row[9]],
+                        ],
+                      };
+                  return {
+                    ...item,
+                    title: row[10] || row[8],
+                    badge: row[14],
+                    overdueDays: 0,
+                    fields: [
+                      ...item.fields,
+                      ['เลขคำขอคืน', row[0]],
+                      ['ผู้คืน', row[4]],
+                      ['วันที่ส่งคืน', mailDate(row[11])],
+                    ],
+                  };
+                }),
               },
             ]
           : []),

@@ -5,7 +5,6 @@ import { loanColumnMapping } from '../../core/lending/schema.js';
 
 export function buildLoanConfirmation(row, env = process.env) {
   const item = loanMailItem(row);
-  item.fields.push(['เหตุผลหรือวัตถุประสงค์', row[10]]);
   return {
     subject: `[IQI Asset] รับคำขอยืม ${row[9]} แล้ว`,
     text: [
@@ -58,11 +57,15 @@ export async function sendLoanStatusNotification(
     const { indices, emailIndex } = loanColumnMapping(sheets.loans[0]);
     if (emailIndex < 0) return 'skipped';
 
-    const rows = sheets.loans.slice(1).filter((row) =>
-      kind === 'ยืม'
-        ? row[indices[0]] === id
-        : sheets.returns.slice(1).some((entry) => entry[0] === id && entry[1] === row[indices[0]]),
-    );
+    const rows = sheets.loans
+      .slice(1)
+      .filter((row) =>
+        kind === 'ยืม'
+          ? row[indices[0]] === id
+          : sheets.returns
+              .slice(1)
+              .some((entry) => entry[0] === id && entry[1] === row[indices[0]]),
+      );
     if (rows.length !== 1) throw new Error('Cannot identify status notification recipient');
     const email = String(rows[0][emailIndex] || '').trim();
     if (!email) return 'skipped';
@@ -81,14 +84,21 @@ export async function sendLoanStatusNotification(
         title: 'สถานะคำขอมีการเปลี่ยนแปลง',
         label: `อัปเดตสถานะ${kind}`,
         intro: `คำขอ${kind}เลขที่ ${id} ได้รับการอัปเดตสถานะแล้ว`,
-        sections: [{
-          title: 'รายละเอียดสถานะ',
-          items: [{
-            title: `คำขอ${kind}เลขที่ ${id}`,
-            badge: status,
-            fields: [['สถานะเดิม', oldStatus], ['สถานะใหม่', status]],
-          }],
-        }],
+        sections: [
+          {
+            title: 'รายละเอียดสถานะ',
+            items: [
+              {
+                title: `คำขอ${kind}เลขที่ ${id}`,
+                badge: status,
+                fields: [
+                  ['สถานะเดิม', oldStatus],
+                  ['สถานะใหม่', status],
+                ],
+              },
+            ],
+          },
+        ],
         notice: 'ติดตามรายการของคุณได้จากเมนูรายการของฉัน',
         actionPath: '/my-requests',
         actionLabel: 'ดูรายการของฉัน',

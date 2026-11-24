@@ -38,7 +38,7 @@ test('confirmation reads saved loan, sends only to session email and skips uncha
     'sent',
   );
   assert.deepEqual(sent[0].settings.to, ['alice@example.com']);
-  for (const field of ['L-1', 'ASSET-1', 'Laptop', '2026-11-07', 'รอดำเนินการ'])
+  for (const field of ['L-1', 'ASSET-1', 'Laptop', '07/11/2569', 'รอดำเนินการ'])
     assert.ok(sent[0].message.text.includes(field));
   await sendLoanConfirmation(ledger, { id: 'L-1', unchanged: true }, 'alice@example.com', options);
   assert.equal(sent.length, 1);

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
 import { buildLoanConfirmation } from '../../backend/src/features/mail/loan-confirmation.js';
 import { buildDailySummary } from '../../backend/src/features/mail/daily-summary.js';
 import {
@@ -31,10 +32,10 @@ test('confirmation renders escaped sheet data and safe app link with a readable 
   const message = buildLoanConfirmation(row, env);
   assert.match(message.html, /&lt;script&gt;/);
   assert.match(message.html, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt; &amp; details/);
-  assert.doesNotMatch(message.html, /<script|<img/);
+  assert.doesNotMatch(message.html, /<script|<img src=x/);
   assert.match(message.html, /href="https:\/\/portal.example.com\/my-requests"/);
   assert.match(message.text, /ASSET-A/);
-  assert.match(message.text, /2026-11-06/);
+  assert.match(message.text, /06\/11\/2569/);
 });
 test('reminder HTML and text remain isolated per recipient and survive delivery', async () => {
   const plan = buildDueReminders(
@@ -61,10 +62,10 @@ test('summary respects selected sections in HTML and empty groups render clearly
   const state = { loans: [loan('A', 'Alice')], returns: [], active: [] };
   const returning = buildDailySummary(state, now, 'return', env);
   assert.doesNotMatch(returning.html, /ASSET-A|คำขอยืมรอดำเนินการ/);
-  assert.match(returning.html, /ไม่มีรายการในกลุ่มนี้/);
+  assert.match(returning.html, /ไม่มีรายการที่ต้องดำเนินการ/);
   const borrowing = buildDailySummary(state, now, 'loan', env);
   assert.match(borrowing.html, /ASSET-A/);
-  assert.doesNotMatch(borrowing.html, /รายการรอรับคืน/);
+  assert.doesNotMatch(borrowing.html, /รายการรอรับคืน ·/);
 });
 test('unsafe, missing or credential-bearing app URLs do not render links', () => {
   for (const base of [undefined, 'javascript:alert(1)', 'https://user:secret@example.com']) {
@@ -88,4 +89,75 @@ test('mailer includes both HTML and plain text without contacting SMTP', async (
   const serialized = JSON.parse(result.message);
   assert.equal(serialized.html, message.html);
   assert.equal(serialized.text, message.text);
+});
+
+test('corporate summary has one empty state, three zero counters, original logo and corporate header', () => {
+  const { html } = buildDailySummary({ loans: [], returns: [], active: [] }, now, 'summary', env);
+  assert.equal(html.split('ไม่มีรายการที่ต้องดำเนินการ').length - 1, 1);
+  assert.doesNotMatch(html, /ไม่มีรายการในกลุ่มนี้|รายการยืมเกินกำหนด ·|รายการรอรับคืน ·/);
+  const doc = new JSDOM(html).window.document;
+  assert.equal(
+    [...doc.querySelectorAll('div')].filter((node) => node.textContent.trim() === '0').length,
+    3,
+  );
+  assert.match(html, /src="https:\/\/portal.example.com\/icon.png"/);
+  assert.equal(doc.querySelector('img').width, 44);
+  assert.match(html, /color:#FFFFFF/);
+  assert.doesNotMatch(html, /<script|<svg|display:\s*(flex|grid)|<style/);
+  for (const color of ['#FFCC00', '#F1F2F4', '#FFFFFF', '#202124', '#71717A', '#E4E4E7', '#27824A'])
+    assert.ok(html.includes(color));
+});
+
+test('single loan renders details, purpose, nickname and Buddhist dates with no empty group', () => {
+  const row = loan('SINGLE', 'Alice');
+  const { html } = buildDailySummary(
+    { loans: [row], returns: [], active: [], nicknames: new Map([['alice', 'A<&']]) },
+    now,
+    'summary',
+    env,
+  );
+  assert.match(html, /Alice \(A&lt;&amp;\)/);
+  assert.match(html, /5 พ.ย. 2569/);
+  assert.match(html, /6 พ.ย. 2569/);
+  assert.match(html, /&lt;img src=x/);
+  assert.doesNotMatch(
+    html,
+    /ไม่มีรายการที่ต้องดำเนินการ|รายการรอรับคืน ·|รายการยืมเกินกำหนด ·|เกินกำหนด \d+ วัน/,
+  );
+});
+
+test('overdue comes first alongside approvals and returns, preserving overlapping memberships', () => {
+  const overdue = loan('OLD', 'Alice');
+  overdue[12] = '2026-11-04';
+  const pending = loan('NEW', 'Bob');
+  const returning = Array(19).fill('');
+  Object.assign(returning, {
+    0: 'RETURN',
+    1: 'NEW',
+    4: 'Bob',
+    8: 'ASSET-NEW',
+    10: 'Device NEW',
+    11: '2026-11-05',
+    14: LENDING_STATUS.RETURN_PENDING,
+  });
+  const state = { loans: [overdue, pending], returns: [returning], active: [overdue, pending] };
+  // At 17:00 UTC the Bangkok civil date has advanced to November 5.
+  const { html } = buildDailySummary(state, new Date('2026-11-04T17:00:00Z'), 'summary', env);
+  assert.match(html, /เกินกำหนด 1 วัน/);
+  assert.match(html, /รายการรออนุมัติ/);
+  assert.match(html, /รายการรอรับคืน/);
+  assert.ok(html.indexOf('รายการยืมเกินกำหนด') < html.indexOf('รายการรออนุมัติ'));
+  assert.ok(html.indexOf('รายการรออนุมัติ') < html.indexOf('รายการรอรับคืน'));
+  const doc = new JSDOM(html).window.document;
+  assert.equal(
+    [...doc.querySelectorAll('div')].filter((node) => node.textContent.trim() === 'Device OLD')
+      .length,
+    2,
+  );
+  assert.match(html, /width="65%"/);
+  assert.match(html, /background:#FEE4E2;color:#B42318/);
+  assert.match(html, /มีอุปกรณ์เกินกำหนดส่งคืน 1 รายการ/);
+  assert.match(html, /สถานะ|รอดำเนินการ/);
+  const previous = buildDailySummary(state, new Date('2026-11-04T16:59:59Z'), 'summary', env);
+  assert.doesNotMatch(previous.html, /เกินกำหนด 1 วัน/);
 });
