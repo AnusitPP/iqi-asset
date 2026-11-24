@@ -1,6 +1,7 @@
 import { createMailer, mailSettings } from './mailer.js';
 import { mailErrorMessage } from './errors.js';
 import { renderMailTemplate, loanMailItem } from './templates.js';
+import { renderStatusUpdateTemplate } from './status-update.js';
 import { loanColumnMapping } from '../../core/lending/schema.js';
 
 export function buildLoanConfirmation(row, env = process.env) {
@@ -73,35 +74,19 @@ export async function sendLoanStatusNotification(
     const subject = `[IQI Asset] อัปเดตสถานะคำขอ${kind} ${id}`;
     const text = [
       `สถานะคำขอ${kind}เลขที่ ${id} มีการเปลี่ยนแปลง`,
-      `สถานะเดิม: ${oldStatus || '-'}`,
+      ...(oldStatus ? [`สถานะเดิม: ${oldStatus}`] : []),
       `สถานะใหม่: ${status}`,
       'ตรวจสอบรายละเอียดได้ที่เมนูรายการของฉันในระบบ IQI Asset',
     ].join('\n\n');
     const message = {
       subject,
       text,
-      html: renderMailTemplate({
-        title: 'สถานะคำขอมีการเปลี่ยนแปลง',
-        label: `อัปเดตสถานะ${kind}`,
-        intro: `คำขอ${kind}เลขที่ ${id} ได้รับการอัปเดตสถานะแล้ว`,
-        sections: [
-          {
-            title: 'รายละเอียดสถานะ',
-            items: [
-              {
-                title: `คำขอ${kind}เลขที่ ${id}`,
-                badge: status,
-                fields: [
-                  ['สถานะเดิม', oldStatus],
-                  ['สถานะใหม่', status],
-                ],
-              },
-            ],
-          },
-        ],
-        notice: 'ติดตามรายการของคุณได้จากเมนูรายการของฉัน',
-        actionPath: '/my-requests',
-        actionLabel: 'ดูรายการของฉัน',
+      html: renderStatusUpdateTemplate({
+        id,
+        kind,
+        oldStatus,
+        status,
+        assetName: rows[0][indices[9]],
         env,
       }),
     };
