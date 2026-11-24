@@ -9,7 +9,6 @@ import { canAccess, userSchema, type AccountRole } from '../src/types/account';
 import { ApiClient } from '../src/lib/api-client';
 import { AuthenticatedWorkspace } from '../src/components/layout/workspace';
 import { AuditPage } from '../src/features/audit/audit-page';
-import { PortalHomePage } from '../src/features/home/home-page';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 import { allPortalServices, findPortalService, findPortalModule } from '../src/config/navigation';
 const navigation = vi.hoisted(() => ({ path: '/', replace: vi.fn() }));
@@ -133,31 +132,12 @@ function portal(children: ReactNode, client: QueryClient) {
 function createClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
-it('shows current service destinations and summary values from existing APIs', async () => {
-  render(portal(<PortalHomePage />, createClient()));
-  expect(screen.getByRole('heading', { name: 'หน้าหลักระบบงานไอที' })).toBeTruthy();
-  const main = within(screen.getByRole('main'));
-  expect(
-    await within(main.getByRole('article', { name: 'รายการครุภัณฑ์' })).findByText('12'),
-  ).toBeTruthy();
-  expect(within(main.getByRole('article', { name: 'ตรวจเช็คแล้ว' })).getByText('7')).toBeTruthy();
-  expect(within(main.getByRole('article', { name: 'รอการตรวจเช็ค' })).getByText('5')).toBeTruthy();
-  const equipment = within(main.getByRole('region', { name: 'ครุภัณฑ์และวัสดุ' }));
-  expect(equipment.getByRole('link', { name: 'ยืมครุภัณฑ์' }).getAttribute('href')).toBe('/loans');
-  expect(equipment.getByRole('link', { name: 'คืนครุภัณฑ์' }).getAttribute('href')).toBe(
-    '/returns',
-  );
-});
 it('shows STAFF only borrowing, returning and own requests and blocks Home', async () => {
   auth.role = 'STAFF';
   auth.permissions = permissionsForRole(auth.role);
   const client = createClient();
-  const view = render(portal(<PortalHomePage />, client));
-  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
-  expect(screen.getByRole('status').textContent).toBe('กำลังโหลดข้อมูล');
-  expect(transport).not.toHaveBeenCalled();
   navigation.path = '/loans';
-  view.rerender(portal(<p>Loan content</p>, client));
+  render(portal(<p>Loan content</p>, client));
   const nav = within(screen.getByRole('navigation', { name: 'หน้าข้อมูล' }));
   expect(nav.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
     '/loans',
@@ -170,16 +150,13 @@ it('shows STAFF only borrowing, returning and own requests and blocks Home', asy
 it('shows ADMIN operational menus, Home, user viewing and mail but excludes Audit', async () => {
   auth.role = 'ADMIN';
   auth.permissions = permissionsForRole(auth.role);
-  navigation.path = '/dashboard';
+  navigation.path = '/';
   render(portal(<p>Dashboard content</p>, createClient()));
   const nav = within(screen.getByRole('navigation', { name: 'หน้าข้อมูล' }));
   for (const name of [
-    'Dashboard',
-    'ตรวจเช็คครุภัณฑ์',
     'ยืมครุภัณฑ์',
     'คืนครุภัณฑ์',
     'รายการของฉัน',
-    'หน้าหลัก',
     'ผู้ใช้งาน',
     'ส่งอีเมล',
     'คำขออนุมัติ',
@@ -187,12 +164,10 @@ it('shows ADMIN operational menus, Home, user viewing and mail but excludes Audi
   ])
     expect(nav.getByRole('link', { name })).toBeTruthy();
   expect(nav.queryByRole('link', { name: 'Audit Log' })).toBeNull();
-  await waitFor(() =>
-    expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(true),
-  );
+  expect(transport.mock.calls.some(([path]) => path === '/api/status')).toBe(false);
   expect(navigation.replace).not.toHaveBeenCalled();
 });
-it.each(['/assets', '/dashboard', '/users', '/audit', '/sheets', '/mail', '/approval-requests'])(
+it.each(['/users', '/audit', '/sheets', '/mail', '/approval-requests'])(
   'blocks a direct %s URL for STAFF',
   async (path) => {
     auth.role = 'STAFF';
@@ -233,7 +208,7 @@ it('blocks ADMIN from Audit without requesting audit data', async () => {
   auth.permissions = permissionsForRole(auth.role);
   navigation.path = '/audit';
   render(portal(<AuditPage />, createClient()));
-  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'));
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
   expect(screen.queryByRole('heading', { name: 'Audit Log' })).toBeNull();
   expect(transport.mock.calls.some(([path]) => path === '/api/audit')).toBe(false);
 });
@@ -280,26 +255,11 @@ it('expands the active group on a direct account route', async () => {
     screen.getByRole('button', { name: 'บัญชีและการจัดการ' }).getAttribute('aria-expanded'),
   ).toBe('true');
 });
-it('shows failed summary data as unavailable rather than a fake zero', async () => {
-  const original = transport.getMockImplementation();
-  if (!original) throw new Error('Missing fixture transport');
-  transport.mockImplementation((input, options) =>
-    input === '/api/dashboard'
-      ? Promise.resolve(Response.json({ error: 'fixture read failure' }, { status: 503 }))
-      : original(input, options),
-  );
-  render(portal(<PortalHomePage />, createClient()));
-  const card = within(screen.getByRole('article', { name: 'รายการครุภัณฑ์' }));
-  expect(await card.findByText('ยังไม่สามารถอ่านข้อมูลได้')).toBeTruthy();
-  expect(card.queryByText('0')).toBeNull();
-  const popup = await screen.findByRole('dialog', { name: 'ทำรายการไม่สำเร็จ' });
-  expect(within(popup).getByRole('button', { name: 'รีเฟรช' })).toBeTruthy();
-});
 it('has unique configured destinations and resolves existing inspection routes', () => {
   expect(new Set(allPortalServices.map((service) => service.href)).size).toBe(
     allPortalServices.length,
   );
-  expect(findPortalService('/assets')?.id).toBe('inspection');
-  expect(findPortalModule('/assets')?.id).toBe('overview');
+  expect(findPortalService('/assets')).toBeUndefined();
+  expect(findPortalModule('/assets')).toBeUndefined();
   expect(findPortalService('/not-a-service')).toBeUndefined();
 });

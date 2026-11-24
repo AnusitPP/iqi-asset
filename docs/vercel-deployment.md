@@ -29,7 +29,7 @@ Frontend เป็น Next.js + TypeScript ใน `frontend/` ส่วน `back
 - `APP_URL`: HTTPS origin ของ deployment จริงสำหรับ Google callback เช่น `https://your-project.vercel.app` โดยไม่มี path
 - `FRONTEND_URL`: ไม่ต้องตั้งเมื่อ FE/BE อยู่ deployment เดียวกัน; ถ้าตั้งต้องเป็น origin ของหน้าเว็บจริง ห้ามใช้ localhost บน production
 - `APP_SECRET`: secret เดิมอย่างน้อย 32 ตัวอักษร สำหรับ Google Login และ signed revisions
-- ค่า `SHEET_*`, `IQI_DATE_*`, Drive OAuth/folder settings และ `ALLOWED_HOSTS` ที่ใช้อยู่
+- Drive OAuth/folder settings และ `ALLOWED_HOSTS` ที่ใช้อยู่; ไม่ใช้ `SHEET_*` หรือ `IQI_DATE_*` แล้ว
 
 ใน Google Cloud OAuth client ลงทะเบียน Authorized redirect URI เป็น `${APP_URL}/api/auth/google/callback` ให้ตรงกันทุกตัวอักษร Preview deployment ที่ใช้ OAuth ต้องมี origin/redirect URI ของตัวเองที่ลงทะเบียนด้วย อย่าให้ callback ชี้คนละ deployment กับที่เริ่ม login
 
@@ -81,3 +81,7 @@ Hosted uploads จำกัด 4 MiB และ local originals จำกัด 2
 การบันทึกยืม–คืนและเปลี่ยนสถานะเปิดใช้งานบน Vercel ได้โดยใช้ Google Sheets เดิม ไม่ต้องตั้งค่า Redis หรือเพิ่ม env สำหรับ lock การตรวจสิทธิ์ ตรวจความพร้อมอุปกรณ์ และตรวจ requestId ซ้ำยังทำงานตามเดิม
 
 คิวการเขียนป้องกันคำขอซ้อนเฉพาะภายใน instance เดียว ไม่ได้เป็น distributed lock: หากหลาย Vercel instances เขียนพร้อมกัน ยังมีโอกาสยืมอุปกรณ์เดียวกันซ้ำหรือเปลี่ยนสถานะชนกันได้ รวมถึงการเขียนชีตจากภายนอก ระบบยังไม่มี transaction ข้าม Google Sheets และ audit log จึงควรตรวจรายการก่อนส่งซ้ำเมื่อคำขอผิดพลาด การใช้งานที่ต้องรับประกันไม่ให้เขียนชนกันข้าม instance ต้องเพิ่มกลไกประสานการเขียนร่วมกันในอนาคต
+
+## ชีตยืม–คืนที่ต้องมี
+
+การตรวจความพร้อมใช้เฉพาะ `พร้อมยืม`, `รายการยืมครุภัณฑ์`, `รายการคืนครุภัณฑ์` ไม่อ่านหรือเตรียม IQI และชีตรอตรวจสอบเดิม `npm run setup:sheets` เป็นการตรวจการเชื่อมต่อโดยไม่สร้างหรือแก้ไขชีต

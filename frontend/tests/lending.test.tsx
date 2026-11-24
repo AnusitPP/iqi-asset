@@ -4,16 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { z } from 'zod';
-import { ApiClient, ApiError } from '../src/lib/api-client';
+import { ApiClient } from '../src/lib/api-client';
 import { LoansPage } from '../src/features/loans/loans-page';
 import { ReturnsPage } from '../src/features/returns/returns-page';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 import { ToastProvider } from '../src/providers/toast-provider';
 import { loanFormSchema, returnFormSchema } from '../src/types/lending';
-import {
-  saveStatusDraftsSequentially,
-  type StatusDraft,
-} from '../src/features/dashboard/save-drafts';
 
 const transport = vi.fn<typeof fetch>();
 const api = new ApiClient(undefined, transport);
@@ -473,30 +469,6 @@ describe('validation and cancellation', () => {
         date: '2026-02-30',
       }).success,
     ).toBe(false);
-  });
-  it('stops writes after leaving the session', async () => {
-    let current = true;
-    const save = vi.fn(async () => {
-      current = false;
-      return 'saved';
-    });
-    const drafts = new Map<number, StatusDraft>([
-      [2, { status: 'ดี', revision: 'a' }],
-      [3, { status: 'ดี', revision: 'b' }],
-    ]);
-    await saveStatusDraftsSequentially(drafts, save, undefined, () => current);
-    expect(save).toHaveBeenCalledTimes(1);
-    expect(drafts.has(3)).toBe(true);
-  });
-  it('stops bulk writes on 401', async () => {
-    const save = vi.fn().mockRejectedValue(new ApiError('Unauthorized', 401));
-    const drafts = new Map<number, StatusDraft>([
-      [2, { status: 'ดี', revision: 'a' }],
-      [3, { status: 'ดี', revision: 'b' }],
-    ]);
-    await saveStatusDraftsSequentially(drafts, save);
-    expect(save).toHaveBeenCalledTimes(1);
-    expect(drafts.size).toBe(2);
   });
 });
 it('return cards reuse loan timing and show loan details before the return form', async () => {

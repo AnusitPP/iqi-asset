@@ -1,3 +1,5 @@
+> หน้า Assets และ Dashboard ถูกถอดออกแล้ว หน้าแรกเหลือบริการและสรุปคำร้องของฉัน
+
 # IT Service Portal redesign
 
 Implemented on `feature/fe-new-structure` in the existing Next.js frontend. No new project, UI framework, dependencies, backend endpoints, Google contracts, authentication behavior, environment variable names or Vercel configuration were introduced or changed.
@@ -12,25 +14,22 @@ Implemented on `feature/fe-new-structure` in the existing Next.js frontend. No n
 
 ## Data and permissions
 
-| Home area                                                                                                                                                                                                                                                                                                    | Existing source                                            | Behavior                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| รายการครุภัณฑ์ / ตรวจเช็คแล้ว / รอการตรวจเช็ค                                                                                                                                                                                                                                                                | `dashboardService.fetchDashboardData()` → `/api/dashboard` | Uses total, completed and total minus completed; labels refer to Dashboard records, not deduplicated inventory. Only requests data with ADMIN_DASHBOARD_VIEW. |
-| คำร้องของฉัน                                                                                                                                                                                                                                                                                                 | `myRequestsService.list()` → `/api/my-requests`            | Counts returned own requests; only requests with LOAN_VIEW_OWN.                                                                                               |
+| Home area                                                                                                                                                                                                                                                                                                    | Existing source                                 | Behavior                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------- |
+| คำร้องของฉัน                                                                                                                                                                                                                                                                                                 | `myRequestsService.list()` → `/api/my-requests` | Counts returned own requests; only requests with LOAN_VIEW_OWN. |
 | Unavailable/forbidden summary values show an explicit unavailable state rather than zero. Loading, empty, error and retry states are retained. No purchase/printer counters or notification badge were invented. Navigation filters existing permission grants; backend authorization remains authoritative. |
 
 ## Routes
 
-| Route                 | Function                                                                                                                     |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `/`                   | New protected portal Home                                                                                                    |
-| `/dashboard`          | Existing inspection progress, search, filters, asset table, individual/bulk updates and refresh                              |
-| `/assets`             | Existing asset search, pending/review selection, inspection and record details/editing; navigation label is ตรวจเช็คครุภัณฑ์ |
-| `/loans`, `/returns`  | Existing loan and return forms, catalog selection and API integrations                                                       |
-| `/my-requests`        | Existing personal requests                                                                                                   |
-| `/users`              | Existing user administration                                                                                                 |
-| `/audit`              | Existing Audit Log and details                                                                                               |
-| `/login`, `/api/*`    | Existing login/logout/session and Express adapter                                                                            |
-| `/services/[service]` | Configured, statically generated planned-service pages. Unknown slugs return 404.                                            |
+| Route                 | Function                                                                          |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `/`                   | New protected portal Home                                                         |
+| `/loans`, `/returns`  | Existing loan and return forms, catalog selection and API integrations            |
+| `/my-requests`        | Existing personal requests                                                        |
+| `/users`              | Existing user administration                                                      |
+| `/audit`              | Existing Audit Log and details                                                    |
+| `/login`, `/api/*`    | Existing login/logout/session and Express adapter                                 |
+| `/services/[service]` | Configured, statically generated planned-service pages. Unknown slugs return 404. |
 
 Planned-service destinations clearly show **อยู่ระหว่างพัฒนา**, provide a Home link and have no forms, API calls or invented business workflow:
 

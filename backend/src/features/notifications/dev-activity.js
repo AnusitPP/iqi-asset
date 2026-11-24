@@ -8,11 +8,6 @@ const actions = [
   ['POST', /^\/api\/loan-catalog$/, 'เพิ่มครุภัณฑ์'],
   ['DELETE', /^\/api\/loan-catalog\/\d+$/, 'ลบครุภัณฑ์'],
   ['POST', /^\/api\/loan-catalog\/\d+\/photos$/, 'เพิ่มรูปครุภัณฑ์'],
-  ['POST', /^\/api\/dashboard\/from-iqi$/, 'เพิ่มรายการ Dashboard'],
-  ['PUT', /^\/api\/dashboard\/\d+\/(?:status|details)$/, 'แก้ข้อมูล Dashboard'],
-  ['POST', /^\/api\/dashboard\/\d+\/photos(?:\/primary)?$/, 'แก้รูป Dashboard'],
-  ['PUT', /^\/api\/iqi\/\d+(?:\/search-status)?$/, 'แก้ข้อมูล IQI'],
-  ['PUT', /^\/api\/review-(?:selection|inspection)$/, 'แก้รายการตรวจสอบ'],
   ['PATCH', /^\/api\/admin\/users\/[^/]+\/(?:role|status)$/, 'แก้สิทธิ์หรือสถานะผู้ใช้'],
 ];
 

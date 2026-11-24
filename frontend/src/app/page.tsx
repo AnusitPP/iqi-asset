@@ -1,9 +1,5 @@
-import { AuthenticatedWorkspace } from '@/components/layout/workspace';
-import { PortalHomePage } from '@/features/home/home-page';
+import { redirect } from 'next/navigation';
+
 export default function HomePage() {
-  return (
-    <AuthenticatedWorkspace>
-      <PortalHomePage />
-    </AuthenticatedWorkspace>
-  );
+  redirect('/loans');
 }

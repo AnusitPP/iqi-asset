@@ -73,6 +73,6 @@ export function canAccess(user: AccountUser | null | undefined, permission: stri
     (user.permissions.includes('*') || user.permissions.includes(permission))
   );
 }
-export function defaultWorkspacePath(user: AccountUser | null | undefined) {
-  return canAccess(user, 'ADMIN_DASHBOARD_VIEW') ? '/dashboard' : '/loans';
+export function defaultWorkspacePath() {
+  return '/loans';
 }

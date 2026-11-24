@@ -4,15 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
 import { StateStore, writeLocked } from '../../backend/src/core/state/stateStore.js';
-import { Records } from '../../backend/src/features/records/service.js';
-import { parseSheet } from '../../backend/src/features/records/search.js';
-import { signToken } from '../../backend/src/core/security/tokens.js';
 import { runtimeReadiness } from '../../backend/src/readiness.js';
-import {
-  REVIEW_HEADERS,
-  REVIEW_DATE_HEADER,
-  INSPECTION_HEADER,
-} from '../../backend/src/features/review/queue.js';
 import { driveOAuth } from '../../backend/src/integrations/google/driveAuth.js';
 
 test('Google sessions and revocation work across instances with shared storage', async (t) => {
@@ -61,38 +53,6 @@ test('Google sessions and revocation work across instances with shared storage',
     assert.equal((await request(instance, '/api/status', { headers })).status, 401);
 });
 
-test('signed revisions save across instances and reject tampering, expiry and stale rows', async () => {
-  const rows = [
-    ['เลขครุภัณฑ์', 'หมายเหตุ'],
-    ['asset-1', 'original'],
-  ];
-  const config = { sheets: ['IQI'], appSecret: 's'.repeat(64) };
-  const states = [new StateStore(), new StateStore()];
-  const adapters = states.map((state) => ({
-    state,
-    config: { ...config, spreadsheetId: 'test' },
-    read: async () => [parseSheet('IQI', structuredClone(rows))],
-    writeIQI: async (row, changes) => {
-      for (const change of changes) rows[row - 1][change.index] = change.value;
-    },
-  }));
-  const [first, second] = adapters.map((adapter) => new Records(adapter, config));
-  const record = await first.detail('IQI', 2);
-  const values = ['asset-1', 'saved from another instance'];
-  await assert.rejects(second.save(2, { revision: `${record.revision}x`, values }), {
-    status: 409,
-  });
-  const [table] = await adapters[0].read();
-  const expired = signToken({ sheet: 'IQI', row: 2, expires: Date.now() - 1 }, config.appSecret);
-  await assert.rejects(second.save(2, { revision: expired, values }), { status: 409 });
-  const saved = await second.save(2, { revision: record.revision, values });
-  assert.deepEqual(saved.values, values);
-  await assert.rejects(first.save(2, { revision: record.revision, values: record.values }), {
-    status: 409,
-  });
-  assert.equal(table.sheet, 'IQI');
-});
-
 test('local write lock serializes work in one instance and releases after failure', async () => {
   const state = new StateStore();
   const adapters = [0, 1].map(() => ({ state, config: { spreadsheetId: 'same-sheet' } }));
@@ -127,41 +87,21 @@ test('local write lock serializes work in one instance and releases after failur
   assert.equal(order.at(-1), 'recovered');
 });
 
-test('runtime loads review metadata without migrations, shares readiness and retries failed initialization', async () => {
+test('runtime shares lending readiness and retries failed initialization without reading retired sheets', async () => {
   let calls = 0;
-  const queues = ['รอตรวจสอบ', 'IQI + IT'].map((sheet) => ({
-    sheet,
-    values: async () => [[...REVIEW_HEADERS, REVIEW_DATE_HEADER, INSPECTION_HEADER]],
-    validate: () => {},
-  }));
   const adapter = {
-    config: { sheets: ['IQI'], spreadsheetId: 'test' },
     initialize: async () => {
       if (++calls === 1) throw new Error('temporary');
     },
-    api: {
-      spreadsheets: {
-        get: async () => ({
-          data: {
-            sheets: queues.map((queue, sheetId) => ({
-              properties: { title: queue.sheet, sheetId },
-            })),
-          },
-        }),
-      },
+    read: async () => {
+      throw new Error('Retired sheets must not be read');
     },
-    read: async () => [{ headers: ['เลขครุภัณฑ์', 'สถานะการค้นหา'] }],
-    reviewQueue: queues[0],
-    iqiItQueue: queues[1],
   };
   const ready = runtimeReadiness(adapter);
   await assert.rejects(ready(), /temporary/);
   await Promise.all([ready(), ready()]);
+  await ready();
   assert.equal(calls, 2);
-  assert.equal(queues[0].properties.sheetId, 0);
-  assert.equal(queues[1].properties.sheetId, 1);
-  adapter.read = async () => [{ headers: ['เลขครุภัณฑ์'] }];
-  await assert.rejects(runtimeReadiness(adapter)(), { status: 422 });
 });
 
 test('Drive OAuth accepts secret JSON without filesystem credentials', () => {

@@ -6,14 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode, AnchorHTMLAttributes } from 'react';
 import { ApiClient } from '../src/lib/api-client';
 import { AuthenticatedWorkspace } from '../src/components/layout/workspace';
-import { DashboardPage } from '../src/features/dashboard/dashboard-page';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
 import { ToastProvider } from '../src/providers/toast-provider';
 const navigation = vi.hoisted(() => ({
   replace: vi.fn(),
   logout: vi.fn().mockResolvedValue(undefined),
 }));
-const sessionState = vi.hoisted(() => ({ loading: false }));
+const sessionState = vi.hoisted(() => ({ loading: false, authenticated: true }));
 const api = new ApiClient(undefined, async (path) => {
   if (path === '/api/status')
     return Response.json({
@@ -70,7 +69,7 @@ const api = new ApiClient(undefined, async (path) => {
 vi.mock('../src/features/auth/auth-provider', () => ({
   useAuthSession: () => ({
     api,
-    authenticated: true,
+    authenticated: sessionState.authenticated,
     can: () => true,
     loading: sessionState.loading,
     error: null,
@@ -98,6 +97,8 @@ vi.mock('next/link', () => ({
 afterEach(() => {
   cleanup();
   sessionState.loading = false;
+  sessionState.authenticated = true;
+  navigation.replace.mockClear();
 });
 function renderWorkspace(children: ReactNode, client: QueryClient) {
   return render(
@@ -110,6 +111,25 @@ function renderWorkspace(children: ReactNode, client: QueryClient) {
     </MantineProvider>,
   );
 }
+it.each([true, false])(
+  'keeps authenticated home content or redirects to login: %s',
+  async (authenticated) => {
+    sessionState.authenticated = authenticated;
+    renderWorkspace(
+      <AuthenticatedWorkspace>
+        <p>Home content</p>
+      </AuthenticatedWorkspace>,
+      new QueryClient(),
+    );
+    if (authenticated) {
+      expect(screen.getByText('Home content')).toBeTruthy();
+      expect(navigation.replace).not.toHaveBeenCalled();
+    } else {
+      await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/login'));
+      expect(screen.queryByText('Home content')).toBeNull();
+    }
+  },
+);
 it('shows only the GIF and loading message before the session is ready', () => {
   sessionState.loading = true;
   const client = new QueryClient();
@@ -144,32 +164,6 @@ it('opens the grouped mobile menu and closes it after navigation', async () => {
   expect(within(drawer).getByRole('link', { name: 'คืนครุภัณฑ์' }).getAttribute('href')).toBe(
     '/returns',
   );
-  await user.click(within(drawer).getByRole('link', { name: 'ตรวจเช็คครุภัณฑ์' }));
+  await user.click(within(drawer).getByRole('link', { name: 'ยืมครุภัณฑ์' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-});
-it('filters by team, retains filters across remount, and resets all filters together', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const page = renderWorkspace(<DashboardPage />, client);
-  const user = userEvent.setup();
-  await screen.findByText('IT-001');
-  await user.click(screen.getByRole('combobox', { name: 'กรองตามทีม' }));
-  await user.click(screen.getByRole('option', { name: 'IT' }));
-  expect(screen.queryByText('GA-001')).toBeNull();
-  expect(screen.getByText('IT-001')).toBeTruthy();
-  await user.click(screen.getByText('ตัวกรองสถานะและการเทียบข้อมูล'));
-  await user.click(await screen.findByRole('button', { name: /^ดี\s*1/ }));
-  await user.type(screen.getByLabelText('ค้นหารายการ Dashboard'), 'SN-IT');
-  page.unmount();
-  renderWorkspace(<DashboardPage />, client);
-  await waitFor(() =>
-    expect(screen.getByRole('combobox', { name: 'กรองตามทีม' })).toHaveProperty('value', 'IT'),
-  );
-  expect(screen.getByLabelText('ค้นหารายการ Dashboard')).toHaveProperty('value', 'SN-IT');
-  expect(screen.getByRole('button', { name: /^ดี\s*1/ }).getAttribute('aria-pressed')).toBe('true');
-  await user.click(screen.getByRole('button', { name: 'ล้างตัวกรอง' }));
-  expect(screen.getByRole('combobox', { name: 'กรองตามทีม' })).toHaveProperty(
-    'value',
-    'ผู้ถือครอง / ทีม · ทุกทีม',
-  );
-  expect(screen.getByText('GA-001')).toBeTruthy();
 });

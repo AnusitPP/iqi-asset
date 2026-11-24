@@ -10,18 +10,6 @@ import { TestAuthStorage } from '../../test/helpers/authStorage.js';
 import { LOAN_HEADERS, RETURN_HEADERS } from '../../backend/src/core/lending/schema.js';
 import { createApp } from '../../backend/src/http/app.js';
 const root = fileURLToPath(new URL('..', import.meta.url));
-const grid = [
-  [
-    'ผลตรวจ Apps Script',
-    'สถานะการเทียบ',
-    'เลขครุภัณฑ์ Apps Script',
-    'ทีม',
-    'หมายเหตุ',
-    'วันที่อัปเดตจากเว็บ',
-  ],
-  ['ดี', 'ตรงกัน', 'TEST-001', 'IQI', '', ''],
-  ['ชำรุด', 'ตรงกัน', 'TEST-002', 'IT', '', ''],
-];
 const ledger = { loans: [LOAN_HEADERS], returns: [RETURN_HEADERS] };
 const adapter = {
   readReadyToBorrow: async () => [
@@ -39,10 +27,6 @@ const adapter = {
     row[15] = responsible;
   },
   initialize: async () => {},
-  readDashboard: async () => structuredClone(grid),
-  writeDashboardDetails: async (row, changes) => {
-    for (const change of changes) grid[row - 1][change.column] = change.value;
-  },
 };
 const authStorage = new TestAuthStorage();
 const authConfig = {
@@ -146,19 +130,7 @@ try {
   );
   assert.equal(users.records.length, 2);
   assert.equal((await fetch(base + '/api/status', { headers: authenticated })).status, 200);
-  const dashboard = await fetch(base + '/api/dashboard', { headers: authenticated }).then((r) =>
-    r.json(),
-  );
-  const save = await fetch(base + '/api/dashboard/2/details', {
-    method: 'PUT',
-    headers: authenticated,
-    body: JSON.stringify({
-      revision: dashboard.records[0].revision,
-      notes: 'ทดสอบ proxy เท่านั้น',
-    }),
-  });
-  assert.equal(save.status, 200, await save.text());
-  assert.equal(grid[1][4], 'ทดสอบ proxy เท่านั้น');
+  assert.equal((await fetch(base + '/api/dashboard', { headers: authenticated })).status, 404);
   const foreign = await fetch(base + '/api/auth/logout', {
     method: 'POST',
     headers: { ...authenticated, Origin: 'https://foreign.invalid' },
@@ -246,15 +218,15 @@ try {
   assert.equal((await fetch(base + '/loans')).status, 200);
   assert.equal((await fetch(base + '/returns')).status, 200);
   assert.equal((await fetch(base + '/login')).status, 200);
-  assert.equal((await fetch(base + '/assets')).status, 200);
-  assert.equal((await fetch(base + '/dashboard')).status, 200);
+  assert.equal((await fetch(base + '/assets')).status, 404);
+  assert.equal((await fetch(base + '/dashboard')).status, 404);
   assert.equal(
     (await fetch(base + '/api/auth/logout', { method: 'POST', headers: authenticated })).status,
     200,
   );
   assert.equal((await fetch(base + '/api/dashboard', { headers: authenticated })).status, 401);
   console.log(
-    'PASS: Next→Express Google Sheet-backed sessions, STAFF permission rejection, password bypass rejection, authenticated GET, revision PUT, foreign Origin rejection, CSRF rejection, logout/revocation, catalog, loan/return submissions, loan idempotency, and all page HTTP responses. Fixtures only; no Google API calls.',
+    'PASS: Next→Express Google Sheet-backed sessions, STAFF permission rejection, password bypass rejection, authenticated GET, removed inspection routes, foreign Origin rejection, CSRF rejection, logout/revocation, catalog, loan/return submissions, loan idempotency, and all page HTTP responses. Fixtures only; no Google API calls.',
   );
 } catch (error) {
   console.error(output);

@@ -107,20 +107,13 @@ try {
     headers: { ...headers, Origin: 'https://foreign.invalid' },
   });
   assert.equal(foreignOrigin.status, 403);
-  for (const path of [
-    '/login',
-    '/dashboard',
-    '/assets',
-    '/loans',
-    '/returns',
-    '/my-requests',
-    '/users',
-    '/audit',
-  ]) {
+  for (const path of ['/login', '/', '/loans', '/returns', '/my-requests', '/users', '/audit']) {
     const page = await fetch(base + path);
     assert.equal(page.status, 200, path);
     assert.match(await page.text(), /_next\/static/);
   }
+  for (const path of ['/assets', '/dashboard'])
+    assert.equal((await fetch(base + path)).status, 404, path);
   const logout = await fetch(base + '/api/auth/logout', { method: 'POST', headers });
   assert.equal(logout.status, 200);
   assert.equal((await fetch(base + '/api/dashboard', { headers })).status, 401);

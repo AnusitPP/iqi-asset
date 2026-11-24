@@ -7,15 +7,10 @@ import {
   updateInspectionDateInNote,
   preserveUnchangedAssetValues,
 } from '../src/lib/display';
-import { passwordSchema, inspectionFormSchema, recordSchema } from '../src/types/contracts';
 import {
   extractUniqueDrivePhotos,
   validatePhotoUploadSelection,
 } from '../src/features/photos/photo-utils';
-import {
-  saveStatusDraftsSequentially,
-  type StatusDraft,
-} from '../src/features/dashboard/save-drafts';
 import { NextRequest } from 'next/server';
 import { proxy } from '../src/proxy';
 
@@ -116,29 +111,6 @@ describe('business presentation', () => {
       preserveUnchangedAssetValues(['a\r\nb', 'old'], ['a\nb', 'old'], ['a\nb', 'new']),
     ).toEqual(['a\r\nb', 'new']);
   });
-  it('requires password and an explicitly selected inspection result', () => {
-    expect(passwordSchema.safeParse({ password: '' }).success).toBe(false);
-    expect(inspectionFormSchema.safeParse({ status: '' }).success).toBe(false);
-    expect(inspectionFormSchema.safeParse({ status: 'ดี' }).success).toBe(true);
-  });
-  it('rejects inconsistent sheet row widths before display', () => {
-    expect(
-      recordSchema.safeParse({
-        sheet: 'IQI',
-        label: 'IQI',
-        row: 2,
-        headers: ['a'],
-        values: [],
-        assetIndex: 0,
-        editable: true,
-        revision: 'v',
-        dropdowns: [],
-        dateIndex: null,
-        dateMode: 'date',
-        today: '',
-      }).success,
-    ).toBe(false);
-  });
   it('deduplicates legacy and current Drive photo slots', () => {
     const url = 'https://drive.google.com/file/d/abc/view';
     expect(
@@ -152,23 +124,6 @@ describe('business presentation', () => {
       validatePhotoUploadSelection([new File(['x'], 'a.html', { type: 'text/html' })], 3),
     ).toThrow('ไฟล์รูปภาพ');
     expect(() => validatePhotoUploadSelection([new File(['x'], 'a.heic')], 1)).not.toThrow();
-  });
-  it('bulk saves include hidden drafts, retain failures, and continue after failures', async () => {
-    const drafts = new Map<number, StatusDraft>([
-      [2, { status: 'ดี', revision: 'a' }],
-      [3, { status: 'ชำรุด', revision: 'b' }],
-      [4, { status: 'หาไม่เจอ', revision: 'c' }],
-    ]);
-    const calls: number[] = [];
-    const result = await saveStatusDraftsSequentially(drafts, async (row) => {
-      calls.push(row);
-      if (row === 3) throw new Error('ข้อมูลเปลี่ยนไป');
-      return row;
-    });
-    expect(calls).toEqual([2, 3, 4]);
-    expect(result.saved.map((r) => r.row)).toEqual([2, 4]);
-    expect([...drafts.keys()]).toEqual([3]);
-    expect(result.failed[0]?.message).toBe('ข้อมูลเปลี่ยนไป');
   });
 });
 describe('transport proxy', () => {

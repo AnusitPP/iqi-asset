@@ -19,7 +19,7 @@ import { AuditPage } from '../src/features/audit/audit-page';
 import { MyRequestsPage } from '../src/features/my-requests/my-requests-page';
 import { AuthenticatedWorkspace } from '../src/components/layout/workspace';
 import { UnsavedChangesProvider } from '../src/hooks/use-unsaved';
-const navigation = vi.hoisted(() => ({ path: '/assets', replace: vi.fn() }));
+const navigation = vi.hoisted(() => ({ path: '/loans', replace: vi.fn() }));
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.path,
   useRouter: () => navigation,
@@ -73,7 +73,7 @@ function mount(children: ReactNode) {
 beforeEach(() => {
   currentUser = makeUser('owner', 'SUPER_ADMIN');
   users = [makeUser('staff'), makeUser('owner', 'SUPER_ADMIN')];
-  navigation.path = '/assets';
+  navigation.path = '/loans';
   navigation.replace.mockClear();
   transport.mockReset();
   transport.mockImplementation(async (input, options) => {
@@ -302,7 +302,7 @@ it('blocks ADMIN from opening user management without USER_VIEW', async () => {
       <UsersPage />
     </AuthenticatedWorkspace>,
   );
-  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'));
+  await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/loans'));
   expect(screen.queryByRole('heading', { name: 'ผู้ใช้งาน' })).toBeNull();
   expect(transport.mock.calls.some(([path]) => String(path).startsWith('/api/admin/users'))).toBe(
     false,
@@ -527,8 +527,7 @@ it('shows pending requests by default, optionally shows completed requests, hide
   expect(screen.getByText('Pending Monitor')).toBeTruthy();
 });
 it('derives landing pages and permissions from server-issued grants', () => {
-  expect(defaultWorkspacePath(makeUser('staff'))).toBe('/loans');
-  expect(defaultWorkspacePath(makeUser('owner', 'SUPER_ADMIN'))).toBe('/dashboard');
+  expect(defaultWorkspacePath()).toBe('/loans');
   expect(canAccess(makeUser('staff'), 'USER_MANAGE')).toBe(false);
 });
 it('does not restore revoked capabilities from stale or overbroad cached grants', () => {

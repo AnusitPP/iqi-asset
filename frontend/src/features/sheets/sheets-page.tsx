@@ -14,10 +14,9 @@ export function SheetsPage() {
     queryFn: ({ signal }) => systemService.fetchConnectionStatus(api, signal),
     enabled: can('ADMIN_DASHBOARD_VIEW'),
   });
-  const links = [
-    { label: 'ชีตรอตรวจสอบ', url: status.data?.reviewUrl },
-    { label: 'ชีต IT + IQI', url: status.data?.iqiItUrl },
-  ].filter((link) => link.url);
+  const links = [{ label: 'ไฟล์ข้อมูลยืม–คืนครุภัณฑ์', url: status.data?.spreadsheetUrl }].filter(
+    (link) => link.url,
+  );
 
   return (
     <Box component="section">

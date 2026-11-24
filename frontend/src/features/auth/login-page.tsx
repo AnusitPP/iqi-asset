@@ -25,7 +25,7 @@ export function LoginPage() {
       );
   }, []);
   useEffect(() => {
-    if (auth.authenticated) router.replace(defaultWorkspacePath(auth.user));
+    if (auth.authenticated) router.replace(defaultWorkspacePath());
   }, [auth.authenticated, auth.user, router]);
   if (loginError) return <ErrorRecoveryScreen message={loginError} />;
   if (auth.loading || auth.authenticated) return <InitialLoadingScreen />;

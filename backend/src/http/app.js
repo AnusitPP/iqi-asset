@@ -1,5 +1,4 @@
 import { registerUserRoutes } from '../features/users/routes.js';
-import { registerPordDatabaseRoutes } from '../features/porddatabase/routes.js';
 import { protectApi } from '../features/auth/middleware/protect-api.js';
 import { registerAuditRoutes } from '../features/audit/routes.js';
 import { configureRequestSecurity } from '../core/http/security.js';
@@ -14,10 +13,6 @@ import { CatalogEditor } from '../features/catalog/service.js';
 import { registerLoansRoutes } from '../features/loans/routes.js';
 import { createStaffNicknameReader } from '../features/loans/staff-nicknames.js';
 import { registerReturnsRoutes } from '../features/returns/routes.js';
-import { registerDashboardRoutes } from '../features/dashboard/routes.js';
-import { registerPhotosRoutes } from '../features/photos/routes.js';
-import { registerRecordsRoutes } from '../features/records/routes.js';
-import { registerReviewRoutes } from '../features/review/routes.js';
 import {
   safeMessage,
   logError,
@@ -27,12 +22,10 @@ import {
 import express from 'express';
 import { randomBytes, randomUUID, createHmac } from 'node:crypto';
 import { createAuth } from '../features/auth/middleware.js';
-import { DashboardEditor } from '../features/dashboard/editor.js';
 import { LendingLedger } from '../core/lending/ledger.js';
 import { LoanRequestService } from '../features/loans/service.js';
 import { ReturnRequestService } from '../features/returns/service.js';
 import { PhotoStore } from '../integrations/google/photoStorage.js';
-import { DashboardPhotos } from '../features/photos/service.js';
 import { registerMailRoutes } from '../features/mail/routes.js';
 import { registerMailCron } from '../features/mail/cron.js';
 export { safeMessage as friendlyError } from '../core/errors/errors.js';
@@ -52,15 +45,14 @@ export function createApp(service, config) {
     : randomBytes(32).toString('hex');
   const maxUploadBytes = config.maxUploadBytes || 4 * 1024 * 1024;
   if (config.hosted) app.set('trust proxy', 1);
-  const dashboardEditor = new DashboardEditor(service.adapter);
-  const photos = new DashboardPhotos(service.adapter, new PhotoStore(config), dashboardEditor);
-  const catalogEditor = new CatalogEditor(lendingLedger, photos.store);
+  const photoStore = new PhotoStore(config);
+  const catalogEditor = new CatalogEditor(lendingLedger, photoStore);
   const notifyRequest =
     config.notifyRequest ??
     ((ledger, kind, result) =>
       devActivityEnabled(config)
         ? Promise.resolve('skipped')
-        : sendRequestNotification(ledger, kind, result, { photoStore: photos.store }));
+        : sendRequestNotification(ledger, kind, result, { photoStore }));
   configureRequestSecurity(app, config, csrf);
   // Only catalog images already shared publicly in Drive can be fetched by Chat.
   registerPublicCatalogPhotoRoute(app, { catalogEditor });
@@ -97,28 +89,19 @@ export function createApp(service, config) {
     lendingLedger,
     notifyRequest,
   });
-  registerDashboardRoutes(app, { dashboardEditor, service });
-  registerPordDatabaseRoutes(app, {
-    adapter: service.adapter,
-    photoStore: config.photoFolderId ? photos.store : undefined,
-  });
-  registerPhotosRoutes(app, { photos, maxUploadBytes });
   app.get('/api/status', async (req, res, next) => {
     try {
       await service.adapter.initialize();
       res.json({
         connected: true,
         sheets: config.sheets,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${encodeURIComponent(config.spreadsheetId)}/edit`,
         csrf,
-        reviewUrl: service.adapter.reviewQueue?.url || null,
-        iqiItUrl: service.adapter.iqiItQueue?.url || null,
       });
     } catch (e) {
       next(e);
     }
   });
-  registerRecordsRoutes(app, { service });
-  registerReviewRoutes(app, { service });
   app.use('/api', (req, res) =>
     res.status(404).json({ error: 'ไม่พบ API นี้ — บันทึกได้เฉพาะ IQI' }),
   );

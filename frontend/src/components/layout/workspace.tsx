@@ -3,9 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AppShell, Burger, Container, Drawer, Group, Anchor } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/features/auth/auth-provider';
-import { systemService } from '@/services/system.service';
 import { useHasUnsavedChanges } from '@/hooks/use-unsaved';
 import { useWorkspaceState } from '@/hooks/use-workspace-state';
 import { InitialLoadingScreen } from '@/components/ui/feedback';
@@ -33,17 +31,11 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
   const currentPage = findPortalService(path);
   const activeModule = findPortalModule(path);
   const allowed = !currentPage || isServiceAllowed(currentPage, auth.can);
-  const canReadStatus = auth.authenticated && auth.can('ASSET_VIEW');
-  const status = useQuery({
-    queryKey: ['connection'],
-    queryFn: ({ signal }) => systemService.fetchConnectionStatus(auth.api, signal),
-    enabled: canReadStatus,
-  });
   useEffect(() => {
     if (!auth.loading && !auth.authenticated && !auth.error) router.replace('/login');
   }, [auth.loading, auth.authenticated, auth.error, router]);
   useEffect(() => {
-    if (auth.authenticated && !allowed) router.replace(defaultWorkspacePath(auth.user));
+    if (auth.authenticated && !allowed) router.replace(defaultWorkspacePath());
   }, [auth.authenticated, auth.user, allowed, router]);
   useEffect(() => {
     if (desktop) setMenuOpen(false);
@@ -124,10 +116,6 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
               />
             </Group>
             <ErrorPopup error={error} />
-            <ErrorPopup
-              error={canReadStatus ? status.error : null}
-              onRefresh={() => status.refetch()}
-            />
             {children}
           </Container>
         </AppShell.Main>

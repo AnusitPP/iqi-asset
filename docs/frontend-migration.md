@@ -1,3 +1,5 @@
+> หน้า Assets, PORDDATABASE และ Dashboard ถูกถอดออกแล้ว ข้อความ workflow เก่าด้านล่างใช้เป็นประวัติเท่านั้น
+
 # Next.js migration and feature parity
 
 The application uses Next.js with Google identity, Sheet-backed sessions and role-based access. The archived Vanilla frontend and password login have been removed; regression tests cover the current React implementation.
@@ -6,10 +8,6 @@ The application uses Next.js with Google identity, Sheet-backed sessions and rol
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Google Login, profile/avatar, logout                                        | `features/auth`, `components/ui/user-avatar.tsx`, `/api/auth/google`, `/api/auth/me`, `/api/auth/logout`         |
 | Role-based menu and edit controls                                           | `components/layout/workspace.tsx`, server-issued permissions; Express authorization unchanged                    |
-| Asset search, pending filter, grouped results, details/editing              | `features/assets`; shared labels/dates/revisions retained                                                        |
-| Review selection and inspection                                             | `features/assets`, `features/inspections`; writes hidden for users without ASSET_EDIT                            |
-| Dashboard statistics/comparison/team/search filters                         | `features/dashboard`; collapse controls and progress retained                                                    |
-| Individual/bulk saves and team/notes editing                                | `features/dashboard`; sequential revisions, stale drafts and cancellation retained                               |
 | Drive gallery, image preparation, upload limits/progress                    | `features/photos`; original backend transport retained                                                           |
 | Loan and return forms, catalog selection, seven calendar days               | `features/loans`, `features/returns`, `features/lending`; borrower is populated/read-only from signed-in profile |
 | My requests                                                                 | `features/my-requests`, existing `/api/my-requests`                                                              |

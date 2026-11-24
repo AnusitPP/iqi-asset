@@ -1,38 +1,13 @@
 import { config } from './src/core/config/config.js';
 import { logError } from './src/core/errors/errors.js';
 import { lanAddresses } from './src/core/network/addresses.js';
-import { reviewKey } from './src/features/review/queue.js';
 
 import { adapter, app } from './src/runtime.js';
 
 try {
   await adapter.initialize();
 
-  if (await adapter.ensureSearchStatusColumn()) {
-    console.log('Added IQI column: สถานะการค้นหา');
-  }
-
-  if (await adapter.ensureReviewSheet()) {
-    console.log('Prepared sheet: รอตรวจสอบ');
-  }
-
-  const tables = await adapter.read();
-  const status = tables[0].headers.indexOf('สถานะการค้นหา');
-
-  const queued = new Set((await adapter.readReviewQueues()).entries.map((e) => e.key));
-
-  for (const record of tables[0].records.filter(
-    (r) => r.values[status] === 'รอค้นหา' && !queued.has(reviewKey(tables[0], r)),
-  )) {
-    await adapter.setReviewSelection(tables[0], record, true);
-  }
-
-  console.log(
-    'Google Sheets connected:',
-    tables
-      .map((t) => `${t.sheet} (${t.records.length} rows / ${t.headers.length} columns)`)
-      .join(', '),
-  );
+  console.log('Google Sheets connected:', config.sheets.join(', '));
 } catch (error) {
   logError(error, 'local startup');
 }

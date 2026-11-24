@@ -2,10 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ApiClient } from '../src/lib/api-client';
 import { preserveUnchangedAssetValues } from '../src/lib/display';
-import {
-  saveStatusDraftsSequentially,
-  type StatusDraft,
-} from '../src/features/dashboard/save-drafts';
 
 describe('frontend data and transport regressions', () => {
   it('keeps untouched CRLF and bare-CR values when other fields are edited', () => {
@@ -16,27 +12,6 @@ describe('frontend data and transport regressions', () => {
         ['Formula result\nsecond line', 'new note', 'unchanged\nvalue'],
       ),
     ).toEqual(['Formula result\r\nsecond line', 'new note', 'unchanged\rvalue']);
-  });
-  it('preserves newer edits while stopping a stale bulk save', async () => {
-    const drafts = new Map<number, StatusDraft>([
-      [2, { status: 'ดี', revision: 'a' }],
-      [3, { status: 'ดี', revision: 'b' }],
-    ]);
-    let current = true;
-    const newer = { status: 'ชำรุด', revision: 'new' };
-    const result = await saveStatusDraftsSequentially(
-      drafts,
-      async () => {
-        drafts.set(2, newer);
-        current = false;
-        return {};
-      },
-      undefined,
-      () => current,
-    );
-    expect(result.saved).toHaveLength(1);
-    expect(drafts.get(2)).toBe(newer);
-    expect(drafts.has(3)).toBe(true);
   });
   it('handles platform HTML/text, incomplete JSON, 413 and typed JSON success', async () => {
     const invoke = (response: Response) =>

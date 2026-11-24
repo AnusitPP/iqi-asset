@@ -20,4 +20,4 @@ See [deployment settings](../docs/vercel-deployment.md) and [feature parity](../
 
 Google Login uses `/api/auth/google` and `/api/auth/me`. For separate local servers set `APP_URL=http://localhost:3000` and `FRONTEND_URL=http://localhost:3001` in root `.env`. Register `http://localhost:3000/api/auth/google/callback` in Google OAuth. The callback runs on Express and then redirects to Next.js. Keep the existing authentication workbook, bootstrap account and server credentials. The frontend only receives the public profile and permissions.
 
-Routes: assets, dashboard, loans, returns, my-requests, users and audit. Menus and editing follow server-issued permissions. The borrower name is populated from the signed-in user. Existing hosted loan/return writes remain restricted by the backend.
+Routes: /, loans, returns, my-requests, users and audit. Assets and Dashboard have been retired. Menus and editing follow server-issued permissions. The borrower name is populated from the signed-in user. Existing hosted loan/return writes remain restricted by the backend.

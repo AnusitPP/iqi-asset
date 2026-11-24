@@ -1,3 +1,4 @@
+import { LENDING_SHEETS } from '../lending/schema.js';
 import { applicationOrigin } from './app-url.js';
 import { resolveProjectFile } from './paths.js';
 import {
@@ -49,17 +50,9 @@ export function loadConfig(env = process.env) {
     keyFile: resolveProjectFile(
       env.GOOGLE_SERVICE_ACCOUNT_FILE || 'credentials/service-account.json',
     ),
-    sheets: [
-      env.SHEET_IQI || 'IQI',
-      env.SHEET_ALL_ITEMS || 'รายการทั้งหมด',
-      env.SHEET_ALL || 'all',
-    ],
-    dateHeader: env.IQI_DATE_HEADER || '',
-    dateMode: env.IQI_DATE_MODE || 'date',
+    sheets: [...LENDING_SHEETS],
     disabled_menu: env.DISABLED_MENU === 'true',
   };
-  if (new Set(config.sheets).size !== 3)
-    throw configurationError('ชื่อ Sheet ทั้งสามต้องไม่ซ้ำกัน');
 
   return config;
 }

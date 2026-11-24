@@ -1,7 +1,4 @@
 import {
-  Home,
-  LayoutDashboard,
-  ClipboardCheck,
   Package,
   PackageOpen,
   RotateCcw,
@@ -31,44 +28,7 @@ export type PortalModule = {
   tone: 'green' | 'blue' | 'violet' | 'amber';
   services: readonly PortalService[];
 };
-export const homeService: PortalService = {
-  id: 'home',
-  label: 'หน้าหลัก',
-  href: '/',
-  icon: Home,
-  permission: 'PORTAL_HOME_VIEW',
-};
 export const portalModules: readonly PortalModule[] = [
-  {
-    id: 'overview',
-    title: 'ภาพรวม',
-    description: 'ติดตามภาพรวมและสถานะการใช้งาน',
-    icon: LayoutDashboard,
-    tone: 'green',
-    services: [
-      {
-        id: 'porddatabase',
-        label: 'PORDDATABASE',
-        href: '/porddatabase',
-        icon: ListChecks,
-        permission: 'ADMIN_DASHBOARD_VIEW',
-      },
-      {
-        id: 'dashboard',
-        label: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutDashboard,
-        permission: 'ADMIN_DASHBOARD_VIEW',
-      },
-      {
-        id: 'inspection',
-        label: 'ตรวจเช็คครุภัณฑ์',
-        href: '/assets',
-        icon: ClipboardCheck,
-        permission: 'ASSET_VIEW',
-      },
-    ],
-  },
   {
     id: 'assets',
     title: 'ครุภัณฑ์และวัสดุ',
@@ -209,10 +169,7 @@ export const accountModule: PortalModule = {
   ],
 };
 export const sidebarModules = [...portalModules, accountModule];
-export const allPortalServices = [
-  homeService,
-  ...sidebarModules.flatMap((module) => module.services),
-];
+export const allPortalServices = [...sidebarModules.flatMap((module) => module.services)];
 export function findPortalService(path: string) {
   return allPortalServices.find(
     (service) =>

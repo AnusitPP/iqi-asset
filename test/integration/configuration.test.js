@@ -127,11 +127,6 @@ test('local server is API-only with mocked Google setup and no cloud writes', ()
   const script = `
     import { adapter, app } from ${JSON.stringify(runtime)};
     adapter.initialize = async () => {};
-    adapter.ensureSearchStatusColumn = async () => false;
-    adapter.ensureReviewSheet = async () => false;
-    adapter.read = async () => [{ sheet: 'IQI', headers: ['สถานะการค้นหา'], records: [] }];
-    adapter.readReviewQueues = async () => ({ entries: [] });
-    adapter.setReviewSelection = async () => { throw new Error('Cloud write must not run'); };
     let server;
     const listen = app.listen.bind(app);
     app.listen = (...args) => { server = listen(...args); return server; };

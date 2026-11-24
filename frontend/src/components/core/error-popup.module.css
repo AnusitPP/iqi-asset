@@ -1,0 +1,28 @@
+.content {
+  background: radial-gradient(ellipse at center, #fff 45%, #f5f5f5 100%);
+}
+
+.header {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.body {
+  padding: 20px 28px 24px;
+}
+
+.message {
+  color: #363636;
+  overflow-wrap: anywhere;
+}
+
+.refresh {
+  min-width: 114px;
+  background: #ffbf00;
+  color: #302b16;
+}
+
+.refresh:hover {
+  background: #edb200;
+}

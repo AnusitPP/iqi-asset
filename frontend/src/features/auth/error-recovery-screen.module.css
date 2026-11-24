@@ -38,7 +38,8 @@
   gap: 12px;
   margin-top: 24px;
 }
-.actions button {
+.actions a {
+  text-decoration: none;
   font: inherit;
   border: 1px solid #cbd2d9;
   border-radius: 12px;
@@ -52,11 +53,7 @@
   border-color: #ffbf00;
   font-weight: 700;
 }
-.actions button:focus-visible {
+.actions a:focus-visible {
   outline: 3px solid #315a8e;
   outline-offset: 3px;
-}
-.actions button:disabled {
-  cursor: wait;
-  opacity: 0.6;
 }

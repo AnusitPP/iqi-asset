@@ -2,78 +2,45 @@ import { testSession } from '../helpers/session.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../backend/src/http/app.js';
-import { Records } from '../../backend/src/features/records/service.js';
-import { parseSheet } from '../../backend/src/features/records/search.js';
-test('HTTP API protects secrets, rejects writes outside IQI, and reports failures', async () => {
-  const config = { sheets: ['IQI', 'รายการทั้งหมด', 'all'], host: '0.0.0.0' };
-  let writeCount = 0,
-    failWrite = false;
+
+test('removed inspection APIs stay unavailable and never access their data', async (t) => {
+  const fixture = await testSession({ host: '127.0.0.1', sheets: ['IQI', 'items', 'all'] });
   const adapter = {
     initialize: async () => {},
-    read: async (names = config.sheets) =>
-      names.map((n) =>
-        parseSheet(n, [
-          ['เลขครุภัณฑ์', 'หมายเหตุ'],
-          ['207-007', 'original'],
-        ]),
-      ),
-    writeIQI: async () => {
-      writeCount++;
-      if (failWrite) throw new Error('network unavailable');
+    read: async () => {
+      throw new Error('Removed feature read');
     },
   };
-  const authFixture = await testSession(config);
-  const app = createApp(new Records(adapter, config), authFixture.config);
-  const server = app.listen(0, '127.0.0.1');
-  await new Promise((r) => server.once('listening', r));
+  const server = createApp({ adapter }, fixture.config).listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
-  let cookie = '';
-  const fetch = (url, options = {}) =>
-    globalThis.fetch(url, { ...options, headers: { Cookie: cookie, ...options.headers } });
-  try {
-    cookie = authFixture.cookie;
-    const status = await fetch(base + '/api/status').then((r) => r.json());
-    const record = await fetch(base + '/api/record?sheet=IQI&row=2').then((r) => r.json());
-    const put = (body, headers = {}) =>
-      fetch(base + '/api/iqi/2', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-IQI-Request': status.csrf, ...headers },
-        body: JSON.stringify(body),
-      });
+  const headers = {
+    Cookie: fixture.cookie,
+    'X-IQI-Request': fixture.csrf,
+    'Content-Type': 'application/json',
+  };
+  const status = await fetch(`${base}/api/status`, { headers }).then((res) => res.json());
+  headers['X-IQI-Request'] = status.csrf;
+  for (const path of [
+    '/api/search?q=asset',
+    '/api/record?sheet=IQI&row=2',
+    '/api/review-inspection',
+    '/api/dashboard',
+  ])
+    assert.equal((await fetch(base + path, { headers })).status, 404, path);
+  for (const path of [
+    '/api/iqi/2',
+    '/api/iqi/2/search-status',
+    '/api/review-selection',
+    '/api/review-inspection',
+    '/api/dashboard/2/status',
+  ])
     assert.equal(
-      (await put({ sheet: 'all', values: record.values, revision: record.revision })).status,
-      403,
+      (await fetch(base + path, { method: 'PUT', headers, body: '{}' })).status,
+      404,
+      path,
     );
-    assert.equal(
-      (await put({ values: record.values, revision: record.revision }, { 'X-IQI-Request': 'bad' }))
-        .status,
-      403,
-    );
-    assert.equal(
-      (
-        await put(
-          { values: record.values, revision: record.revision },
-          { Origin: 'https://other.example' },
-        )
-      ).status,
-      403,
-    );
-    assert.equal(writeCount, 0);
-    for (const path of [
-      '/credentials/service-account.json',
-      '/.env',
-      '/package.json',
-      '/src/config.js',
-      '/backend/src/config/config.js',
-    ])
-      assert.equal((await fetch(base + path)).status, 404);
-    assert.equal((await fetch(base + '/api/record?sheet=all&row=0')).status, 400);
-    assert.equal((await fetch(base + '/api/search?q=')).status, 400);
-    failWrite = true;
-    const response = await put({ values: ['207-007', 'new note'], revision: record.revision });
-    assert.equal(response.status, 500);
-    assert.ok((await response.json()).error);
-  } finally {
-    await new Promise((r) => server.close(r));
-  }
+  for (const path of ['/credentials/service-account.json', '/.env', '/package.json'])
+    assert.equal((await fetch(base + path)).status, 404);
 });

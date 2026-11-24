@@ -5,12 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { myRequestsSchema } from '@/types/account';
 import { pendingRequestCounts } from '@/features/my-requests/pending-counts';
 import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import {
-  homeService,
-  sidebarModules,
-  isServiceAllowed,
-  type PortalService,
-} from '@/config/navigation';
+import { sidebarModules, isServiceAllowed, type PortalService } from '@/config/navigation';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { defaultWorkspacePath } from '@/types/account';
@@ -111,7 +106,7 @@ export function AppSidebar({
       <Box className="portal-sidebar-brand-row">
         <Anchor
           component={Link}
-          href={isServiceAllowed(homeService, can) ? '/' : defaultWorkspacePath(user)}
+          href={defaultWorkspacePath()}
           className="portal-brand"
           onClick={navigate}
           aria-label="Asset Checker หน้าหลัก"
@@ -150,9 +145,6 @@ export function AppSidebar({
         aria-label="หน้าข้อมูล"
         id={mobile ? 'portal-mobile-navigation' : 'portal-desktop-navigation'}
       >
-        {isServiceAllowed(homeService, can) && (
-          <SidebarItem service={homeService} path={path} collapsed={collapsed} />
-        )}
         {sidebarModules.map((module) => {
           const services = module.services.filter((service) => isServiceAllowed(service, can));
           if (!services.length) return null;

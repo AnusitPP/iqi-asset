@@ -64,7 +64,6 @@ test('three roles enforce page-related API access while staff can borrow, return
     ['/api/return-catalog', 200, 200, 200],
     ['/api/my-requests', 200, 200, 200],
     ['/api/status', 403, 200, 200],
-    ['/api/dashboard', 403, 200, 200],
     ['/api/loans', 403, 200, 200],
     ['/api/admin/users', 403, 200, 200],
     ['/api/audit', 403, 403, 200],

@@ -12,8 +12,6 @@ frontend/
     features/
       auth/                 Google Login, session profile, logout
       assets/               ค้นหา/แก้ไขครุภัณฑ์
-      dashboard/            สถิติ, filters, bulk status, รายละเอียด
-      inspections/          บันทึกผลตรวจ
       photos/               gallery, preview, resize และ upload
       lending/              catalog, form shell และ draft/submit hook
       loans/                ฟอร์มยืม
@@ -31,13 +29,13 @@ frontend/
   vercel.json               config deploy เดียว
 ```
 
-Routes: `/login`, `/assets`, `/dashboard`, `/loans`, `/returns`, `/my-requests`, `/users`, `/audit` หลัง Google callback staff ไปหน้าค้นหา ส่วนผู้มีสิทธิ์ Dashboard ไป Dashboard เมนูและปุ่มแก้ไขตรวจจาก permissions ของ `/api/auth/me` แต่ backend ยังเป็นผู้ตรวจ authorization ทุก request
+Routes: `/login`, `/`, `/loans`, `/returns`, `/my-requests`, `/users`, `/audit` หลังล็อกอินทุกบทบาทไป `/loans` โดย `/` ส่งต่อไป `/loans` โดย backend ตรวจ authorization ทุก request
 
 `frontend/src/pages/api/[[...path]].ts` ส่ง Node HTTP request เข้า `api/index.js` ซึ่งโหลด `backend/src/runtime.js` ตามเดิม ไม่มี business logic ซ้ำ Local development ใช้ Next proxy ไป Express :3000 โดยปฏิเสธ browser Origin ต่างเว็บ ส่วน Vercel ใช้ Express ใน Next API function เดียวกัน
 
 ## Backend และ shared
 
-- `backend/src/features/`: records, dashboard, review, photos, loans, returns, catalog, Google auth, users และ audit
+- `backend/src/features/`: records/review helpers ที่ยังใช้ร่วมกับชีต, photos, loans, returns, catalog, Google auth, users และ audit
 - `backend/src/core/`: config, security/CSRF, signed revisions, state และ lending ledger
 - `backend/src/integrations/google/`: Google Sheets/Drive/OAuth และ auth storage
 - `shared/`: dates, labels, catalog, lending constants, permissions และ profile URL validation
