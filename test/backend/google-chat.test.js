@@ -72,7 +72,11 @@ test('loan and return status changes never send Chat notifications', async () =>
     let response;
     await handler(
       {
-        user: { role: 'ADMIN', name: 'Admin' },
+        user: {
+          role: 'ADMIN',
+          name: 'Admin',
+          permissions: ['LOAN_VIEW_ALL', 'LOAN_APPROVE', 'RESPONSIBLE_ASSIGN'],
+        },
         params: { id },
         body: { kind, status: kind === 'คืน' ? 'เสร็จสิ้น' : 'ยกเลิก', condition: 'ดี' },
         authStorage: { write: async () => {} },

@@ -21,7 +21,7 @@ test('mockup renders every selection including empty without reading Sheets or s
       factory: forbidden,
     },
   );
-  const admin = { permissions: ['ADMIN_DASHBOARD_VIEW'] };
+  const admin = { permissions: ['MAIL_VIEW', 'MAIL_SEND'] };
   const invoke = async (user, groups) => {
     const res = {
       statusCode: 200,
@@ -83,7 +83,7 @@ test('mail preview protects ledger data and renders real HTML without SMTP', asy
       },
     },
   );
-  const admin = { permissions: ['ADMIN_DASHBOARD_VIEW'] };
+  const admin = { permissions: ['MAIL_VIEW', 'MAIL_SEND'] };
   for (const [user, type, expected] of [
     [undefined, 'summary', 401],
     [{ permissions: [] }, 'summary', 403],
@@ -158,7 +158,7 @@ test('manual mail separates configuration, Sheets and SMTP errors without exposi
     };
     await handler(
       {
-        user: { permissions: ['ADMIN_DASHBOARD_VIEW'] },
+        user: { permissions: ['MAIL_VIEW', 'MAIL_SEND'] },
         body: { email: 'recipient@example.com', type: 'summary' },
       },
       response,
@@ -213,7 +213,7 @@ test('manual mail enforces permissions and validates one recipient before readin
     await handler({ user, body }, response);
     return response;
   };
-  const admin = { permissions: ['ADMIN_DASHBOARD_VIEW'] };
+  const admin = { permissions: ['MAIL_VIEW', 'MAIL_SEND'] };
   assert.equal((await invoke(null, {})).statusCode, 401);
   assert.equal((await invoke({ permissions: ['LOAN_CREATE'] }, {})).statusCode, 403);
   for (const body of [

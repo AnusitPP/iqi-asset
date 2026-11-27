@@ -30,6 +30,7 @@ vi.mock('next/link', () => ({
     </a>
   ),
 }));
+const setPreviewRole = vi.fn();
 const auth: { role: AccountRole; permissions: string[] } = {
   role: 'SUPER_ADMIN',
   permissions: ['*'],
@@ -51,6 +52,7 @@ vi.mock('../src/features/auth/auth-provider', () => ({
     api,
     authenticated: true,
     user: currentUser(),
+    setPreviewRole: auth.role === 'SUPER_ADMIN' ? setPreviewRole : undefined,
     can: (permission: string) => canAccess(currentUser(), permission),
     loading: false,
     error: null,
@@ -71,6 +73,7 @@ const dashboard = {
 beforeEach(() => {
   navigation.path = '/';
   navigation.replace.mockClear();
+  setPreviewRole.mockClear();
   auth.role = 'SUPER_ADMIN';
   auth.permissions = permissionsForRole(auth.role);
   transport.mockReset();
@@ -262,4 +265,18 @@ it('has unique configured destinations and resolves existing inspection routes',
   expect(findPortalService('/assets')).toBeUndefined();
   expect(findPortalModule('/assets')).toBeUndefined();
   expect(findPortalService('/not-a-service')).toBeUndefined();
+});
+
+it('offers a role preview at the Super Admin profile', async () => {
+  render(portal(<p>content</p>, createClient()));
+  await userEvent.click(screen.getByRole('button', { name: 'มุมมองตาม Role' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'STAFF' }));
+  expect(setPreviewRole).toHaveBeenCalledWith('STAFF');
+});
+
+it.each(['ADMIN', 'STAFF'] as const)('hides the profile role preview for %s', (role) => {
+  auth.role = role;
+  auth.permissions = permissionsForRole(role);
+  render(portal(<p>content</p>, createClient()));
+  expect(screen.queryByRole('button', { name: 'มุมมองตาม Role' })).toBeNull();
 });

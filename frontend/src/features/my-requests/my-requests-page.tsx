@@ -128,7 +128,7 @@ export function MyRequestsPage({ approvals = false }: { approvals?: boolean }) {
             kind: requestKind,
             condition: conditions[id],
             adminComment: comment,
-            ...(details?.kind === 'ยืม' ? { pickupDate, pickupTime } : {}),
+            ...(details?.kind === 'ยืม' && can('LOAN_APPROVE') ? { pickupDate, pickupTime } : {}),
           },
         },
       ),

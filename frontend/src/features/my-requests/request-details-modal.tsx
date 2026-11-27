@@ -110,12 +110,11 @@ export function RequestDetailsModal({
           ) : (
             details.kind === 'ยืม' && <Text size="sm">{pickupLabel(details)}</Text>
           )}
-          {approvals && !details.statusLocked && (
+          {approvals && !details.statusLocked && (canApprove || can('LOAN_REJECT')) && (
             <RequestApprovalControls
               record={details}
               saving={saving}
               savingId={savingId}
-              canApprove={canApprove}
               updateError={updateError}
               summaryStatuses={summaryStatuses}
               drafts={drafts}
@@ -128,11 +127,11 @@ export function RequestDetailsModal({
               setComment={setComment}
               pickupDate={pickupDate}
               pickupTime={pickupTime}
-              pickupIncomplete={pickupIncomplete}
+              pickupIncomplete={canApprove && pickupIncomplete}
               onSave={onSave}
             />
           )}
-          {(!approvals || details.statusLocked) && (
+          {(!approvals || details.statusLocked || (!canApprove && !can('LOAN_REJECT'))) && (
             <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
               คอมเมนต์จากแอดมิน: {details.adminComment || '—'}
             </Text>

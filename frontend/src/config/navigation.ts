@@ -141,7 +141,7 @@ export const accountModule: PortalModule = {
       label: 'ส่งอีเมล',
       href: '/mail',
       icon: Mail,
-      permission: 'ADMIN_DASHBOARD_VIEW',
+      permission: 'MAIL_VIEW',
     },
     {
       id: 'my-requests',
@@ -158,13 +158,20 @@ export const accountModule: PortalModule = {
       permission: 'LOAN_VIEW_ALL',
     },
     { id: 'users', label: 'ผู้ใช้งาน', href: '/users', icon: UsersRound, permission: 'USER_VIEW' },
+    {
+      id: 'admin-permissions',
+      label: 'จัดการสิทธิ์แอดมิน',
+      href: '/admin-permissions',
+      icon: ShieldCheck,
+      permission: 'USER_MANAGE',
+    },
     { id: 'audit', label: 'Audit Log', href: '/audit', icon: History, permission: 'AUDIT_VIEW' },
     {
       id: 'sheets',
       label: 'ไฟล์ Google Sheets',
       href: '/sheets',
       icon: Files,
-      permission: 'ADMIN_DASHBOARD_VIEW',
+      permission: 'SHEETS_VIEW',
     },
   ],
 };

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { currentUser, publicUser, soleSuperAdminId } from '../auth/repositories/user.repository.js';
 import {
+  adminAccessList,
   hasPermission,
   ROLES,
   USER_STATUSES,
@@ -50,10 +51,14 @@ export class UserManagementService {
     return withLastActivity(user, tables);
   }
   async update(actor, id, field, value) {
+    if (field === 'permissions') {
+      value = adminAccessList(value);
+      if (!value) throwHttpError(400, 'รายการสิทธิ์ไม่ถูกต้อง');
+    }
     if (
       (field === 'role' && !ROLES.includes(value)) ||
       (field === 'status' && !USER_STATUSES.includes(value)) ||
-      !['role', 'status'].includes(field)
+      !['role', 'status', 'permissions'].includes(field)
     )
       throwHttpError(400, 'Role หรือ Status ไม่ถูกต้อง');
     const tables = await this.storage.read();
@@ -70,6 +75,29 @@ export class UserManagementService {
       ((field === 'role' && value !== 'SUPER_ADMIN') || (field === 'status' && value !== 'ACTIVE'))
     )
       throwHttpError(409, 'ไม่สามารถลดสิทธิ์หรือปิดบัญชี SUPER_ADMIN หลักได้');
+    if (field === 'permissions') {
+      if (before.role !== 'ADMIN') throwHttpError(409, 'กำหนดสิทธิ์ได้เฉพาะแอดมิน');
+      const previous = before.permissions;
+      const grants = tables.Admins.filter(
+        (grant) => grant.user_id === id && grant.status === 'ACTIVE',
+      );
+      await this.storage.write([
+        ...grants.map((grant) => ({
+          table: 'Admins',
+          row: grant.row,
+          values: { permissions: JSON.stringify(value), updated_at: new Date().toISOString() },
+        })),
+        auditEntry(
+          currentActor,
+          'USER_PERMISSIONS_CHANGED',
+          'User',
+          id,
+          { permissions: previous },
+          { permissions: value },
+        ),
+      ]);
+      return this.detail(id);
+    }
     if (before[field] === value) return withLastActivity(publicUser(before), tables);
     const now = new Date().toISOString();
     const operations = [];

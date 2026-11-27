@@ -1,3 +1,4 @@
+import { hasPermission } from '../../../shared/features/auth/permissions.js';
 import { registerSheetsRoutes } from '../features/sheets/routes.js';
 import { registerUserRoutes } from '../features/users/routes.js';
 import { protectApi } from '../features/auth/middleware/protect-api.js';
@@ -97,7 +98,9 @@ export function createApp(service, config) {
       res.json({
         connected: true,
         sheets: config.sheets,
-        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${encodeURIComponent(config.spreadsheetId)}/edit`,
+        ...(hasPermission(req.user, 'SHEETS_VIEW') && {
+          spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${encodeURIComponent(config.spreadsheetId)}/edit`,
+        }),
         csrf,
       });
     } catch (e) {

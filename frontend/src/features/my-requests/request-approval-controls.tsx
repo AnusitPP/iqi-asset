@@ -1,6 +1,8 @@
 'use client';
 import { Box, Button, Group, Select, Stack, Text, Textarea } from '@mantine/core';
 import { ClipboardCheck, MessageSquare, Save } from 'lucide-react';
+import { useAuthSession } from '@/features/auth/auth-provider';
+import { approvalPermission } from '@shared/features/auth/permissions.js';
 import { requestStatusPresentation } from '@shared/features/lending/status.js';
 import { ErrorPopup } from '@/components/core/error-popup';
 import styles from '@/components/core/request-details.module.css';
@@ -13,7 +15,6 @@ export function RequestApprovalControls({
   record,
   saving,
   savingId,
-  canApprove,
   updateError,
   summaryStatuses,
   drafts,
@@ -32,7 +33,6 @@ export function RequestApprovalControls({
   record: RequestRecord;
   saving: boolean;
   savingId?: string;
-  canApprove: boolean;
   updateError: unknown;
   summaryStatuses: string[];
   drafts: Record<string, string>;
@@ -48,6 +48,8 @@ export function RequestApprovalControls({
   pickupIncomplete: boolean;
   onSave: (id: string, status: string) => void;
 }) {
+  const { can } = useAuthSession();
+  const statuses = summaryStatuses.filter((status) => can(approvalPermission(status)));
   const status = drafts[record.id] ?? record.status;
   return (
     <Stack className={styles.controls}>
@@ -62,15 +64,15 @@ export function RequestApprovalControls({
           value={status}
           data={[
             ...new Set(
-              [
-                ...(record.status === 'กำลังดำเนินการ' ? [] : [record.status]),
-                ...summaryStatuses,
-              ].filter(Boolean),
+              [...(record.status === 'กำลังดำเนินการ' ? [] : [record.status]), ...statuses].filter(
+                Boolean,
+              ),
             ),
           ].map((value) => ({ value, label: requestStatusPresentation(value).label }))}
-          disabled={saving || !canApprove}
+          disabled={saving || !statuses.length}
           allowDeselect={false}
           onChange={(value) => {
+            if (!value || !can(approvalPermission(value))) return;
             setConditionError('');
             if (value) onDraftStatusChange(record.id, value);
           }}
@@ -104,7 +106,7 @@ export function RequestApprovalControls({
         minRows={2}
         autosize
         size="sm"
-        disabled={saving || !canApprove}
+        disabled={saving || !can(approvalPermission(status))}
       />
       <ErrorPopup error={updateError} />
       <Group justify="flex-end" className={styles.footer}>
@@ -119,7 +121,7 @@ export function RequestApprovalControls({
               pickupTime === record.pickupTime) ||
             saving ||
             (record.kind === 'ยืม' && pickupIncomplete) ||
-            !canApprove
+            !can(approvalPermission(status))
           }
           loading={saving && savingId === record.id}
           onClick={() => {

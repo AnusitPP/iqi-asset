@@ -8,6 +8,15 @@ export function userManagementController(config) {
       res.json({
         user: await service(req).update(req.user, req.params.id, 'role', req.body?.role),
       }),
+    permissions: async (req, res) =>
+      res.json({
+        user: await service(req).update(
+          req.user,
+          req.params.id,
+          'permissions',
+          req.body?.permissions,
+        ),
+      }),
     status: async (req, res) =>
       res.json({
         user: await service(req).update(req.user, req.params.id, 'status', req.body?.status),

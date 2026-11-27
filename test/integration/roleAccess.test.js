@@ -38,7 +38,12 @@ test('three roles enforce page-related API access while staff can borrow, return
     ['เลขครุภัณฑ์', 'S/N', 'ชื่ออุปกรณ์'],
     ['A1', 'S1', 'Mouse'],
   ];
+  const writes = [];
+  const reportRow = ['A1', 'Mouse'];
   const adapter = {
+    readAssetReportExport: async () => [['เลขครุภัณฑ์', 'ชื่ออุปกรณ์'], reportRow],
+    appendAssetReportEntry: async () => writes.push('add'),
+    trashAssetReportEntry: async () => writes.push('trash'),
     initialize: async () => {},
     readReadyToBorrow: async () => structuredClone(catalog),
     readLoanSheets: async () => structuredClone(ledger),
@@ -162,4 +167,100 @@ test('three roles enforce page-related API access while staff can borrow, return
   );
   assert.equal(own.records.length, 2);
   assert.equal(others.records.length, 0);
+
+  const request = (role, path, method = 'GET', body, extraHeaders = {}) =>
+    fetch(base + path, {
+      method,
+      headers: {
+        ...headers(role),
+        'Content-Type': 'application/json',
+        'X-IQI-Request': adminMe.csrf,
+        ...extraHeaders,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  const permissionsUrl = '/api/admin/users/' + adminId + '/permissions';
+  const report = '/api/sheets/asset-report';
+  const add = { assetNumber: 'A2', name: 'Monitor', updatedAt: '2026-11-26T10:00' };
+  const trash = { row: 2, values: reportRow };
+  assert.equal((await request('admin', report)).status, 200);
+  assert.equal((await request('admin', report + '/export?format=csv')).status, 200);
+  assert.equal((await request('admin', report, 'POST', add)).status, 403);
+  assert.equal((await request('admin', report + '/trash', 'POST', trash)).status, 403);
+  assert.equal((await request('admin', permissionsUrl, 'PATCH', { permissions: [] })).status, 403);
+  assert.equal(
+    (await request('owner', permissionsUrl, 'PATCH', { permissions: ['USER_MANAGE'] })).status,
+    400,
+  );
+
+  const patch = (permissions) => request('owner', permissionsUrl, 'PATCH', { permissions });
+  assert.equal(
+    (await patch(['SHEETS_VIEW', 'SHEETS_ADD', 'MAIL_VIEW', 'LOAN_VIEW_ALL'])).status,
+    200,
+  );
+  assert.equal((await request('admin', report)).status, 200);
+  assert.equal((await request('admin', report + '/export?format=csv')).status, 403);
+  assert.equal((await request('admin', report, 'POST', add)).status, 201);
+  assert.equal((await request('admin', report + '/trash', 'POST', trash)).status, 403);
+  assert.equal((await request('admin', '/api/mail/send', 'POST', {})).status, 403);
+  assert.equal((await request('admin', '/api/mail/mockup', 'POST', { groups: [] })).status, 200);
+  assert.equal((await request('admin', '/api/admin/users')).status, 403);
+  assert.equal((await request('admin', '/api/approval-requests')).status, 200);
+  assert.equal(
+    (
+      await request('admin', '/api/approval-requests/' + ledger.loans[1][0], 'PATCH', {
+        status: 'ไม่อนุมัติ',
+      })
+    ).status,
+    403,
+  );
+
+  assert.equal((await patch(['SHEETS_VIEW', 'SHEETS_TRASH'])).status, 200);
+  assert.equal((await request('admin', report + '/trash', 'POST', trash)).status, 200);
+  assert.equal((await request('admin', report, 'POST', add)).status, 403);
+  assert.equal((await request('admin', '/api/approval-requests')).status, 403);
+  assert.equal((await patch(['SHEETS_TRASH'])).status, 200);
+  assert.equal((await request('admin', '/API/SHEETS/asset-report/')).status, 403);
+  assert.equal((await request('admin', report + '/trash', 'POST', trash)).status, 403);
+  assert.equal(
+    (await request('admin', '/api/status').then((response) => response.json())).spreadsheetUrl,
+    undefined,
+  );
+  assert.deepEqual(writes, ['add', 'trash']);
+  assert.equal(
+    storage.tables.AuditLogs.filter(({ action }) => action === 'USER_PERMISSIONS_CHANGED').length,
+    3,
+  );
+
+  for (const [role, previewRole, path, status] of [
+    ['owner', 'STAFF', report, 403],
+    ['owner', 'STAFF', '/api/loan-catalog', 200],
+    ['owner', 'ADMIN', report, 200],
+    ['owner', 'ADMIN', '/api/audit', 403],
+    ['admin', 'STAFF', '/api/loan-catalog', 403],
+    ['owner', 'SUPER_ADMIN', report, 403],
+  ]) {
+    assert.equal(
+      (await request(role, path, 'GET', undefined, { 'X-IQI-Preview-Role': previewRole })).status,
+      status,
+    );
+  }
+  assert.equal(
+    (
+      await request(
+        'owner',
+        permissionsUrl,
+        'PATCH',
+        { permissions: [] },
+        { 'X-IQI-Preview-Role': 'ADMIN' },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await request('owner', report, 'POST', add, { 'X-IQI-Preview-Role': 'ADMIN' })).status,
+    403,
+  );
+  assert.equal((await request('owner', '/api/audit')).status, 200);
+  assert.deepEqual(writes, ['add', 'trash']);
 });

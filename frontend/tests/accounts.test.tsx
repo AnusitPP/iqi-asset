@@ -14,6 +14,7 @@ import {
   defaultWorkspacePath,
   type AccountUser,
 } from '../src/types/account';
+import { AdminPermissionsPage } from '../src/features/users/admin-permissions-page';
 import { UsersPage } from '../src/features/users/users-page';
 import { AuditPage } from '../src/features/audit/audit-page';
 import { MyRequestsPage } from '../src/features/my-requests/my-requests-page';
@@ -104,6 +105,8 @@ beforeEach(() => {
       if (!user) return Response.json({ error: 'ไม่พบผู้ใช้' }, { status: 404 });
       if (options?.method === 'PATCH') {
         const body: unknown = JSON.parse(String(options.body));
+        if (parts[5] === 'permissions')
+          user.permissions = (body as { permissions: string[] }).permissions;
         if (parts[5] === 'role') user.role = roleSchema.parse((body as { role: unknown }).role);
         if (parts[5] === 'status')
           user.status = userStatusSchema.parse((body as { status: unknown }).status);
@@ -544,4 +547,27 @@ it('does not restore revoked capabilities from stale or overbroad cached grants'
   expect(canAccess(staleAdmin, 'USER_MANAGE')).toBe(false);
   expect(canAccess(staleAdmin, 'USER_VIEW')).toBe(true);
   expect(canAccess(staleAdmin, 'PORTAL_HOME_VIEW')).toBe(true);
+});
+
+it('lets only the Super Admin save page and action permissions for one admin', async () => {
+  users.push(makeUser('admin', 'ADMIN'));
+  mount(<AdminPermissionsPage />);
+  const picker = await screen.findByRole('combobox', { name: 'แอดมิน' });
+  await userEvent.click(picker);
+  await userEvent.click(await screen.findByRole('option', { name: /admin@example/ }));
+  const sheets = within(screen.getByRole('group', { name: 'ไฟล์ Google Sheets' }));
+  const mail = within(screen.getByRole('group', { name: 'ส่งอีเมล' }));
+  expect(sheets.getByRole('checkbox', { name: 'เพิ่มรายการ' })).toHaveProperty('checked', false);
+  expect(sheets.getByRole('checkbox', { name: 'ย้ายรายการไปถังขยะ' })).toHaveProperty(
+    'checked',
+    false,
+  );
+  await userEvent.click(sheets.getByRole('checkbox', { name: 'เพิ่มรายการ' }));
+  await userEvent.click(mail.getByRole('checkbox', { name: 'เข้าหน้า' }));
+  expect(mail.getByRole('checkbox', { name: 'ส่งอีเมล' })).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('button', { name: 'บันทึกสิทธิ์' }));
+  expect(await screen.findByText('บันทึกสิทธิ์แล้ว')).toBeTruthy();
+  expect(users.find((user) => user.id === 'admin')?.permissions).toContain('SHEETS_ADD');
+  expect(users.find((user) => user.id === 'admin')?.permissions).not.toContain('MAIL_SEND');
+  expect(users.find((user) => user.id === 'owner')?.permissions).toEqual(['*']);
 });
