@@ -20,9 +20,6 @@
   border-radius: 12px;
 }
 .paper {
-  display: grid;
-  grid-template-rows: auto minmax(min-content, 1fr);
-  row-gap: 24px;
   box-sizing: border-box;
   width: 794px;
   min-height: 1123px;
@@ -35,10 +32,20 @@
   box-shadow: 0 2px 12px #00000012;
 }
 .paper h2 {
-  margin: 0;
+  margin: 0 0 24px;
   text-align: center;
-  font-size: inherit;
+  overflow-wrap: anywhere;
+  font-size: 18pt;
   font-weight: 700;
+}
+.capture {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  pointer-events: none;
+}
+.capture .paper {
+  box-shadow: none;
 }
 .table {
   border-collapse: collapse;
@@ -60,11 +67,30 @@
   text-align: left;
   background: #fff;
 }
+.summary {
+  margin-bottom: 24px;
+  font-size: 14pt;
+}
+.compact .table,
+.compact .caption {
+  font-size: 16pt;
+}
+.compact .table {
+  line-height: 1.25;
+}
+.compact .table th,
+.compact .table td {
+  padding: 4px 5px;
+}
 .caption {
   text-align: left;
   font-weight: 700;
   font-size: inherit;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
+}
+.table .order {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .amount {
   text-align: right;
