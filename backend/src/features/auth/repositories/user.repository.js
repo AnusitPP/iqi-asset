@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { permissionsForRole } from '../../../../../shared/features/auth/permissions.js';
+import {
+  adminPermissions,
+  permissionsForRole,
+} from '../../../../../shared/features/auth/permissions.js';
 import { throwHttpError } from '../../../core/errors/errors.js';
 const rank = { STAFF: 0, ADMIN: 1, SUPER_ADMIN: 2 };
 export const userIdForGoogleSub = (sub) => 'U-' + createHash('sha256').update(sub).digest('hex');
@@ -39,7 +42,7 @@ export function currentUser(tables, id) {
     avatar_url: user.avatar_url,
     status: profiles.every((profile) => profile.status === 'ACTIVE') ? 'ACTIVE' : 'DISABLED',
     role,
-    permissions: permissionsForRole(role),
+    permissions: role === 'ADMIN' ? adminPermissions(assignments) : permissionsForRole(role),
     last_login_at: user.last_login_at,
     created_at: profiles[0].created_at,
     updated_at: user.updated_at,

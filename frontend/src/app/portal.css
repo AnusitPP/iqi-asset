@@ -212,6 +212,16 @@ body {
   min-width: 0;
   margin-bottom: 9px;
 }
+button.portal-sidebar-profile {
+  width: 100%;
+  text-align: left;
+}
+button.portal-sidebar-profile .portal-profile-copy {
+  flex: 1;
+}
+button.portal-sidebar-profile > svg {
+  flex-shrink: 0;
+}
 .portal-profile-copy {
   display: grid;
   min-width: 0;

@@ -42,6 +42,7 @@ export class ApiClient {
   constructor(
     private readonly onUnauthorized: () => void = () => {},
     private readonly transport: typeof fetch = (...args) => fetch(...args),
+    private readonly previewRole?: 'ADMIN' | 'STAFF',
   ) {}
   setCsrfToken(value: string) {
     this.csrf = value;
@@ -59,6 +60,7 @@ export class ApiClient {
   ): Promise<T> {
     const headers = new Headers({ 'X-IQI-Request': this.csrf });
     headers.set('Content-Type', options.binary ? 'application/octet-stream' : 'application/json');
+    if (this.previewRole) headers.set('X-IQI-Preview-Role', this.previewRole);
     if (options.revision) headers.set('X-Record-Revision', options.revision);
     const response = await this.transport(path, {
       method: options.method ?? 'GET',

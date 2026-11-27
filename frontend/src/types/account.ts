@@ -67,7 +67,7 @@ export const myRequestsSchema = z.object({
 
 export function canAccess(user: AccountUser | null | undefined, permission: string) {
   if (!user) return false;
-  const rolePermissions = permissionsForRole(user.role);
+  const rolePermissions = permissionsForRole(user.role, true);
   return (
     (rolePermissions.includes('*') || rolePermissions.includes(permission)) &&
     (user.permissions.includes('*') || user.permissions.includes(permission))

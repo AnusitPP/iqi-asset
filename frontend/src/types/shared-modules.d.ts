@@ -45,7 +45,13 @@ declare module '@shared/features/auth/profile.js' {
   export function googleProfileImageUrl(value: unknown): string;
 }
 declare module '@shared/features/auth/permissions.js' {
-  export function permissionsForRole(role: string): string[];
+  export function permissionsForRole(role: string, includeOptional?: boolean): string[];
+  export function approvalPermission(status: string): string;
+  export const ADMIN_ACCESS_GROUPS: readonly {
+    page: string;
+    label: string;
+    actions: readonly { id: string; label: string }[];
+  }[];
 }
 declare module '@shared/features/records/dashboardFields.js' {
   export const editableDashboardHeaders: string[];

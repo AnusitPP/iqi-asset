@@ -17,6 +17,8 @@ import { useAuthSession } from '@/features/auth/auth-provider';
 import { systemService } from '@/services/system.service';
 import { LoadingIndicator } from '@/components/ui/feedback';
 import { ErrorPopup } from '@/components/core/error-popup';
+import { ReportEntryForm } from './report-entry-form';
+import { ReportManageEntries } from './report-manage-entries';
 import styles from './report-preview.module.css';
 
 const initialPageSize = 12;
@@ -49,7 +51,7 @@ function toggle<T>(values: T[], value: T) {
 }
 
 export function ReportPreview() {
-  const { api } = useAuthSession();
+  const { api, can } = useAuthSession();
   const [page, setPage] = useState(1);
   const [condition, setCondition] = useState('ทั้งหมด');
   const [costFilter, setCostFilter] = useState('ทั้งหมด');
@@ -422,6 +424,24 @@ export function ReportPreview() {
         </Stack>
       )}
       <Group mb="md">
+        {can('SHEETS_ADD') && (
+          <ReportEntryForm
+            api={api}
+            onSaved={() => {
+              void report.refetch();
+            }}
+          />
+        )}
+        {can('SHEETS_TRASH') && (
+          <ReportManageEntries
+            api={api}
+            rows={report.data.rows}
+            onChanged={() => {
+              resetSelection();
+              return report.refetch();
+            }}
+          />
+        )}
         <Button
           variant="default"
           disabled={generating}

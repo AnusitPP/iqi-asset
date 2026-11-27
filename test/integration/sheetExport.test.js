@@ -48,7 +48,11 @@ test('export requires admin, validates format, returns current CSV and propagate
   const fixture = await testSession({ host: '127.0.0.1' });
   let reads = 0;
   let fail = false;
+  const appended = [];
+  const trashed = [];
   const adapter = {
+    appendAssetReportEntry: async (entry) => appended.push(entry),
+    trashAssetReportEntry: async (row, values) => trashed.push({ row, values }),
     readAssetReportExport: async () => {
       reads++;
       if (fail) throw Object.assign(new Error('ไม่พบชีต รายงานครุภัณฑ์ ปี 70'), { status: 404 });
@@ -92,8 +96,133 @@ test('export requires admin, validates format, returns current CSV and propagate
   const excelData = await excelResponse.json();
   assert.equal(excelData.filename, 'รายงานครุภัณฑ์ ปี 70.xlsx');
   assert.equal(Buffer.from(excelData.content, 'base64').subarray(0, 2).toString(), 'PK');
+  const { csrf } = await (await fetch(new URL('/api/auth/session', reportUrl), { headers })).json();
+  const post = (body, cookie = fixture.cookie) =>
+    fetch(reportUrl, {
+      method: 'POST',
+      headers: { Cookie: cookie, 'Content-Type': 'application/json', 'X-IQI-Request': csrf },
+      body: JSON.stringify(body),
+    });
+  const entry = {
+    assetNumber: '001',
+    name: 'จอ',
+    serial: '0009',
+    cost: '26.50',
+    updatedAt: '2026-11-25T15:26',
+  };
+  assert.equal((await post({ ...entry, updatedAt: '2026-02-30T15:26' })).status, 400);
+  assert.equal((await post({ ...entry, photos: 'javascript:alert(1)' })).status, 400);
+  assert.equal((await post(entry, `iqi_session=${staff}`)).status, 403);
+  assert.equal((await post(entry)).status, 201);
+  assert.equal(appended.length, 1);
+  assert.equal(appended[0]['เลขครุภัณฑ์'], '001');
+  assert.equal(appended[0]['S/N'], '0009');
+  assert.equal(appended[0]['ราคาทุน'], 26.5);
+  assert.equal(appended[0]['วันที่อัปเดตล่าสุด'], '25/11/69 15:26:00');
+  const trash = (body) =>
+    fetch(reportUrl + '/trash', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json', 'X-IQI-Request': csrf },
+      body: JSON.stringify(body),
+    });
+  assert.equal((await trash({ row: 1, values: ['หัวตาราง'] })).status, 400);
+  assert.equal((await trash({ row: 2, values: ['001', 'จอ'] })).status, 200);
+  assert.deepEqual(trashed, [{ row: 2, values: ['001', 'จอ'] }]);
   fail = true;
   assert.equal((await fetch(base + '?format=csv', { headers })).status, 404);
+});
+
+test('report append maps typed values to live headers without executing user text', async () => {
+  const adapter = new GoogleSheets({ keyFile: 'unused', spreadsheetId: 'dev-fixture' });
+  const requests = [];
+  adapter.api = {
+    spreadsheets: {
+      values: {
+        get: async () => ({
+          data: { values: [['ราคาทุน', 'เลขครุภัณฑ์', 'ชื่ออุปกรณ์', 'อื่น ๆ']] },
+        }),
+        append: async (request) => requests.push(request),
+      },
+    },
+  };
+  await adapter.appendAssetReportEntry({
+    เลขครุภัณฑ์: '001',
+    ชื่ออุปกรณ์: '=literal',
+    ราคาทุน: 12.5,
+  });
+  assert.equal(requests[0].range, "'รายงานครุภัณฑ์ ปี 70'!A1:D");
+  assert.equal(requests[0].valueInputOption, 'RAW');
+  assert.deepEqual(requests[0].requestBody.values, [[12.5, '001', '=literal', null]]);
+  await assert.rejects(adapter.appendAssetReportEntry({ หัวคอลัมน์หาย: 'test' }), { status: 422 });
+  assert.equal(requests.length, 1);
+});
+
+test('report append refuses the live workbook outside Vercel Production', async () => {
+  const adapter = new GoogleSheets({
+    keyFile: 'unused',
+    spreadsheetId: '1IvDnE8yCqN232ZuaXgNSj-42Zm4k1IjDYFNgsXXWdHo',
+  });
+  const env = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = 'preview';
+  try {
+    await assert.rejects(adapter.appendAssetReportEntry({}), { status: 403 });
+    await assert.rejects(adapter.trashAssetReportEntry(2, ['001']), { status: 403 });
+  } finally {
+    if (env === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = env;
+  }
+});
+
+test('report trash rejects a changed row and moves the matching row with one atomic batch', async () => {
+  const adapter = new GoogleSheets({ keyFile: 'unused', spreadsheetId: 'dev-fixture' });
+  const requests = [];
+  const sheets = [
+    {
+      properties: {
+        sheetId: 9,
+        title: 'รายงานครุภัณฑ์ ปี 70',
+        gridProperties: { columnCount: 9 },
+      },
+    },
+  ];
+  const headers = ['เลขครุภัณฑ์', 'ชื่ออุปกรณ์'];
+  adapter.api = {
+    spreadsheets: {
+      get: async () => ({ data: { sheets } }),
+      values: {
+        batchGet: async ({ ranges }) => ({
+          data: {
+            valueRanges: ranges.map((_, index) => ({
+              values: [index === 0 ? ['001', 'จอ'] : headers],
+            })),
+          },
+        }),
+      },
+      batchUpdate: async ({ requestBody }) => requests.push(requestBody.requests),
+    },
+  };
+  await assert.rejects(adapter.trashAssetReportEntry(5, ['002', 'โต๊ะ']), { status: 409 });
+  assert.equal(requests.length, 0);
+  await adapter.trashAssetReportEntry(5, ['001', 'จอ']);
+  assert.equal(requests[0][0].addSheet.properties.title, 'รายการที่ลบ');
+  assert.equal(requests[0][1].copyPaste.source.startRowIndex, 0);
+  assert.deepEqual(requests[0][2].cutPaste, {
+    source: {
+      sheetId: 9,
+      startRowIndex: 4,
+      endRowIndex: 5,
+      startColumnIndex: 0,
+      endColumnIndex: 9,
+    },
+    destination: { sheetId: 1, rowIndex: 1, columnIndex: 0 },
+    pasteType: 'PASTE_NORMAL',
+  });
+  sheets.push({
+    properties: { sheetId: 1, title: 'รายการที่ลบ', gridProperties: { columnCount: 9 } },
+  });
+  await adapter.trashAssetReportEntry(5, ['001', 'จอ']);
+  assert.equal(requests[1][0].insertDimension.range.startIndex, 1);
+  assert.deepEqual(requests[1][1], requests[0][2]);
 });
 
 test('Excel export keeps IDs and Thai dates as text, formats costs and separates every photo link', async () => {

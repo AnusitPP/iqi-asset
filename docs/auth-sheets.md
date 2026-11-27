@@ -9,9 +9,11 @@ Current configured workbook: https://docs.google.com/spreadsheets/d/1DBixPNtSNPj
 ## Storage schema
 
 Users: id, google_sub, email, name, avatar_url, status, last_login_at, created_at, updated_at.
-Admins: id, user_id, email, role, status, assigned_by, created_at, updated_at.
+Admins: id, user_id, email, role, status, assigned_by, created_at, updated_at, permissions (optional trailing column).
 Sessions: id, user_id, session_token_hash, created_at, expires_at, revoked_at, last_seen_at.
 AuditLogs: id, actor_user_id, actor_google_sub, actor_name_snapshot, actor_email_snapshot, action, entity_type, entity_id, before_data, after_data, created_at.
+
+The first per-admin permissions save adds the `permissions` header at I1 and stores a JSON list in the same batch as its audit entry. A blank cell gives the default ADMIN permissions. `[]` disables all pages managed by the permissions editor for that admin. Older releases with strict headers need the column contents backed up and column I cleared before rollback.
 
 User IDs are derived deterministically from verified Google sub; email is not identity. A new user defaults STAFF. Active elevated grants live only in Admins, linked by user_id. The pending bootstrap invitation binds to a verified identity on first login. Roles/status are reread on every authenticated request. Duplicate profiles with any disabled row fail closed; conflicting elevated assignments resolve to the lower privilege. Do not reorder/delete data rows while the application is writing.
 

@@ -13,7 +13,17 @@ const SCHEMA = {
     'created_at',
     'updated_at',
   ],
-  Admins: ['id', 'user_id', 'email', 'role', 'status', 'assigned_by', 'created_at', 'updated_at'],
+  Admins: [
+    'id',
+    'user_id',
+    'email',
+    'role',
+    'status',
+    'assigned_by',
+    'created_at',
+    'updated_at',
+    'permissions',
+  ],
   Sessions: [
     'id',
     'user_id',
@@ -57,14 +67,20 @@ export class AuthSheetStorage {
     const tables = {};
     for (const [index, name] of Object.keys(SCHEMA).entries()) {
       const rows = data.valueRanges[index]?.values || [];
-      if (JSON.stringify(rows[0]) !== JSON.stringify(SCHEMA[name]))
+      const header = JSON.stringify(rows[0]);
+      const legacyAdmins =
+        name === 'Admins' && header === JSON.stringify(SCHEMA.Admins.slice(0, -1));
+      if (!legacyAdmins && header !== JSON.stringify(SCHEMA[name]))
         throw configurationError(`หัวคอลัมน์ ${name} ในชีต Authentication ไม่ถูกต้อง`);
       tables[name] = rows
         .slice(1)
         .map((values, offset) => ({
           row: offset + 1,
           ...Object.fromEntries(
-            SCHEMA[name].map((key, column) => [key, String(values[column] ?? '')]),
+            (legacyAdmins ? SCHEMA.Admins.slice(0, -1) : SCHEMA[name]).map((key, column) => [
+              key,
+              String(values[column] ?? ''),
+            ]),
           ),
         }))
         .filter((record) => record.id);
@@ -111,6 +127,21 @@ export class AuthSheetStorage {
         });
       })
       .flat();
+    if (
+      operations.some(
+        ({ table, values }) => table === 'Admins' && Object.hasOwn(values, 'permissions'),
+      )
+    ) {
+      const sheetId = data.sheets.find(({ properties }) => properties.title === 'Admins').properties
+        .sheetId;
+      requests.unshift({
+        updateCells: {
+          start: { sheetId, rowIndex: 0, columnIndex: SCHEMA.Admins.indexOf('permissions') },
+          rows: [{ values: [{ userEnteredValue: { stringValue: 'permissions' } }] }],
+          fields: 'userEnteredValue',
+        },
+      });
+    }
     await this.api.spreadsheets.batchUpdate({
       spreadsheetId: this.spreadsheetId,
       requestBody: { requests },

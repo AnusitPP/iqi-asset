@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AppShell, Burger, Container, Drawer, Group, Anchor } from '@mantine/core';
+import { AppShell, Burger, Container, Drawer, Group, Anchor, Alert, Button } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useAuthSession } from '@/features/auth/auth-provider';
 import { useHasUnsavedChanges } from '@/hooks/use-unsaved';
@@ -115,6 +115,26 @@ export function AuthenticatedWorkspace({ children }: { children: ReactNode }) {
                 size="sm"
               />
             </Group>
+            {auth.previewRole && (
+              <Alert mb="md" color="blue" role="status">
+                <Group justify="space-between">
+                  <span>มุมมอง {auth.previewRole} · ดูข้อมูลได้อย่างเดียว</span>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => {
+                      if (
+                        !dirty ||
+                        window.confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการเปลี่ยนมุมมองหรือไม่?')
+                      )
+                        auth.setPreviewRole?.(null);
+                    }}
+                  >
+                    กลับสู่ Super Admin
+                  </Button>
+                </Group>
+              </Alert>
+            )}
             <ErrorPopup error={error} />
             {children}
           </Container>

@@ -5,5 +5,10 @@ export function registerUserRoutes(app, config) {
   app.get('/api/admin/users', requirePermission('USER_VIEW'), controller.list);
   app.get('/api/admin/users/:id', requirePermission('USER_VIEW'), controller.detail);
   app.patch('/api/admin/users/:id/role', requirePermission('USER_MANAGE'), controller.role);
+  app.patch(
+    '/api/admin/users/:id/permissions',
+    requirePermission('USER_MANAGE'),
+    controller.permissions,
+  );
   app.patch('/api/admin/users/:id/status', requirePermission('USER_MANAGE'), controller.status);
 }

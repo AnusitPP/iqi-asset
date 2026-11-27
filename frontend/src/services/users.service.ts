@@ -16,6 +16,12 @@ export const usersService = {
   detail(api: ApiClient, id: string, signal?: AbortSignal) {
     return api.request(`/api/admin/users/${encodeURIComponent(id)}`, userDetailSchema, { signal });
   },
+  updatePermissions(api: ApiClient, id: string, permissions: string[]) {
+    return api.request(`/api/admin/users/${encodeURIComponent(id)}/permissions`, userDetailSchema, {
+      method: 'PATCH',
+      body: { permissions },
+    });
+  },
   updateRole(api: ApiClient, id: string, role: AccountRole) {
     return api.request(`/api/admin/users/${encodeURIComponent(id)}/role`, userDetailSchema, {
       method: 'PATCH',

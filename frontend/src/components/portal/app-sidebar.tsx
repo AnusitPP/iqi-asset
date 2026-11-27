@@ -1,12 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { Tooltip, Anchor, Box, UnstyledButton, Badge, Image } from '@mantine/core';
+import { Tooltip, Anchor, Box, UnstyledButton, Badge, Image, Menu } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { myRequestsSchema } from '@/types/account';
 import { pendingRequestCounts } from '@/features/my-requests/pending-counts';
 import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { sidebarModules, isServiceAllowed, type PortalService } from '@/config/navigation';
 import { useAuthSession } from '@/features/auth/auth-provider';
+import { useHasUnsavedChanges } from '@/hooks/use-unsaved';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { defaultWorkspacePath } from '@/types/account';
 import { usePortalLinkHandler } from './navigation-context';
@@ -88,7 +89,21 @@ export function AppSidebar({
   onLogout,
   leaving,
 }: SidebarProps) {
-  const { api, can, user } = useAuthSession();
+  const { api, can, user, previewRole, setPreviewRole } = useAuthSession();
+  const dirty = useHasUnsavedChanges();
+  const switchView = (role: 'ADMIN' | 'STAFF' | null) => {
+    if (dirty && !window.confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการเปลี่ยนมุมมองหรือไม่?')) return;
+    setPreviewRole?.(role);
+  };
+  const profile = user && (
+    <>
+      <UserAvatar name={user.name} url={user.avatar_url} />
+      <Box className="portal-profile-copy">
+        <strong>{user.name}</strong>
+        <span>{user.role}</span>
+      </Box>
+    </>
+  );
   const canViewApprovals =
     !!user && ['ADMIN', 'SUPER_ADMIN'].includes(user.role) && can('LOAN_VIEW_ALL');
   const approvals = useQuery({
@@ -186,15 +201,31 @@ export function AppSidebar({
         })}
       </Box>
       <Box className="portal-sidebar-bottom">
-        {user && (
-          <Box className="portal-sidebar-profile">
-            <UserAvatar name={user.name} url={user.avatar_url} />
-            <Box className="portal-profile-copy">
-              <strong>{user.name}</strong>
-              <span>{user.role}</span>
-            </Box>
-          </Box>
-        )}
+        {profile &&
+          (setPreviewRole ? (
+            <Menu position="right-end" withinPortal>
+              <Menu.Target>
+                <UnstyledButton className="portal-sidebar-profile" aria-label="มุมมองตาม Role">
+                  {profile}
+                  {!collapsed && <ChevronDown size={14} aria-hidden="true" />}
+                </UnstyledButton>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>มุมมองตาม Role</Menu.Label>
+                <Menu.Item disabled={previewRole === 'ADMIN'} onClick={() => switchView('ADMIN')}>
+                  ADMIN
+                </Menu.Item>
+                <Menu.Item disabled={previewRole === 'STAFF'} onClick={() => switchView('STAFF')}>
+                  STAFF
+                </Menu.Item>
+                {previewRole && (
+                  <Menu.Item onClick={() => switchView(null)}>กลับสู่ Super Admin</Menu.Item>
+                )}
+              </Menu.Dropdown>
+            </Menu>
+          ) : (
+            <Box className="portal-sidebar-profile">{profile}</Box>
+          ))}
         <Tooltip label="ล็อกออก" position="right" disabled={!collapsed}>
           <UnstyledButton
             className="portal-logout"

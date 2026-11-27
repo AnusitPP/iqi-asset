@@ -28,7 +28,7 @@ export function MailPage() {
         <form
           onSubmit={async (event) => {
             event.preventDefault();
-            if (sending.current || !can('ADMIN_DASHBOARD_VIEW')) return;
+            if (sending.current || !can('MAIL_SEND')) return;
             sending.current = true;
             setBusy(true);
             setError(null);
@@ -82,14 +82,14 @@ export function MailPage() {
             <Text role="status" size="sm">
               {notice}
             </Text>
-            <Button type="submit" loading={busy} disabled={!can('ADMIN_DASHBOARD_VIEW')}>
+            <Button type="submit" loading={busy} disabled={!can('MAIL_SEND')}>
               ส่งอีเมล
             </Button>
             <Button
               type="button"
               variant="default"
               loading={previewBusy}
-              disabled={busy || previewBusy || !can('ADMIN_DASHBOARD_VIEW')}
+              disabled={busy || previewBusy || !can('MAIL_VIEW')}
               onClick={async () => {
                 setPreviewBusy(true);
                 setError(null);
@@ -136,7 +136,7 @@ export function MailPage() {
             type="button"
             variant="default"
             loading={previewBusy}
-            disabled={busy || previewBusy || !can('ADMIN_DASHBOARD_VIEW')}
+            disabled={busy || previewBusy || !can('MAIL_VIEW')}
             onClick={async () => {
               setPreviewBusy(true);
               setError(null);

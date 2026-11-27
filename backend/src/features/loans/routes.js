@@ -1,3 +1,4 @@
+import { approvalPermission, hasPermission } from '../../../../shared/features/auth/permissions.js';
 import { approvalStatuses } from '../../../../shared/features/lending/status.js';
 import { auditEntry } from '../audit/repository.js';
 import { createHash } from 'node:crypto';
@@ -24,9 +25,8 @@ export function registerLoansRoutes(
       next(error);
     }
   });
-  const listRequests = async (req, res) => {
-    const admin = req.originalUrl?.split('?')[0] === '/api/approval-requests';
-    if (admin && !['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
+  const listRequests = (admin) => async (req, res) => {
+    if (admin && !hasPermission(req.user, 'LOAN_VIEW_ALL'))
       return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดำเนินการนี้' });
     res.set('Cache-Control', 'private, no-store');
     if (!req.user) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
@@ -112,11 +112,14 @@ export function registerLoansRoutes(
       ].filter((record) => admin || own.has(record.id)),
     });
   };
-  app.get('/api/my-requests', listRequests);
-  app.get('/api/approval-requests', listRequests);
+  app.get('/api/my-requests', listRequests(false));
+  app.get('/api/approval-requests', listRequests(true));
   app.patch('/api/approval-requests/:id', async (req, res, next) => {
     try {
-      if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role))
+      if (
+        !hasPermission(req.user, 'LOAN_VIEW_ALL') ||
+        !hasPermission(req.user, approvalPermission(req.body?.status))
+      )
         return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดำเนินการนี้' });
       const comment = req.body?.adminComment;
       if (comment !== undefined && (typeof comment !== 'string' || comment.length > 2000))
@@ -148,6 +151,15 @@ export function registerLoansRoutes(
           throw Object.assign(new Error('ไม่พบรายการยืมหรือรหัสซ้ำ'), { status: 409 });
         const record = matches[0];
         const previousStatus = record[14];
+        const responsible = hasPermission(req.user, 'RESPONSIBLE_ASSIGN')
+          ? req.user.name
+          : record[15] || '';
+        if (
+          pickup &&
+          !hasPermission(req.user, 'LOAN_APPROVE') &&
+          (pickup.date !== (record[20] || '') || pickup.time !== (record[21] || ''))
+        )
+          throw Object.assign(new Error('คุณไม่มีสิทธิ์แก้ไขวันและเวลานัดรับ'), { status: 403 });
         if (
           pickup?.date &&
           pickup.date < bangkokIsoDate() &&
@@ -167,7 +179,7 @@ export function registerLoansRoutes(
           await lendingLedger.adapter.updateReturnStatus(
             req.params.id,
             req.body.status,
-            req.user.name,
+            responsible,
             req.body.condition,
             comment,
           );
@@ -175,7 +187,7 @@ export function registerLoansRoutes(
           await lendingLedger.adapter.updateLoanStatus(
             req.params.id,
             req.body.status,
-            req.user.name,
+            responsible,
             comment,
             pickup,
           );

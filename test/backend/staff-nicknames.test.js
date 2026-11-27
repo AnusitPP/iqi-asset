@@ -115,7 +115,12 @@ test('approval and my-request responses enrich loans and returns using the displ
     await routes.get(admin ? '/api/approval-requests' : '/api/my-requests')(
       {
         originalUrl: admin ? '/api/approval-requests' : '/api/my-requests',
-        user: { id: 'user', role: admin ? 'ADMIN' : 'STAFF', email: 'staff@example.com' },
+        user: {
+          id: 'user',
+          role: admin ? 'ADMIN' : 'STAFF',
+          permissions: admin ? ['LOAN_VIEW_ALL'] : [],
+          email: 'staff@example.com',
+        },
         authStorage: { read: async () => ({ AuditLogs: [] }) },
       },
       {
@@ -128,8 +133,7 @@ test('approval and my-request responses enrich loans and returns using the displ
     assert.equal(result.records.length, 2);
     assert.ok(
       result.records.every(
-        (record) =>
-          record.borrower === 'Full Name' && record.borrowerNickname === 'Nick',
+        (record) => record.borrower === 'Full Name' && record.borrowerNickname === 'Nick',
       ),
     );
   }
@@ -140,7 +144,12 @@ test('approval and my-request responses enrich loans and returns using the displ
   await routes.get('/api/approval-requests')(
     {
       originalUrl: '/api/approval-requests',
-      user: { id: 'operator', role: 'ADMIN', email: 'staff@example.com' },
+      user: {
+        id: 'operator',
+        role: 'ADMIN',
+        permissions: ['LOAN_VIEW_ALL'],
+        email: 'staff@example.com',
+      },
       authStorage: { read: async () => ({ AuditLogs: [] }) },
     },
     {

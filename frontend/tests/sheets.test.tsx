@@ -89,6 +89,41 @@ it('hides export for non-admins', () => {
   expect(screen.queryByRole('button', { name: 'Export รายงานครุภัณฑ์ ปี 70' })).toBeNull();
 });
 
+it('searches report entries and only moves the chosen row after confirmation', async () => {
+  mocks.admin = true;
+  const rows = [
+    ['เลขครุภัณฑ์', 'ชื่ออุปกรณ์', 'S/N'],
+    ['A-1', 'จอ', 'SN-1'],
+    [],
+    ['A-2', 'โต๊ะ', 'SN-2'],
+  ];
+  mocks.request.mockImplementation(async (path: string) => {
+    if (path.endsWith('/trash')) {
+      rows[3] = [];
+      return { ok: true };
+    }
+    if (path === '/api/sheets/asset-report') return { rows: structuredClone(rows) };
+    return { connected: true, sheets: [], csrf: 'test' };
+  });
+  show();
+  await userEvent.click(screen.getByRole('button', { name: 'พรีวิวตารางรายงาน' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'จัดการรายการ' }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'ค้นหารายการ' }), 'SN-2');
+  expect(screen.queryByRole('button', { name: /ลบรายการ A-1/ })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: /ลบรายการ A-2/ }));
+  expect(mocks.request).not.toHaveBeenCalledWith(
+    '/api/sheets/asset-report/trash',
+    expect.anything(),
+    expect.anything(),
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'ย้ายไปถัง' }));
+  await screen.findByText('ไม่พบรายการ');
+  expect(mocks.request).toHaveBeenCalledWith('/api/sheets/asset-report/trash', expect.anything(), {
+    method: 'POST',
+    body: { row: 4, values: ['A-2', 'โต๊ะ', 'SN-2'] },
+  });
+});
+
 it('fills each A4 page using measured rows and leaves remaining rows on the last page', async () => {
   mocks.admin = true;
   const rows = [

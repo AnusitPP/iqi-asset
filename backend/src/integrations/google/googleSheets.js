@@ -4,6 +4,18 @@ import { google } from 'googleapis';
 import { manageGoogleClient } from './request-manager.js';
 import { columnName } from '../../features/records/search.js';
 const quote = (name) => `'${name.replaceAll("'", "''")}'`;
+const reportTitle = 'รายงานครุภัณฑ์ ปี 70';
+const reportTrashTitle = 'รายการที่ลบ';
+
+function assertReportWriteAllowed(spreadsheetId) {
+  if (
+    process.env.VERCEL_ENV !== 'production' &&
+    spreadsheetId === '1IvDnE8yCqN232ZuaXgNSj-42Zm4k1IjDYFNgsXXWdHo'
+  )
+    throw Object.assign(new Error('กรุณาตั้งชีตรายงานทดสอบแยกจาก Production ก่อนบันทึก'), {
+      status: 403,
+    });
+}
 export class GoogleSheets {
   constructor(config) {
     this.config = config;
@@ -30,11 +42,11 @@ export class GoogleSheets {
       spreadsheetId: this.config.spreadsheetId,
       fields: 'sheets.properties.title',
     });
-    if (!data.sheets.some((sheet) => sheet.properties.title === 'รายงานครุภัณฑ์ ปี 70'))
+    if (!data.sheets.some((sheet) => sheet.properties.title === reportTitle))
       throw Object.assign(new Error('ไม่พบชีต รายงานครุภัณฑ์ ปี 70'), { status: 404 });
     const response = await this.api.spreadsheets.values.get({
       spreadsheetId: this.config.spreadsheetId,
-      range: "'รายงานครุภัณฑ์ ปี 70'",
+      range: quote(reportTitle),
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return response.data.values || [];
@@ -46,6 +58,116 @@ export class GoogleSheets {
       valueRenderOption: 'FORMATTED_VALUE',
     });
     return data.values || [];
+  }
+  async appendAssetReportEntry(values) {
+    const spreadsheetId = this.config.spreadsheetId;
+    assertReportWriteAllowed(spreadsheetId);
+    const range = quote(reportTitle);
+    const { data } = await this.api.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${range}!1:1`,
+    });
+    const [headers = []] = data.values || [];
+    if (
+      Object.keys(values).some((field) => headers.filter((header) => header === field).length !== 1)
+    )
+      throw Object.assign(new Error('หัวคอลัมน์รายงานไม่ตรงกับแบบฟอร์ม'), { status: 422 });
+    await this.api.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${range}!A1:${columnName(headers.length - 1)}`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [headers.map((header) => (Object.hasOwn(values, header) ? values[header] : null))],
+      },
+    });
+  }
+  async trashAssetReportEntry(row, expected) {
+    const spreadsheetId = this.config.spreadsheetId;
+    assertReportWriteAllowed(spreadsheetId);
+    const { data } = await this.api.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties(sheetId,title,gridProperties)',
+    });
+    const sheets = data.sheets.map(({ properties }) => properties);
+    const source = sheets.find(({ title }) => title === reportTitle);
+    if (!source) throw Object.assign(new Error('ไม่พบชีตรายงานครุภัณฑ์'), { status: 404 });
+    const trash = sheets.find(({ title }) => title === reportTrashTitle);
+    const ranges = [`${quote(reportTitle)}!${row}:${row}`];
+    if (trash) ranges.push(`${quote(reportTitle)}!1:1`, `${quote(reportTrashTitle)}!1:1`);
+    const current = await this.api.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges,
+      valueRenderOption: 'FORMATTED_VALUE',
+    });
+    const [record = [], reportHeaders, trashHeaders] = (current.data.valueRanges ?? []).map(
+      ({ values }) => values?.[0],
+    );
+    if (record.length !== expected.length || record.some((cell, index) => cell !== expected[index]))
+      throw Object.assign(new Error('รายการเปลี่ยนแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนย้าย'), {
+        status: 409,
+      });
+    if (
+      trash &&
+      (!reportHeaders?.length || JSON.stringify(reportHeaders) !== JSON.stringify(trashHeaders))
+    )
+      throw Object.assign(new Error('หัวคอลัมน์ในแท็บรายการที่ลบไม่ตรงกับรายงาน'), { status: 422 });
+
+    const width = source.gridProperties.columnCount;
+    let trashId = trash?.sheetId ?? 1;
+    while (!trash && sheets.some(({ sheetId }) => sheetId === trashId)) trashId++;
+    const sourceRange = (index) => ({
+      sheetId: source.sheetId,
+      startRowIndex: index,
+      endRowIndex: index + 1,
+      startColumnIndex: 0,
+      endColumnIndex: width,
+    });
+    const requests = [];
+    if (!trash) {
+      requests.push(
+        {
+          addSheet: {
+            properties: {
+              sheetId: trashId,
+              title: reportTrashTitle,
+              gridProperties: { rowCount: 2, columnCount: width },
+            },
+          },
+        },
+        {
+          copyPaste: {
+            source: sourceRange(0),
+            destination: { ...sourceRange(0), sheetId: trashId },
+            pasteType: 'PASTE_NORMAL',
+          },
+        },
+      );
+    } else {
+      if (trash.gridProperties.columnCount < width)
+        requests.push({
+          appendDimension: {
+            sheetId: trashId,
+            dimension: 'COLUMNS',
+            length: width - trash.gridProperties.columnCount,
+          },
+        });
+      requests.push({
+        insertDimension: {
+          range: { sheetId: trashId, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
+          inheritFromBefore: true,
+        },
+      });
+    }
+    // Cut cells in the same batch so the backup and removal succeed together without shifting source rows.
+    requests.push({
+      cutPaste: {
+        source: sourceRange(row - 1),
+        destination: { sheetId: trashId, rowIndex: 1, columnIndex: 0 },
+        pasteType: 'PASTE_NORMAL',
+      },
+    });
+    await this.api.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
   }
   async appendReadyToBorrow(row) {
     await this.api.spreadsheets.values.append({

@@ -15,7 +15,7 @@ export function registerMailRoutes(
 ) {
   app.post('/api/mail/mockup', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
-    if (!hasPermission(req.user, 'ADMIN_DASHBOARD_VIEW'))
+    if (!hasPermission(req.user, 'MAIL_VIEW'))
       return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดูตัวอย่างอีเมล' });
     const { groups } = req.body || {};
     if (
@@ -30,7 +30,7 @@ export function registerMailRoutes(
   });
   app.post('/api/mail/preview', async (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
-    if (!hasPermission(req.user, 'ADMIN_DASHBOARD_VIEW'))
+    if (!hasPermission(req.user, 'MAIL_VIEW'))
       return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ดูตัวอย่างอีเมล' });
     const { type } = req.body || {};
     if (!['summary', 'loan', 'return'].includes(type))
@@ -51,7 +51,7 @@ export function registerMailRoutes(
   });
   app.post('/api/mail/send', async (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
-    if (!hasPermission(req.user, 'ADMIN_DASHBOARD_VIEW'))
+    if (!hasPermission(req.user, 'MAIL_VIEW') || !hasPermission(req.user, 'MAIL_SEND'))
       return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ส่งอีเมล' });
     const { email, type } = req.body || {};
     if (

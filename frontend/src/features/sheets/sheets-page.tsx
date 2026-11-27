@@ -14,7 +14,8 @@ export function SheetsPage() {
   const [preview, setPreview] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<unknown>(null);
-  const canExport = can('ADMIN_DASHBOARD_VIEW');
+  const canView = can('SHEETS_VIEW');
+  const canExport = can('SHEETS_EXPORT');
   const exportFile = async (format: 'csv' | 'xlsx') => {
     if (exporting) return;
     setExporting(true);
@@ -46,7 +47,7 @@ export function SheetsPage() {
   const status = useQuery({
     queryKey: ['connection'],
     queryFn: ({ signal }) => systemService.fetchConnectionStatus(api, signal),
-    enabled: can('ADMIN_DASHBOARD_VIEW'),
+    enabled: canView,
   });
   const links = [{ label: 'ไฟล์ข้อมูลยืม–คืนครุภัณฑ์', url: status.data?.spreadsheetUrl }].filter(
     (link) => link.url,
@@ -58,7 +59,7 @@ export function SheetsPage() {
         title="ไฟล์ Google Sheets"
         description="เลือกไฟล์ที่ต้องการเปิด ลิงก์จะเปิดในแท็บใหม่"
       />
-      {canExport && (
+      {canView && (
         <Group mb="md">
           <Button
             variant="default"
@@ -67,20 +68,22 @@ export function SheetsPage() {
           >
             {preview ? 'ปิดพรีวิวตาราง' : 'พรีวิวตารางรายงาน'}
           </Button>
-          <Menu>
-            <Menu.Target>
-              <Button loading={exporting}>Export รายงานครุภัณฑ์ ปี 70</Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Label>เลือกรูปแบบไฟล์</Menu.Label>
-              <Menu.Item disabled={exporting} onClick={() => void exportFile('xlsx')}>
-                Excel (.xlsx)
-              </Menu.Item>
-              <Menu.Item disabled={exporting} onClick={() => void exportFile('csv')}>
-                CSV (.csv)
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          {canExport && (
+            <Menu>
+              <Menu.Target>
+                <Button loading={exporting}>Export รายงานครุภัณฑ์ ปี 70</Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>เลือกรูปแบบไฟล์</Menu.Label>
+                <Menu.Item disabled={exporting} onClick={() => void exportFile('xlsx')}>
+                  Excel (.xlsx)
+                </Menu.Item>
+                <Menu.Item disabled={exporting} onClick={() => void exportFile('csv')}>
+                  CSV (.csv)
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
         </Group>
       )}
       {canExport && (
@@ -110,7 +113,7 @@ export function SheetsPage() {
           <Text c="dimmed">ยังไม่มีลิงก์ไฟล์ที่ตั้งค่าไว้</Text>
         ) : null}
       </Paper>
-      {canExport && preview && <ReportPreview />}
+      {canView && preview && <ReportPreview />}
     </Box>
   );
 }
